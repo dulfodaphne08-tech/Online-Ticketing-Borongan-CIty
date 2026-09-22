@@ -1,0 +1,448 @@
+:root {
+            --primary: #b22234;
+            --primary-dark: #8f1a2a;
+            --primary-light: #fbe9ea;
+            --navy: #0f172a;
+            --bg-light: #f1f5f9;
+            --green: #16a34a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg-light);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+
+        .digital-id-card {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            overflow: hidden;
+            width: 100%;
+            max-width: 820px;
+            position: relative;
+            transition: box-shadow 0.3s;
+        }
+        .digital-id-card:hover {
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Watermark */
+        .digital-id-card::before {
+            content: "BORONGAN TRANSPORT";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-25deg);
+            font-size: 5rem;
+            font-weight: 900;
+            color: rgba(15, 23, 42, 0.04);
+            letter-spacing: 10px;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 0;
+            width: 100%;
+            text-align: center;
+        }
+
+        /* Header - Fixed alignment */
+        .id-header {
+            background: var(--navy);
+            padding: 1.2rem 2rem 1rem 2rem;
+            border-bottom: 3px solid var(--primary);
+            position: relative;
+            z-index: 1;
+        }
+        .id-header .logo-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.8rem;
+        }
+        .id-header .logo-row .logo-circle {
+            width: 56px;
+            height: 56px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .id-header .logo-row .logo-circle img {
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+        }
+        .id-header .logo-row .title-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .id-header .logo-row .title-group h1 {
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            margin: 0;
+            line-height: 1.2;
+        }
+        .id-header .logo-row .title-group .sub {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.7rem;
+            font-weight: 400;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-top: 0.05rem;
+        }
+
+        /* Body */
+        .id-body {
+            padding: 1.8rem 2rem 1.5rem 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .id-top-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .id-qr-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .id-qr-box {
+            background: white;
+            padding: 0.5rem;
+            border-radius: 1rem;
+            border: 2px solid var(--primary);
+            display: inline-block;
+        }
+        .id-qr-box #qrCodeFull {
+            width: 130px;
+            height: 130px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .id-qr-box #qrCodeFull img {
+            display: block;
+        }
+        .id-qr-label {
+            font-size: 0.5rem;
+            color: #6b7280;
+            text-align: center;
+            margin-top: 0.4rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .id-verify-badge {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            font-size: 0.5rem;
+            font-weight: 700;
+            padding: 0.1rem 0.8rem;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-top: 0.2rem;
+        }
+        .id-qr-footer {
+            font-size: 0.5rem;
+            color: #94a3b8;
+            margin-top: 0.3rem;
+            text-align: center;
+            letter-spacing: 0.3px;
+        }
+
+        .id-photo-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .id-photo-large {
+            width: 110px;
+            height: 135px;
+            border-radius: 1rem;
+            background: #f1f5f9;
+            border: 3px solid var(--primary);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem;
+            color: #94a3b8;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            flex-shrink: 0;
+        }
+        .id-photo-large img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .id-photo-large .photo-initials {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .driver-id-badge {
+            margin-top: 0.6rem;
+            background: var(--primary-light);
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.7rem;
+            padding: 0.25rem 1.2rem;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            border: 1px solid var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .driver-id-badge i {
+            font-size: 0.7rem;
+        }
+
+        .id-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.1rem 2rem;
+            margin-top: 0.5rem;
+            border-top: 2px solid #f1f5f9;
+            padding-top: 0.75rem;
+        }
+        .id-info-item {
+            display: flex;
+            flex-direction: column;
+            padding: 0.15rem 0;
+            border-bottom: 1px solid #f8fafc;
+        }
+        .id-info-item .info-label {
+            font-size: 0.5rem;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .id-info-item .info-label i {
+            font-size: 0.6rem;
+            color: var(--primary);
+        }
+        .id-info-item .info-value {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #1e293b;
+            word-break: break-word;
+        }
+        .id-info-item .info-value.highlight {
+            color: var(--primary);
+        }
+        .id-info-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .id-status-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 0.75rem;
+            padding-top: 0.5rem;
+            border-top: 2px solid #f1f5f9;
+        }
+      
+        @keyframes pulse-dot {
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.6;
+                transform: scale(0.9);
+            }
+        }
+
+        /* Actions - Below the card */
+        .id-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+            max-width: 820px;
+            width: 100%;
+        }
+        .id-actions .btn-download {
+            background: var(--primary);
+            color: white;
+            padding: 0.7rem 2.5rem;
+            border-radius: 0.75rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+            box-shadow: 0 4px 12px rgba(178, 34, 52, 0.3);
+            text-decoration: none;
+        }
+        .id-actions .btn-download:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(178, 34, 52, 0.35);
+        }
+        .id-actions .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            padding: 0.7rem 2rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            border: 2px solid var(--primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            text-decoration: none;
+        }
+        .id-actions .btn-secondary:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 550px) {
+            .id-top-row {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+            .id-qr-section {
+                flex: 0 0 auto;
+            }
+            .id-info-grid {
+                grid-template-columns: 1fr;
+            }
+            .id-photo-large {
+                width: 90px;
+                height: 110px;
+            }
+            .id-header {
+                padding: 1rem;
+            }
+            .id-body {
+                padding: 1.2rem;
+            }
+            .digital-id-card {
+                border-radius: 1.25rem;
+            }
+            .id-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+            .id-actions .btn-download,
+            .id-actions .btn-secondary {
+                width: 100%;
+                justify-content: center;
+            }
+            .id-header .logo-row {
+                justify-content: center;
+            }
+            .id-header .logo-row .title-group {
+                align-items: center;
+            }
+        }
+
+        @media print {
+            body * {
+                visibility: hidden !important;
+            }
+            #printContainer,
+            #printContainer * {
+                visibility: visible !important;
+            }
+            #printContainer {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                padding: 20px !important;
+                background: white !important;
+                visibility: visible !important;
+                margin: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                min-height: 100vh !important;
+            }
+            .digital-id-card {
+                max-width: 100% !important;
+                padding: 0 !important;
+                border: 1px solid #000 !important;
+                margin: 0 auto !important;
+                box-shadow: none !important;
+                background: white !important;
+                visibility: visible !important;
+                border-radius: 0 !important;
+            }
+            .digital-id-card * {
+                visibility: visible !important;
+            }
+            .digital-id-card::before {
+                content: none !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
+            .id-header {
+                background: #0f172a !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .id-verify-badge {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .id-photo-large {
+                border-color: #000 !important;
+            }
+            .driver-id-badge {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }

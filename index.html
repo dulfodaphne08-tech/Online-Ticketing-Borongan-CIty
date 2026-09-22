@@ -1,12 +1,568 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta http-equiv="refresh" content="0; url=login.html">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Borongan Transport</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR-Based Transport Ticketing and Fee Collection System | BCTT Borongan City</title>
+    <meta name="description" content="A web-based QR code ticketing system for public utility vehicles in Borongan City — driver registration, QR identification, automatic fee collection, and digital transaction records." />
+
+     <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <link rel="stylesheet" href="assets/css/index.css" />
 </head>
+
 <body>
-  <p>Opening login...</p>
-  <a href="login.html">Continue to login</a>
+
+     <div class="gov-topbar">
+        <div class="gov-topbar-inner">
+            <div class="gov-topbar-links">
+                <a href="#about">About Us</a>
+                <a href="#contact">Contact Us</a>
+                <a href="#faq">FAQ</a>
+            </div>
+            <div class="gov-topbar-right">
+                <span class="gov-topbar-tagline">BORONGANON: DISIPLINADO AKO</span>
+            </div>
+        </div>
+    </div>
+
+     <header class="gov-header">
+        <div class="gov-header-inner">
+            <div class="gov-header-left">
+                <img src="images/logo borongan.png" alt="Borongan City Seal" class="gov-header-seal" />
+                <div class="gov-header-text">
+                    <h1 class="gov-header-title">
+                        BORONGAN CITY TRANSPORT TERMINAL<br />
+                        QR-Based Transport Ticketing and Fee Collection System
+                    </h1>
+                    <p class="gov-header-subtitle">
+                        A web-based system for digital ticketing, driver identification, and fee monitoring of public utility vehicles in Borongan City.
+                    </p>
+                </div>
+            </div>
+            <div class="gov-header-right">
+                <div class="gov-header-logos">
+                    <img src="images/bctt.jpg" alt="Borongan City Transport Terminal" class="gov-header-logo" />
+                    <img src="images/bagong pilipinas.png" alt="Bagong Pilipinas" class="gov-header-logo" />
+                    <img src="images/logo dukwag.jpg" alt="Dukwag Logo" class="gov-header-logo" />
+                </div>
+                <form class="gov-search" role="search" onsubmit="return false;">
+                    <input type="search" placeholder="Search the website..." aria-label="Search" />
+                    <button type="submit" aria-label="Search"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+     <nav class="gov-nav">
+        <div class="gov-nav-inner">
+            <button id="mobileToggle" class="gov-nav-toggle" aria-label="Toggle menu">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div id="mainNav" class="gov-nav-menu">
+                <a href="#home" class="gov-nav-item active">HOME</a>
+                <a href="#about" class="gov-nav-item">ABOUT US</a>
+                <a href="#services" class="gov-nav-item">SERVICES</a>
+                <a href="#mission-vision" class="gov-nav-item">MISSION &amp; VISION</a>
+                <a href="#org-chart" class="gov-nav-item">ORGANIZATIONAL CHART</a>
+                <a href="#transport-info" class="gov-nav-item">TRANSPORT INFORMATION</a>
+                <a href="#faq" class="gov-nav-item">FAQ</a>
+                <a href="#contact" class="gov-nav-item">CONTACT US</a>
+                <a href="login.html" class="gov-nav-login">LOGIN</a>
+            </div>
+        </div>
+    </nav>
+
+     <section class="gov-hero" id="home">
+        <div class="gov-hero-inner">
+            <div class="gov-hero-image" data-aos="fade-right">
+                <img src="images/vehicle.jpg" alt="Borongan public utility vehicles" />
+                <div class="gov-hero-image-tag">
+                    <i class="fas fa-qrcode"></i>
+                    <span>Tricycle · Jeepney · Multicab · Bus</span>
+                </div>
+            </div>
+            <div class="gov-hero-text" data-aos="fade-left">
+                <span class="gov-hero-eyebrow">DIGITAL TRANSPORT SERVICES</span>
+                <h2 class="gov-hero-title">A Smarter Way to<br />Manage Transport<br />Services</h2>
+                <p class="gov-hero-desc">
+                    The QR-Based Transport Ticketing and Fee Collection System is a web-based platform
+                    designed to digitize the registration, identification, and fee collection of public
+                    utility vehicle drivers at the Borongan City Transport Terminal.
+                </p>
+                <div class="gov-btn-group">
+                    <a href="login.html" class="gov-btn gov-btn-primary">Login to the System</a>
+                    <a href="#about" class="gov-btn gov-btn-outline">Learn More <i class="fas fa-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section" id="about">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg" data-aos="fade-up">
+                <span class="gov-eyebrow">ABOUT THE SYSTEM</span>
+                <h2 class="gov-section-title">Designed for Better Transport Management</h2>
+                <p class="gov-section-lead">
+                    In many transportation terminals, drivers pay a fee when it is their turn in the queue.
+                    The current process is done manually on paper — which can cause delays, errors,
+                    misplaced records, and difficulty retrieving past transactions.
+                    The proposed system provides an organized, digital alternative for managing terminal
+                    ticketing and fee collection in Borongan City.
+                </p>
+            </div>
+
+            <div class="gov-grid-3">
+                <div class="gov-feature-card" data-aos="fade-up" data-aos-delay="0">
+                    <div class="gov-feature-icon"><i class="fas fa-id-card"></i></div>
+                    <h3>Driver Identification</h3>
+                    <p>Maintain organized digital records for registered drivers and their public utility vehicles.</p>
+                </div>
+                <div class="gov-feature-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="gov-feature-icon"><i class="fas fa-qrcode"></i></div>
+                    <h3>QR Verification</h3>
+                    <p>Verify registered driver and vehicle information using a unique QR code at the terminal.</p>
+                </div>
+                <div class="gov-feature-card" data-aos="fade-up" data-aos-delay="200">
+                    <div class="gov-feature-icon"><i class="fas fa-receipt"></i></div>
+                    <h3>Fee Management</h3>
+                    <p>Automatically compute, record, and issue a receipt for transportation fee transactions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section gov-section-alt" id="services">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg" data-aos="fade-up">
+                <span class="gov-eyebrow">OUR DIGITAL SERVICES</span>
+                <h2 class="gov-section-title">Everything You Need in One System</h2>
+            </div>
+            <div class="gov-grid-4">
+                <div class="gov-service-card" data-aos="fade-up" data-aos-delay="0">
+                    <div class="gov-service-num">01</div>
+                    <div class="gov-service-icon"><i class="fas fa-user-plus"></i></div>
+                    <h3>Driver Registration</h3>
+                    <p>Register personal and vehicle information through the system portal.</p>
+                </div>
+                <div class="gov-service-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="gov-service-num">02</div>
+                    <div class="gov-service-icon"><i class="fas fa-id-badge"></i></div>
+                    <h3>QR Driver ID</h3>
+                    <p>Each registered driver gets a unique QR code linked to their vehicle and plate number.</p>
+                </div>
+                <div class="gov-service-card" data-aos="fade-up" data-aos-delay="200">
+                    <div class="gov-service-num">03</div>
+                    <div class="gov-service-icon"><i class="fas fa-qrcode"></i></div>
+                    <h3>QR Verification</h3>
+                    <p>Terminal officers scan the driver's QR code to identify the vehicle instantly.</p>
+                </div>
+                <div class="gov-service-card gov-service-card-featured" data-aos="fade-up" data-aos-delay="300">
+                    <span class="gov-service-badge">Popular</span>
+                    <div class="gov-service-num">04</div>
+                    <div class="gov-service-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+                    <h3>Fee &amp; Transaction Records</h3>
+                    <p>Automatic fee computation, digital receipts, and searchable transaction history.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section">
+        <div class="gov-container">
+            <div class="gov-highlight">
+                <div class="gov-highlight-visual" data-aos="fade-right">
+                    <div class="gov-id-card">
+                        <div class="gov-id-header">
+                            <span>Driver Identification</span>
+                            <i class="fas fa-id-card"></i>
+                        </div>
+                        <div class="gov-id-body">
+                            <div class="gov-id-photo"><i class="fas fa-user"></i></div>
+                            <div class="gov-id-lines">
+                                <div class="gov-id-line"></div>
+                                <div class="gov-id-line short"></div>
+                                <div class="gov-id-line"></div>
+                                <div class="gov-id-line short"></div>
+                            </div>
+                        </div>
+                        <div class="gov-id-qr"><i class="fas fa-qrcode"></i></div>
+                    </div>
+                </div>
+                <div class="gov-highlight-text" data-aos="fade-left">
+                    <span class="gov-eyebrow">QR-BASED IDENTIFICATION</span>
+                    <h2 class="gov-section-title">One QR. Organized Information.</h2>
+                    <p class="gov-section-lead gov-lead-left">
+                        Registered driver and vehicle information is connected to a unique QR code.
+                        When the driver arrives at the terminal, the terminal officer scans the code
+                        to instantly identify the vehicle and record the transaction.
+                    </p>
+                    <div class="gov-btn-group">
+                        <a href="login.html" class="gov-btn gov-btn-primary">Try the System <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section gov-section-alt" id="mission-vision">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg" data-aos="fade-up">
+                <span class="gov-eyebrow">OUR PURPOSE</span>
+                <h2 class="gov-section-title">Mission &amp; Vision</h2>
+            </div>
+            <div class="gov-grid-2">
+                <div class="gov-mv-card" data-aos="fade-up" data-aos-delay="0">
+                    <div class="gov-mv-icon-wrap"><i class="fas fa-bullseye"></i></div>
+                    <h3>Mission</h3>
+                    <p>The bctt in collaboration with different government offices and public transport cooperatives/associations shall endeavor to develop and promote the transportation industry as source of livelihood among drivers and operators; ensure the safety, comfort, convenience, and well being of the riding public through the provision of responsive, accountable and God centered regulatory services.</p>
+                </div>
+                <div class="gov-mv-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="gov-mv-icon-wrap"><i class="fas fa-eye"></i></div>
+                    <h3>Vision</h3>
+                    <p>Consistent with the Vision and Mission of the City Government, the BCTT envisions for a progressive and self-sustaining inter-modal public land transport interchange with God-fearing, highly dedicated and flexible personnel ready to embrace an innovative transportation technology and working towards an inclusive transport business opportunities which shall spur an environment-friendly and sustainable socio-economic growth.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section" id="org-chart">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg" data-aos="fade-up">
+                <span class="gov-eyebrow">OUR ORGANIZATION</span>
+                <h2 class="gov-section-title">BCTT Functional Organizational Structure</h2>
+                <p class="gov-section-lead">
+                    The roles and units supporting the operation and management of the
+                    Borongan City Transport Terminal.
+                </p>
+            </div>
+            <div class="gov-org-image-wrap" data-aos="zoom-in">
+                <img src="images/organizationalchart.jpg" alt="BCTT Organizational Chart" class="gov-org-image" loading="lazy" />
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section gov-section-alt" id="transport-info">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg" data-aos="fade-up">
+                <span class="gov-eyebrow">TRANSPORT INFORMATION</span>
+                <h2 class="gov-section-title">Information for Drivers and Users</h2>
+            </div>
+
+            <div class="gov-grid-4">
+                <div class="gov-info-card" data-aos="fade-up" data-aos-delay="0">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <h4>Fares &amp; Fees</h4>
+                    <p>Applicable terminal fees based on vehicle type.</p>
+                </div>
+                <div class="gov-info-card" data-aos="fade-up" data-aos-delay="100">
+                    <i class="fas fa-truck"></i>
+                    <h4>Vehicle Information</h4>
+                    <p>Public utility vehicle types supported by the system.</p>
+                </div>
+                <div class="gov-info-card" data-aos="fade-up" data-aos-delay="200">
+                    <i class="fas fa-clipboard-list"></i>
+                    <h4>Driver Requirements</h4>
+                    <p>Information needed for driver registration.</p>
+                </div>
+                <div class="gov-info-card" data-aos="fade-up" data-aos-delay="300">
+                    <i class="fas fa-scroll"></i>
+                    <h4>Guidelines &amp; Advisories</h4>
+                    <p>Terminal rules and service notices.</p>
+                </div>
+            </div>
+
+            <div class="gov-fee-block" data-aos="fade-up">
+                <div class="gov-fee-label">
+                    <span class="gov-eyebrow">SYSTEM FEE CONFIGURATION</span>
+                    <p>Configured values used by the system (subject to official confirmation).</p>
+                </div>
+                <div class="gov-fee-grid">
+                    <div class="gov-fee-item">
+                        <span class="gov-fee-type">Tricycle</span>
+                        <span class="gov-fee-amount">₱5</span>
+                    </div>
+                    <div class="gov-fee-item">
+                        <span class="gov-fee-type">Jeepney</span>
+                        <span class="gov-fee-amount">₱60</span>
+                    </div>
+                    <div class="gov-fee-item">
+                        <span class="gov-fee-type">Multicab</span>
+                        <span class="gov-fee-amount">₱60</span>
+                    </div>
+                    <div class="gov-fee-item">
+                        <span class="gov-fee-type">Bus</span>
+                        <span class="gov-fee-amount">₱100</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section" id="how-it-works">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg" data-aos="fade-up">
+                <span class="gov-eyebrow">HOW THE SYSTEM WORKS</span>
+                <h2 class="gov-section-title">From Registration to Receipt</h2>
+            </div>
+
+            <div class="gov-steps">
+                <div class="gov-step" data-aos="fade-up" data-aos-delay="0">
+                    <div class="gov-step-num">01</div>
+                    <h4>Register</h4>
+                    <p>Driver registers personal and vehicle information in the portal.</p>
+                </div>
+                <div class="gov-step" data-aos="fade-up" data-aos-delay="80">
+                    <div class="gov-step-num">02</div>
+                    <h4>QR Driver ID</h4>
+                    <p>The system generates a unique QR code linked to the vehicle and plate number.</p>
+                </div>
+                <div class="gov-step" data-aos="fade-up" data-aos-delay="160">
+                    <div class="gov-step-num">03</div>
+                    <h4>Scan at Terminal</h4>
+                    <p>When it is the driver's turn in the queue, the terminal officer scans the QR code.</p>
+                </div>
+                <div class="gov-step" data-aos="fade-up" data-aos-delay="240">
+                    <div class="gov-step-num">04</div>
+                    <h4>Auto Fee</h4>
+                    <p>The system identifies the vehicle type and computes the applicable fee.</p>
+                </div>
+                <div class="gov-step" data-aos="fade-up" data-aos-delay="320">
+                    <div class="gov-step-num">05</div>
+                    <h4>Record &amp; Receipt</h4>
+                    <p>Payment is recorded, and a digital or printable receipt is generated.</p>
+                </div>
+                <div class="gov-step" data-aos="fade-up" data-aos-delay="400">
+                    <div class="gov-step-num">06</div>
+                    <h4>Transaction History</h4>
+                    <p>Records are stored in the database for search, monitoring, and reports.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section gov-section-alt" id="faq">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg" data-aos="fade-up">
+                <span class="gov-eyebrow">FAQ</span>
+                <h2 class="gov-section-title">Frequently Asked Questions</h2>
+            </div>
+
+            <div class="gov-faq" data-aos="fade-up">
+                <details class="gov-faq-item">
+                    <summary>What is the QR-Based Transport Ticketing System?</summary>
+                    <p>It is a web-based platform that digitizes the registration, identification, and fee collection of public utility vehicle drivers at the Borongan City Transport Terminal.</p>
+                </details>
+                <details class="gov-faq-item">
+                    <summary>Who can use the system?</summary>
+                    <p>Registered drivers of tricycles, jeepneys, multicabs, and buses; and authorized terminal officers and administrators.</p>
+                </details>
+                <details class="gov-faq-item">
+                    <summary>What is the QR code used for?</summary>
+                    <p>The QR code is used to instantly identify the registered driver and vehicle when it is their turn in the queue at the terminal.</p>
+                </details>
+                <details class="gov-faq-item">
+                    <summary>How can a driver register?</summary>
+                    <p>Drivers register through the system portal by providing the required personal and vehicle information, after which a QR code is generated.</p>
+                </details>
+                <details class="gov-faq-item">
+                    <summary>How is the transportation fee computed?</summary>
+                    <p>When the QR code is scanned, the system identifies the vehicle type and automatically computes the corresponding fee based on the configured fee schedule.</p>
+                </details>
+                <details class="gov-faq-item">
+                    <summary>Who can perform QR verification?</summary>
+                    <p>Only authorized terminal officers designated by the Borongan City Transport Terminal may perform QR verification.</p>
+                </details>
+                <details class="gov-faq-item">
+                    <summary>Are transaction records saved?</summary>
+                    <p>Yes. Every completed transaction is stored in the system's database and can be viewed, searched, and monitored by authorized users.</p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section" id="contact">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg" data-aos="fade-up">
+                <span class="gov-eyebrow">CONTACT</span>
+                <h2 class="gov-section-title">Need Assistance?</h2>
+                <p class="gov-section-lead">
+                    For questions, concerns, or assistance related to the transportation service
+                    and digital system, contact the Borongan City Transport Terminal.
+                </p>
+            </div>
+
+            <div class="gov-contact-layout">
+                 <div class="gov-contact-left" data-aos="fade-right">
+                    <div class="gov-contact-block">
+                        <div class="gov-contact-block-head">
+                            <i class="fas fa-building"></i>
+                            <h4>Office Address</h4>
+                        </div>
+                        <p>
+                            2nd Floor, Borongan City Transport Terminal Building<br />
+                            Barangay Campesao, Borongan City<br />
+                            Eastern Samar, Philippines 6800
+                        </p>
+                    </div>
+                    <div class="gov-contact-block">
+                        <div class="gov-contact-block-head">
+                            <i class="fas fa-envelope"></i>
+                            <h4>Email</h4>
+                        </div>
+                        <p><a href="mailto:boronganterminaloffice@gmail.com">boronganterminaloffice@gmail.com</a></p>
+                    </div>
+                    <div class="gov-contact-block">
+                        <div class="gov-contact-block-head">
+                            <i class="fas fa-clock"></i>
+                            <h4>Office Hours</h4>
+                        </div>
+                        <p>Monday – Friday<br />7:30 AM – 5:00 PM</p>
+                    </div>
+
+                     <div class="gov-map-wrap">
+                        <iframe
+                            src="https://www.google.com/maps?q=Borongan+City+Transport+Terminal,+Campesao,+Borongan+City,+Eastern+Samar&output=embed"
+                            width="100%"
+                            height="220"
+                            style="border:0;"
+                            allowfullscreen=""
+                            loading="lazy"
+                            referrerpolicy="no-referrer-when-downgrade"
+                            title="Borongan City Transport Terminal Map"></iframe>
+                    </div>
+                </div>
+
+                 <div class="gov-contact-form-wrap" data-aos="fade-left">
+                    <h3 class="gov-form-title">Send an Inquiry</h3>
+                    <p class="gov-form-sub">We'll respond as soon as possible.</p>
+                    <form class="gov-form" onsubmit="return handleContactSubmit(event);">
+                        <div class="gov-form-group">
+                            <label for="contact-name">Full Name</label>
+                            <input type="text" id="contact-name" placeholder="Juan Dela Cruz" required />
+                        </div>
+                        <div class="gov-form-group">
+                            <label for="contact-email">Email Address</label>
+                            <input type="email" id="contact-email" placeholder="juan@example.com" required />
+                        </div>
+                        <div class="gov-form-group">
+                            <label for="contact-subject">Subject</label>
+                            <select id="contact-subject" required>
+                                <option value="">Select a topic...</option>
+                                <option>Driver Registration</option>
+                                <option>QR Verification</option>
+                                <option>Fee &amp; Transactions</option>
+                                <option>Technical Support</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div class="gov-form-group">
+                            <label for="contact-message">Message</label>
+                            <textarea id="contact-message" rows="5" placeholder="Type your message here..." required></textarea>
+                        </div>
+                        <button type="submit" class="gov-btn gov-btn-primary gov-btn-block">
+                            Send Message <i class="fas fa-paper-plane"></i>
+                        </button>
+                        <p class="gov-form-note" id="contact-status" aria-live="polite"></p>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-cta">
+        <div class="gov-container gov-text-center">
+            <span class="gov-cta-eyebrow">READY TO GET STARTED?</span>
+            <h2 class="gov-cta-title">Access the Transportation Portal</h2>
+            <p class="gov-cta-text">
+                Access the portal for driver registration, QR identification, and transportation fee services.
+            </p>
+            <div class="gov-btn-group gov-btn-group-center">
+                <a href="login.html" class="gov-btn gov-btn-white">Login to the System <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </section>
+ 
+    <footer class="gov-footer">
+        <div class="gov-container">
+            <div class="gov-footer-grid">
+                <div class="gov-footer-col">
+                    <h5>About</h5>
+                    <ul>
+                        <li><a href="#about">About the System</a></li>
+                        <li><a href="#mission-vision">Mission &amp; Vision</a></li>
+                        <li><a href="#org-chart">Organizational Chart</a></li>
+                        <li><a href="#how-it-works">How It Works</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Services</h5>
+                    <ul>
+                        <li><a href="#services">Driver Registration</a></li>
+                        <li><a href="#services">QR Driver ID</a></li>
+                        <li><a href="#services">QR Verification</a></li>
+                        <li><a href="#services">Fee &amp; Transactions</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Information</h5>
+                    <ul>
+                        <li><a href="#transport-info">Transport Information</a></li>
+                        <li><a href="#transport-info">Fares &amp; Fees</a></li>
+                        <li><a href="#transport-info">Vehicle Information</a></li>
+                        <li><a href="#transport-info">Driver Requirements</a></li>
+                        <li><a href="#faq">FAQs</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Contact</h5>
+                    <p>
+                        2nd Floor, Borongan City<br />
+                        Transport Terminal Building
+                    </p>
+                    <p>Barangay Campesao, Borongan City<br />Eastern Samar, Philippines 6800</p>
+                    <p><a href="mailto:boronganterminaloffice@gmail.com">boronganterminaloffice@gmail.com</a></p>
+                </div>
+            </div>
+
+            
+            <div class="gov-newsletter">
+                <div class="gov-newsletter-text">
+                    <h5>Subscribe to Updates</h5>
+                    <p>Get notified about system announcements, fare changes, and advisories.</p>
+                </div>
+                <form class="gov-newsletter-form" onsubmit="return handleNewsletterSubmit(event);">
+                    <input type="email" placeholder="your.email@example.com" required aria-label="Email address" />
+                    <button type="submit">Subscribe</button>
+                </form>
+                <p class="gov-newsletter-note" id="newsletter-status" aria-live="polite"></p>
+            </div>
+        </div>
+    </footer>
+
+    <div class="gov-footer-bottom">
+    <div class="gov-container">
+        <p class="gov-footer-bottom-title">
+            Borongan City Transport Terminal<br />
+            QR-Based Transport Ticketing and Fee Collection System
+        </p>
+        <div class="gov-footer-bottom-links">
+            <a href="privacy-policy.html">Privacy Policy</a>
+            <span>|</span>
+            <a href="security-policy.html">Security Policy</a>
+            <span>|</span>
+            <a href="terms-of-use.html">Terms of Use</a>
+        </div>
+        <p class="gov-footer-bottom-copy">© 2026 Borongan City Transport Terminal</p>
+        <p class="gov-footer-bottom-credit">
+            Developed as an academic project by BSIT students of Eastern Samar State University.
+        </p>
+    </div>
+</div>
+
+    <script src="assets/js/index.js"></script>
 </body>
 </html>

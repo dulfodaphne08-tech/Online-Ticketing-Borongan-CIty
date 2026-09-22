@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Borongan Transport · Driver ID</title>
+
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">
+    </script>
+
+    
+  <link rel="stylesheet" href="assets/css/driver-id.css" />
+</head>
+<body>
+
+    <div id="printContainer">
+        <div class="digital-id-card">
+
+            <!-- Header with Logo - Left aligned text -->
+            <div class="id-header">
+                <div class="logo-row">
+                    <div class="logo-circle">
+                        <img src="images/borongan-logo.jpg" alt="Borongan Transport" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23b22234%22/%3E%3Ctext x=%2250%22 y=%2255%22 font-size=%2240%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22sans-serif%22 font-weight=%22bold%22%3EB%3C/text%3E%3C/svg%3E'">
+                    </div>
+                    <div class="title-group">
+                        <h1>BORONGAN TRANSPORT SYSTEM</h1>
+                        <div class="sub">Driver Identification Card</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="id-body">
+
+                <!-- Top Row: QR + Photo - Centered -->
+                <div class="id-top-row">
+                    <div class="id-qr-section">
+                        <div class="id-qr-box">
+                            <div id="qrCodeFull"></div>
+                        </div>
+                        <div class="id-qr-label">Scan to Verify</div>
+                        <span class="id-verify-badge"> Valid ID</span>
+                        <div class="id-qr-footer">
+                             Reg. No. <span id="displayRegNumber">--</span>
+                        </div>
+                    </div>
+
+                    <div class="id-photo-area">
+                        <div class="id-photo-large" id="photoDisplayLarge">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="driver-id-badge">
+                            DRIVER NO. <span id="displayIdBadge">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Grid -->
+                <div class="id-info-grid">
+                    <div class="id-info-item full-width">
+                        <span class="info-label"> Full Name</span>
+                        <span id="displayName" class="info-value highlight">--</span>
+                    </div>
+                    <div class="id-info-item">
+                        <span class="info-label"> Birthdate</span>
+                        <span id="displayBirthdate" class="info-value">--</span>
+                    </div>
+                    <div class="id-info-item">
+                        <span class="info-label"> Gender</span>
+                        <span id="displayGender" class="info-value">--</span>
+                    </div>
+                    <div class="id-info-item">
+                        <span class="info-label"> Contact</span>
+                        <span id="displayContact" class="info-value">--</span>
+                    </div>
+                    <div class="id-info-item">
+                        <span class="info-label"> Vehicle</span>
+                        <span id="displayVehicle" class="info-value">--</span>
+                    </div>
+                    <div class="id-info-item">
+                        <span class="info-label"> Plate #</span>
+                        <span id="displayPlate" class="info-value">--</span>
+                    </div>
+                    <div class="id-info-item full-width">
+                        <span class="info-label"> License No.</span>
+                        <span id="displayLicense" class="info-value">--</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions - Below the card -->
+    <div class="id-actions no-print">
+        <button onclick="window.print()" class="btn-download">
+            Print ID
+        </button>
+        <a href="admin-dashboard.html" class="btn-secondary">
+             Back to Dashboard
+        </a>
+    </div>
+
+    
+
+  <script src="assets/js/driver-id.js"></script>
+</body>
+</html>
