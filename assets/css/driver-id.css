@@ -39,7 +39,7 @@
             box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.4);
         }
 
-        /* Watermark */
+        
         .digital-id-card::before {
             content: "BORONGAN TRANSPORT";
             position: absolute;
@@ -57,7 +57,7 @@
             text-align: center;
         }
 
-        /* Header - Fixed alignment */
+         
         .id-header {
             background: var(--navy);
             padding: 1.2rem 2rem 1rem 2rem;
@@ -110,7 +110,7 @@
             margin-top: 0.05rem;
         }
 
-        /* Body */
+        
         .id-body {
             padding: 1.8rem 2rem 1.5rem 2rem;
             position: relative;
@@ -285,7 +285,7 @@
             }
         }
 
-        /* Actions - Below the card */
+         
         .id-actions {
             display: flex;
             gap: 1rem;
@@ -336,7 +336,7 @@
             color: white;
         }
 
-        /* Responsive */
+        
         @media (max-width: 550px) {
             .id-top-row {
                 display: flex;

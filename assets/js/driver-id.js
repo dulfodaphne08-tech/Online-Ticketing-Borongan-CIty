@@ -1,6 +1,5 @@
-// Wait for DOM to be fully loaded
-        document.addEventListener('DOMContentLoaded', async function() {
-            // Get driver data from URL parameter
+document.addEventListener('DOMContentLoaded', async function() {
+            
             const urlParams = new URLSearchParams(window.location.search);
             const driverId = urlParams.get('id');
             
@@ -14,7 +13,7 @@
                     }
                 }
                 
-                // If still no driver, try to get from session
+                 
                 if (!driver) {
                     const session = localStorage.getItem('borongan_driver_session');
                     if (session) {
@@ -29,7 +28,7 @@
                 console.error("Failed to load driver from API", e);
             }
 
-            // If still no driver, show placeholder
+            
             if (!driver) {
                 document.getElementById('displayRegNumber').textContent = '--';
                 document.getElementById('displayIdBadge').textContent = '--';
@@ -45,7 +44,6 @@
                 return;
             }
 
-            // Populate all driver data
             const driverIdDisplay = driver.driverId || '--';
             document.getElementById('displayRegNumber').textContent = driverIdDisplay;
             document.getElementById('displayIdBadge').textContent = driverIdDisplay;
@@ -57,18 +55,18 @@
             document.getElementById('displayPlate').textContent = driver.plateNumber || 'N/A';
             document.getElementById('displayLicense').textContent = driver.licenseNo || 'N/A';
 
-            // Handle photo display
+           
             const photoLarge = document.getElementById('photoDisplayLarge');
             const fullName = driver.fullName || '';
             
             if (driver.photo) {
-                // If photo URL exists, show it
+             
                 photoLarge.innerHTML = `<img src="${driver.photo}" alt="Driver Photo">`;
             } else if (driver.photoData) {
-                // If photo data (base64) exists
+
                 photoLarge.innerHTML = `<img src="${driver.photoData}" alt="Driver Photo">`;
             } else {
-                // Show initials
+
                 const initials = fullName.split(' ')
                     .filter(n => n.length > 0)
                     .map(n => n[0])
@@ -78,14 +76,14 @@
                 photoLarge.innerHTML = `<span class="photo-initials">${initials || 'DR'}</span>`;
             }
 
-            // Generate QR Code - with proper error handling
+
             const qrContainer = document.getElementById('qrCodeFull');
             qrContainer.innerHTML = '';
             
             try {
                 const qrText = JSON.stringify({ version: 1, driverId: String(driver.driverId || driver.driver_id || ""), plateNumber: String(driver.plateNumber || driver.plate_number || ""), vehicleType: String(driver.vehicleType || driver.vehicle_type || "") });
                 
-                // Make sure QRCode is available
+                
                 if (typeof QRCode !== 'undefined') {
                     new QRCode(qrContainer, {
                         text: qrText,
