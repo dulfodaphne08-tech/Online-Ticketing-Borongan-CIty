@@ -1,271 +1,118 @@
 <?php
-// api/drivers.php
-require 'config.php';
+ declare(strict_types=1);
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/driver_account.php';
 
-$method = $_SERVER['REQUEST_METHOD'];
-$vehicleTypes = ['Tricycle', 'Jeepney', 'Multicab', 'Bus'];
+$id = trim((string)($_GET['id'] ?? ''));
 
-function getDriverRecord($pdo, $driverId) {
-    $stmt = $pdo->prepare("
-        SELECT
-            d.driver_id AS \"driverId\",
-            d.user_id AS \"userId\",
-            d.full_name AS \"fullName\",
-            d.address,
-            d.contact,
-            d.birthdate,
-            d.gender,
-            d.vehicle_type AS \"vehicleType\",
-            d.plate_number AS \"plateNumber\",
-            d.license_no AS \"licenseNo\",
-            d.photo,
-            d.status,
-            d.created_at AS \"registrationDate\",
-            d.license_expiration AS \"licenseExpiration\",
-            u.username
-        FROM drivers d
-        LEFT JOIN users u ON d.user_id = u.id
-        WHERE d.driver_id = ?
-        LIMIT 1
-    ");
-    $stmt->execute([$driverId]);
-    return $stmt->fetch();
+ if (method() === 'GET' && isset($_GET['me'])) {
+    $user   = requireRole('driver');
+    $driver = findDriver($pdo, sessionDriverId($pdo, $user));
+    if (!$driver) fail('Driver profile not found.', 404);
+
+    $profile = formatDriver($driver, getFee($pdo, (string)$driver['vehicle_type']));
+    $profile['qrPayload'] = json_encode([
+        'version'     => 1,
+        'driverId'    => $profile['driverId'],
+        'plateNumber' => $profile['plateNumber'],
+        'vehicleType' => $profile['vehicleType'],
+    ], JSON_UNESCAPED_SLASHES);
+    ok(['driver' => $profile]);
 }
 
-function requireDriverOwner($pdo, $actor, $driverId) {
-    if ($actor['role'] === 'admin') {
-        return;
-    }
-    if ($actor['role'] !== 'driver') {
-        respond(['success' => false, 'error' => 'Access denied.'], 403);
-    }
+$admin = requireRole('admin');
 
-    $ownedDriverId = $actor['driverId'];
-    if ($ownedDriverId === '') {
-        $stmt = $pdo->prepare('SELECT driver_id FROM drivers WHERE user_id = ? LIMIT 1');
-        $stmt->execute([$actor['id']]);
-        $ownedDriverId = (string)$stmt->fetchColumn();
-    }
-
-    if ($ownedDriverId !== $driverId) {
-        respond(['success' => false, 'error' => 'You can only access your own driver record.'], 403);
-    }
-}
-
-if ($method === 'GET') {
-    $actor = requireAuthenticatedUser();
-    $id = trim((string)($_GET['id'] ?? ''));
-
-    if ($actor['role'] === 'driver') {
-        $id = $id !== '' ? $id : $actor['driverId'];
-        requireDriverOwner($pdo, $actor, $id);
-    } elseif ($actor['role'] !== 'admin') {
-        respond(['success' => false, 'error' => 'Access denied.'], 403);
-    }
-
+ if (method() === 'GET') {
     if ($id !== '') {
-        $driver = getDriverRecord($pdo, $id);
-        if (!$driver) {
-            respond(['success' => false, 'error' => 'Driver not found.'], 404);
-        }
-        respond(['success' => true, 'driver' => $driver]);
+        $driver = findDriver($pdo, $id);
+        if (!$driver) fail('Driver not found.', 404);
+        ok(['driver' => formatDriver($driver, getFee($pdo, (string)$driver['vehicle_type']))]);
     }
 
-    $stmt = $pdo->query("
-        SELECT
-            d.driver_id AS \"driverId\",
-            d.user_id AS \"userId\",
-            d.full_name AS \"fullName\",
-            d.address,
-            d.contact,
-            d.birthdate,
-            d.gender,
-            d.vehicle_type AS \"vehicleType\",
-            d.plate_number AS \"plateNumber\",
-            d.license_no AS \"licenseNo\",
-            d.photo,
-            d.status,
-            d.created_at AS \"registrationDate\",
-            d.license_expiration AS \"licenseExpiration\",
-            u.username
-        FROM drivers d
-        LEFT JOIN users u ON d.user_id = u.id
-        ORDER BY d.created_at DESC
-    ");
-    respond(['success' => true, 'drivers' => $stmt->fetchAll()]);
+    $where = [];
+    $args  = [];
+    $q = trim((string)($_GET['q'] ?? ''));
+    if ($q !== '') {
+        $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q) . '%';
+        $where[] = '(d.full_name ILIKE ? OR d.driver_id ILIKE ? OR d.plate_number ILIKE ?)';
+        array_push($args, $like, $like, $like);
+    }
+    if (!empty($_GET['status'])) { $where[] = 'lower(d.status) = lower(?)'; $args[] = (string)$_GET['status']; }
+
+    $stmt = $pdo->prepare('SELECT ' . DRIVER_COLUMNS . ' FROM drivers d LEFT JOIN users u ON u.id = d.user_id'
+        . ($where ? ' WHERE ' . implode(' AND ', $where) : '') . ' ORDER BY d.created_at DESC NULLS LAST, d.full_name');
+    $stmt->execute($args);
+
+    $fees = [];
+    $drivers = array_map(function ($d) use ($pdo, &$fees) {
+        $type = strtolower((string)$d['vehicle_type']);
+        $fees[$type] ??= getFee($pdo, (string)$d['vehicle_type']);
+        return formatDriver($d, $fees[$type]);
+    }, $stmt->fetchAll());
+
+    ok(['drivers' => $drivers]);
 }
 
-if ($method === 'POST') {
-    $body = json_decode(file_get_contents('php://input'), true) ?: [];
-    $id = trim((string)($_GET['id'] ?? ($body['driverId'] ?? '')));
+ if (method() === 'POST' && $id === '') {
+    $data     = validateDriverInput($pdo, body(), true);
+    $driverId = createDriverAccount($pdo, $data);
 
-    // Updating a record needs an authenticated admin or the matching driver.
-    if ($id !== '') {
-        $actor = requireAuthenticatedUser();
-        requireDriverOwner($pdo, $actor, $id);
-        $existing = getDriverRecord($pdo, $id);
-        if (!$existing) {
-            respond(['success' => false, 'error' => 'Driver not found.'], 404);
-        }
+     auditLog('Added Driver', 'DRIVER', $driverId, 'Created ' . $data['full_name']);
 
-        $fullName = trim((string)($body['fullName'] ?? $existing['fullName']));
-        $address = trim((string)($body['address'] ?? $existing['address']));
-        $contact = trim((string)($body['contact'] ?? $existing['contact']));
-        $birthdate = $body['birthdate'] ?? $existing['birthdate'];
-        $gender = $body['gender'] ?? $existing['gender'];
-        $vehicleType = $body['vehicleType'] ?? $existing['vehicleType'];
-        $plateNumber = strtoupper(trim((string)($body['plateNumber'] ?? $existing['plateNumber'])));
-        $licenseNo = strtoupper(trim((string)($body['licenseNo'] ?? $existing['licenseNo'])));
-        $photo = array_key_exists('photo', $body) ? $body['photo'] : $existing['photo'];
-        $licenseExpiration = $body['licenseExpiration'] ?? $existing['licenseExpiration'];
-        $username = trim((string)($body['username'] ?? $existing['username']));
-        $newPassword = (string)($body['password'] ?? '');
+    ok(['driverId' => $driverId], 'Driver ' . $data['full_name'] . ' added.', 201);
+}
 
-        if ($fullName === '' || $username === '' || !in_array($vehicleType, $vehicleTypes, true) || $plateNumber === '') {
-            respond(['success' => false, 'error' => 'Please provide a name, username, vehicle type, and plate number.'], 422);
-        }
+ if (method() === 'POST') {
+    $driver = findDriver($pdo, $id);
+    if (!$driver) fail('Driver not found.', 404);
 
-        $duplicateUser = $pdo->prepare('SELECT id FROM users WHERE username = ? AND id <> ? LIMIT 1');
-        $duplicateUser->execute([$username, $existing['userId']]);
-        if ($duplicateUser->fetch()) {
-            respond(['success' => false, 'error' => 'Username is already registered.'], 409);
-        }
+    $data = validateDriverInput($pdo, body(), false, (string)$driver['driver_id']);
+    $status = trim((string)(body()['status'] ?? ''));
+    if (in_array($status, ['Active', 'Inactive', 'Pending'], true)) $data['status'] = $status;
 
-        $duplicatePlate = $pdo->prepare("SELECT 1 FROM drivers WHERE plate_number = ? AND driver_id <> ? UNION SELECT 1 FROM vehicles WHERE plate_number = ? AND (driver_id IS NULL OR driver_id <> ?) LIMIT 1");
-        $duplicatePlate->execute([$plateNumber, $id, $plateNumber, $id]);
-        if ($duplicatePlate->fetch()) {
-            respond(['success' => false, 'error' => 'Plate number is already registered.'], 409);
-        }
-
-        $pdo->beginTransaction();
-        try {
-            $pdo->prepare("
-                UPDATE drivers SET
-                    full_name = ?, address = ?, contact = ?, birthdate = ?, gender = ?,
-                    vehicle_type = ?, plate_number = ?, license_no = ?, photo = ?, license_expiration = ?
-                WHERE driver_id = ?
-            ")->execute([$fullName, $address, $contact, $birthdate ?: null, $gender, $vehicleType, $plateNumber, $licenseNo, $photo, $licenseExpiration ?: null, $id]);
-
-            if ($newPassword !== '' && $newPassword !== 'default123') {
-                if (strlen($newPassword) < 4) {
-                    throw new InvalidArgumentException('Password must be at least 4 characters.');
-                }
-                $pdo->prepare('UPDATE users SET username = ?, password = ? WHERE id = ?')
-                    ->execute([$username, password_hash($newPassword, PASSWORD_DEFAULT), $existing['userId']]);
-            } else {
-                $pdo->prepare('UPDATE users SET username = ? WHERE id = ?')->execute([$username, $existing['userId']]);
-            }
-
-            // The driver record and its active vehicle must describe the same vehicle.
-            $vehicleStmt = $pdo->prepare('SELECT vehicle_id FROM vehicles WHERE driver_id = ? ORDER BY vehicle_id DESC LIMIT 1');
-            $vehicleStmt->execute([$id]);
-            $vehicleId = $vehicleStmt->fetchColumn();
-            if ($vehicleId) {
-                $pdo->prepare('UPDATE vehicles SET plate_number = ?, vehicle_type = ?, status = \'Active\' WHERE vehicle_id = ?')
-                    ->execute([$plateNumber, $vehicleType, $vehicleId]);
-            } else {
-                $pdo->prepare("INSERT INTO vehicles (plate_number, vehicle_type, driver_id, status) VALUES (?, ?, ?, 'Active')")
-                    ->execute([$plateNumber, $vehicleType, $id]);
-            }
-
-            // Regenerate the stored QR payload whenever identifying vehicle data changes.
-            $pdo->prepare('UPDATE qr_codes SET qr_data = ? WHERE driver_id = ?')
-                ->execute([buildQrPayload($id, $plateNumber, $vehicleType), $id]);
-            $pdo->prepare("INSERT INTO activities (action, details, badge_class) VALUES ('Updated Driver', ?, 'updated')")
-                ->execute([$fullName]);
-            $pdo->commit();
-        } catch (Throwable $error) {
-            if ($pdo->inTransaction()) $pdo->rollBack();
-            respond(['success' => false, 'error' => $error instanceof InvalidArgumentException ? $error->getMessage() : 'Unable to update driver.'], 422);
-        }
-
-        respond(['success' => true]);
-    }
-
-    // Public registration is allowed, but every duplicate and required field is
-    // checked on the server rather than exposing the driver directory publicly.
-    $fullName = trim((string)($body['fullName'] ?? ''));
-    $username = trim((string)($body['username'] ?? ''));
-    $password = (string)($body['password'] ?? '');
-    $vehicleType = (string)($body['vehicleType'] ?? '');
-    $plateNumber = strtoupper(trim((string)($body['plateNumber'] ?? '')));
-    $licenseNo = strtoupper(trim((string)($body['licenseNo'] ?? '')));
-
-    if ($fullName === '' || $username === '' || strlen($password) < 4 || !in_array($vehicleType, $vehicleTypes, true) || $plateNumber === '' || $licenseNo === '') {
-        respond(['success' => false, 'error' => 'Please complete all required registration fields.'], 422);
-    }
-
-    $duplicate = $pdo->prepare('SELECT 1 FROM users WHERE username = ? UNION SELECT 1 FROM drivers WHERE plate_number = ? UNION SELECT 1 FROM vehicles WHERE plate_number = ? UNION SELECT 1 FROM drivers WHERE license_no = ? LIMIT 1');
-    $duplicate->execute([$username, $plateNumber, $plateNumber, $licenseNo]);
-    if ($duplicate->fetch()) {
-        respond(['success' => false, 'error' => 'The username, plate number, or license number is already registered.'], 409);
-    }
-
-    $pdo->beginTransaction();
     try {
-        if (strtolower(DB_DRIVER) === 'pgsql') {
-            $userStmt = $pdo->prepare("INSERT INTO users (username, password, role) VALUES (?, ?, 'driver') RETURNING id");
-            $userStmt->execute([$username, password_hash($password, PASSWORD_DEFAULT)]);
-            $userId = (int)$userStmt->fetchColumn();
+        $pdo->beginTransaction();
+        $sets = [];
+        $vals = [];
+        foreach ($data as $k => $v) { $sets[] = "$k = ?"; $vals[] = $v; }
+        $vals[] = $driver['driver_id'];
+        $pdo->prepare('UPDATE drivers SET ' . implode(', ', $sets) . ' WHERE driver_id = ?')->execute($vals);
 
-            $lastNumber = (int)$pdo->query("SELECT COALESCE(MAX(CAST(SUBSTRING(driver_id FROM 4) AS INTEGER)), 0) FROM drivers")->fetchColumn();
-            $driverId = 'DR-' . str_pad((string)($lastNumber + 1), 4, '0', STR_PAD_LEFT);
-        } else {
-            $pdo->prepare("INSERT INTO users (username, password, role) VALUES (?, ?, 'driver')")
-                ->execute([$username, password_hash($password, PASSWORD_DEFAULT)]);
-            $userId = (int)$pdo->lastInsertId();
-
-            $lastNumber = (int)$pdo->query("SELECT COALESCE(MAX(CAST(SUBSTRING(driver_id, 4) AS UNSIGNED)), 0) FROM drivers")->fetchColumn();
-            $driverId = 'DR-' . str_pad((string)($lastNumber + 1), 4, '0', STR_PAD_LEFT);
+        if ($driver['user_id']) {
+            $pdo->prepare('UPDATE users SET full_name = ? WHERE id = ?')->execute([$data['full_name'], $driver['user_id']]);
+            if (isset($data['status'])) {
+                $pdo->prepare('UPDATE users SET status = ? WHERE id = ?')->execute([$data['status'], $driver['user_id']]);
+            }
+            $newPassword = (string)(body()['password'] ?? '');
+            if ($newPassword !== '') {
+                if (strlen($newPassword) < 8) { $pdo->rollBack(); fail('Password must be at least 8 characters.', 422); }
+                $pdo->prepare('UPDATE users SET password = ? WHERE id = ?')
+                    ->execute([password_hash($newPassword, PASSWORD_DEFAULT), $driver['user_id']]);
+            }
         }
-
-        $pdo->prepare("
-            INSERT INTO drivers (driver_id, user_id, full_name, address, contact, birthdate, gender, vehicle_type, plate_number, license_no, photo, status, license_expiration)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', ?)
-        ")->execute([
-            $driverId, $userId, $fullName,
-            trim((string)($body['address'] ?? '')), trim((string)($body['contact'] ?? '')),
-            ($body['birthdate'] ?? '') ?: null, (string)($body['gender'] ?? ''), $vehicleType,
-            $plateNumber, $licenseNo, (string)($body['photo'] ?? ''), ($body['licenseExpiration'] ?? '') ?: null
-        ]);
-
-        if (strtolower(DB_DRIVER) === 'pgsql') {
-            $vehStmt = $pdo->prepare("INSERT INTO vehicles (plate_number, vehicle_type, driver_id, status) VALUES (?, ?, ?, 'Active') RETURNING vehicle_id");
-            $vehStmt->execute([$plateNumber, $vehicleType, $driverId]);
-            $vehicleId = (int)$vehStmt->fetchColumn();
-        } else {
-            $pdo->prepare("INSERT INTO vehicles (plate_number, vehicle_type, driver_id, status) VALUES (?, ?, ?, 'Active')")
-                ->execute([$plateNumber, $vehicleType, $driverId]);
-            $vehicleId = (int)$pdo->lastInsertId();
-        }
-
-        $pdo->prepare("INSERT INTO qr_codes (driver_id, vehicle_id, qr_data, status) VALUES (?, ?, ?, 'Active')")
-            ->execute([$driverId, $vehicleId, buildQrPayload($driverId, $plateNumber, $vehicleType)]);
-        $pdo->prepare("INSERT INTO activities (action, details, badge_class) VALUES ('Added Driver', ?, 'added')")
-            ->execute([$fullName]);
         $pdo->commit();
-    } catch (Throwable $error) {
+    } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        respond(['success' => false, 'error' => 'Unable to complete registration. Please verify the entered details.'], 422);
+        error_log('driver update: ' . $e->getMessage());
+        fail('The driver could not be updated.', 500);
     }
 
-    respond(['success' => true, 'driverId' => $driverId]);
+     auditLog('Updated Driver Information', 'DRIVER', $driver['driver_id'], 'Updated ' . $data['full_name']);
+
+    ok(null, 'Driver ' . $data['full_name'] . ' updated.');
 }
 
-if ($method === 'DELETE') {
-    requireAdmin();
-    $id = trim((string)($_GET['id'] ?? ''));
-    if ($id === '') respond(['success' => false, 'error' => 'Driver ID is required.'], 400);
+ if (method() === 'DELETE') {
+    $driver = findDriver($pdo, $id);
+    if (!$driver) fail('Driver not found.', 404);
+    $pdo->prepare("UPDATE drivers SET status = 'Inactive' WHERE driver_id = ?")->execute([$driver['driver_id']]);
+    if ($driver['user_id']) {
+        $pdo->prepare("UPDATE users SET status = 'Inactive' WHERE id = ?")->execute([$driver['user_id']]);
+    }
 
-    $driver = getDriverRecord($pdo, $id);
-    if (!$driver) respond(['success' => false, 'error' => 'Driver not found.'], 404);
+     auditLog('Deactivated Driver', 'DRIVER', $driver['driver_id'], (string)$driver['full_name']);
 
-    $pdo->prepare('DELETE FROM qr_codes WHERE driver_id = ?')->execute([$id]);
-    $pdo->prepare('DELETE FROM vehicles WHERE driver_id = ?')->execute([$id]);
-    $pdo->prepare('DELETE FROM drivers WHERE driver_id = ?')->execute([$id]);
-    if ($driver['userId']) $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$driver['userId']]);
-    respond(['success' => true]);
+    ok(null, 'Driver ' . $driver['full_name'] . ' deactivated.');
 }
 
-respond(['success' => false, 'error' => 'Method not allowed'], 405);
-?>
+fail('Method not allowed.', 405);

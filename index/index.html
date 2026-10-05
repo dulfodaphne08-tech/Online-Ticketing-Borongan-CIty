@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Borongan City Transport Terminal · QR-Based Transport Ticketing and Fee Collection System</title>
+    <meta name="description" content="A web-based QR code ticketing system for public utility vehicles in Borongan City — driver registration, QR identification, automatic fee collection, and digital transaction records." />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,700;1,500;1,700&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400;1,600&family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+    <script>
+    (function(){
+        var p = location.pathname.replace(/\\/g,'/');
+        var i = p.indexOf('/index/');
+        var a = i >= 0 ? p.slice(i + 7) : '';
+        var d = (a.match(/\//g) || []).length;
+        var pre = '../'.repeat(d + 1);
+        window.__ASSET_PREFIX__ = pre;
+        document.write('<link rel="stylesheet" href="' + pre + 'assets/css/index.css">');
+        document.write('<script src="' + pre + 'assets/js/path-fixer.js"><\/script>');
+    })();
+    </script>
+
+    <style>
+    :root {
+        --primary: #b22234;
+        --primary-dark: #8f1a2a;
+        --primary-soft: #fef2f2;
+        --primary-glow: rgba(178, 34, 52, 0.12);
+
+        --gold: #d5a928;
+        --gold-dark: #b88a1d;
+        --gold-soft: #fdf6e3;
+        --gold-glow: rgba(213, 169, 40, 0.18);
+
+        --navy: #0f1e3d;
+        --navy-soft: #eef2f9;
+
+        --ink-900: #111827;
+        --ink-700: #374151;
+        --ink-600: #4b5563;
+        --ink-500: #6b7280;
+        --ink-300: #d1d5db;
+        --ink-200: #e5e7eb;
+        --ink-100: #f3f4f6;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: #ffffff; }
+ 
+    .gov-hero-slide-title {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-size: clamp(1.35rem, 2.6vw, 2rem) !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.03em !important;
+        line-height: 1.15 !important;
+    }
+    .gov-hero-slide-title .hero-sub {
+        display: inline-block !important;
+        font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif !important;
+        font-style: italic !important;
+        font-weight: 700 !important;
+        font-size: 0.78em !important;
+        color: var(--gold) !important;
+        letter-spacing: -0.005em !important;
+        margin-top: 0.35rem !important;
+    }
+    .gov-hero-slide-desc {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.98rem !important;
+        line-height: 1.75 !important;
+    }
+ 
+    .gov-hero-credit {
+        position: absolute !important;
+        bottom: 1rem !important;
+        right: 1rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.4rem !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.65rem !important;
+        font-weight: 500 !important;
+        color: rgba(255, 255, 255, 0.42) !important;
+        background: rgba(0, 0, 0, 0.18) !important;
+        padding: 0.28rem 0.6rem !important;
+        border-radius: 4px !important;
+        letter-spacing: 0.02em !important;
+        backdrop-filter: blur(4px) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+        z-index: 3 !important;
+        opacity: 0.85 !important;
+        transition: opacity 0.3s ease !important;
+    }
+    .gov-hero-credit i {
+        font-size: 0.6rem !important;
+        opacity: 0.8 !important;
+    }
+    .gov-hero-credit strong {
+        font-weight: 600 !important;
+        color: rgba(255, 255, 255, 0.6) !important;
+    }
+    .gov-hero-slider:hover .gov-hero-credit {
+        opacity: 1 !important;
+    }
+ 
+    .gov-hero-dot {
+        width: 7px !important;
+        height: 7px !important;
+        border-radius: 50% !important;
+        background: rgba(255, 255, 255, 0.35) !important;
+        border: none !important;
+        padding: 0 !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        opacity: 0.75 !important;
+    }
+    .gov-hero-dot:hover {
+        background: rgba(255, 255, 255, 0.6) !important;
+        opacity: 1 !important;
+    }
+    .gov-hero-dot.active {
+        background: var(--gold) !important;
+        width: 22px !important;
+        border-radius: 4px !important;
+        opacity: 0.9 !important;
+    }
+    .gov-hero-scroll {
+        opacity: 0.35 !important;
+        transition: opacity 0.3s ease !important;
+    }
+    .gov-hero-scroll:hover {
+        opacity: 0.75 !important;
+    }
+    .gov-hero-dots {
+        gap: 0.5rem !important;
+    }
+ 
+    .gov-section-title {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        letter-spacing: -0.03em !important;
+    }
+    .gov-section-lead {
+        font-family: 'Inter', sans-serif !important;
+    }
+    .gov-eyebrow {
+        font-family: 'JetBrains Mono', monospace !important;
+        letter-spacing: 0.14em !important;
+    }
+    .gov-btn {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.01em !important;
+    }
+ 
+    footer.gov-footer,
+    footer.gov-footer .gov-container,
+    footer.gov-footer .gov-footer-grid,
+    footer.gov-footer .gov-footer-bottom,
+    footer.gov-footer .gov-footer-bottom-block,
+    footer.gov-footer .gov-footer-seal-block {
+        background: #0a0a0a !important;
+        background-color: #0a0a0a !important;
+        background-image: none !important;
+    }
+    footer.gov-footer {
+        border-top: 4px solid var(--gold) !important;
+        position: relative;
+        background: #0a0a0a !important;
+    }
+    footer.gov-footer::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 1px;
+        background: linear-gradient(to right, transparent, var(--gold), transparent);
+        display: block !important;
+    }
+    footer.gov-footer .gov-footer-bottom {
+        border-top: none !important;
+        padding: 3rem 0 2.5rem !important;
+        margin: 0 !important;
+        display: block !important;
+        width: 100% !important;
+        position: relative;
+    }
+    footer.gov-footer .gov-footer-bottom-block {
+        padding: 0 !important;
+        margin: 0 0 1.5rem 0 !important;
+        display: block !important;
+        text-align: center !important;
+    }
+    footer.gov-footer .gov-footer-seal-block {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+    footer.gov-footer .gov-footer-seal-circle {
+        width: 92px !important;
+        height: 92px !important;
+        border-radius: 50% !important;
+        background: #ffffff !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        border: 3px solid var(--gold) !important;
+        box-shadow:
+            0 0 0 6px rgba(213, 169, 40, 0.15),
+            0 12px 32px rgba(0, 0, 0, 0.5) !important;
+        margin: 0 auto !important;
+    }
+    footer.gov-footer .gov-footer-seal-circle img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+        padding: 6px !important;
+        border-radius: 50% !important;
+    }
+    footer.gov-footer .gov-footer-bottom-title {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-size: 0.98rem !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+        line-height: 1.6 !important;
+        margin: 1.5rem 0 1.5rem 0 !important;
+        text-align: center !important;
+        letter-spacing: -0.01em !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+        padding: 0 1rem !important;
+        background: transparent !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.82rem !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links a {
+        color: #b8b8b8 !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+        transition: color 0.2s ease !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links a:hover {
+        color: var(--gold) !important;
+        text-decoration: underline !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links span {
+        color: rgba(255, 255, 255, 0.25) !important;
+    }
+ 
+    .gov-nav-item {
+        position: relative;
+    }
+    .gov-nav-item::after {
+        content: "";
+        position: absolute;
+        bottom: 0.55rem;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 2px;
+        background: var(--gold);
+        transition: width 0.3s ease;
+    }
+    .gov-nav-item:hover::after,
+    .gov-nav-item.active::after {
+        width: calc(100% - 2.4rem);
+    }
+ 
+    @media (max-width: 900px) {
+        .gov-hero-slide-title {
+            font-size: clamp(1.2rem, 3.4vw, 1.6rem) !important;
+        }
+        .gov-hero-slide-title .hero-sub {
+            font-size: 0.75em !important;
+        }
+        .gov-hero-slide-desc {
+            font-size: 0.92rem !important;
+        }
+        .gov-hero-credit {
+            bottom: 0.75rem !important;
+            right: 0.75rem !important;
+            font-size: 0.58rem !important;
+            padding: 0.22rem 0.5rem !important;
+        }
+    }
+    @media (max-width: 640px) {
+        .gov-hero-slide-title {
+            font-size: 1.15rem !important;
+        }
+        .gov-hero-slide-title .hero-sub {
+            font-size: 0.72em !important;
+        }
+        .gov-hero-dot {
+            width: 6px !important;
+            height: 6px !important;
+        }
+        .gov-hero-dot.active {
+            width: 18px !important;
+        }
+    }
+    </style>
+</head>
+
+<body>
+
+ <div class="gov-topbar">
+    <div class="gov-topbar-inner">
+
+         <div class="gov-topbar-left">
+            <a href="#" title="Transparency content is pending official release from the BCTT office." class="gov-topbar-pending">Transparency</a>
+            <a href="#" title="Citizen's Charter is pending official release from the BCTT office." class="gov-topbar-pending">Citizen's Charter</a>
+        </div>
+
+         <div class="gov-topbar-right">
+            <span class="gov-topbar-tagline">BORONGANON: DISIPLINADO AKO</span>
+        </div>
+
+    </div>
+</div>
+
+ <div id="govPendingNotice" class="gov-pending-notice" role="status" aria-live="polite">
+    <i class="fas fa-info-circle"></i>
+    <span>This section is pending official release from the BCTT office.</span>
+</div>
+
+    <header class="gov-header">
+        <div class="gov-header-inner">
+            <div class="gov-header-left">
+                <img src="images/logo borongan.png" alt="Borongan City Seal" class="gov-header-seal" />
+                <div class="gov-header-text">
+                    <h1 class="gov-header-title">
+                        BORONGAN CITY TRANSPORT TERMINAL<br />
+                        QR-Based Transport Ticketing and Fee Collection System
+                    </h1>
+                </div>
+            </div>
+            <div class="gov-header-right">
+                <div class="gov-header-logos">
+                    <img src="images/bctt.jpg" alt="Borongan City Transport Terminal" class="gov-header-logo" />
+                    <img src="images/bagong pilipinas.png" alt="Bagong Pilipinas" class="gov-header-logo" />
+                    <img src="images/logo dukwag.jpg" alt="Dukwag Logo" class="gov-header-logo" />
+                </div>
+                <form class="gov-search" role="search" onsubmit="return false;">
+                    <input type="search" placeholder="Search the website..." aria-label="Search" />
+                    <button type="submit" aria-label="Search"><i class="fas fa-search"></i></button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <nav class="gov-nav">
+        <div class="gov-nav-inner">
+            <button id="mobileToggle" class="gov-nav-toggle" aria-label="Toggle menu">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div id="mainNav" class="gov-nav-menu">
+                <a href="index.html" class="gov-nav-item active">HOME</a>
+                <a href="about.html" class="gov-nav-item">ABOUT US</a>
+                <a href="services.html" class="gov-nav-item">SERVICES</a>
+                <a href="mission-vision.html" class="gov-nav-item">MISSION &amp; VISION</a>
+                <a href="organizational-chart.html" class="gov-nav-item">ORGANIZATIONAL CHART</a>
+                <a href="transport-information.html" class="gov-nav-item">TRANSPORT INFORMATION</a>
+                <a href="faq.html" class="gov-nav-item">FAQ</a>
+                <a href="contact.html" class="gov-nav-item">CONTACT US</a>
+                <a href="../login.html" class="gov-nav-login">LOGIN</a>
+            </div>
+        </div>
+    </nav>
+
+     <section class="gov-hero-slider" id="home">
+
+        <video class="gov-hero-video"
+               autoplay
+               muted
+               loop
+               playsinline
+               preload="metadata"
+               aria-hidden="true">
+            <source src="../images/borongan.mp4" type="video/mp4" />
+        </video>
+
+        <div class="gov-hero-slide-overlay"></div>
+
+        <div class="gov-hero-slide-inner">
+
+            <div class="gov-hero-slide active" data-slide="1">
+                <h2 class="gov-hero-slide-title">
+                    BORONGAN CITY TRANSPORT TERMINAL<br />
+                    <span class="hero-sub">QR-Based Transport Ticketing &amp; Fee Collection System</span>
+                </h2>
+                <p class="gov-hero-slide-desc">
+                    A digital platform designed to support driver registration, QR-based identification,
+                    prepaid transportation fee transactions, terminal verification, and centralized
+                    digital records for authorized terminal operations.
+                </p>
+                <div class="gov-hero-slide-actions">
+                    <a href="about.html" class="gov-btn gov-btn-white">
+                        Learn About the System <i class="fas fa-info-circle"></i>
+                    </a>
+                    <a href="../login.html" class="gov-btn gov-btn-hero-outline">
+                        Driver Login <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+                <p class="hero-support">
+                    Digitalizing terminal operations for a more organized, efficient, and accountable transport service.
+                </p>
+            </div>
+
+            <div class="gov-hero-slide" data-slide="2">
+                <span class="gov-hero-badge">DRIVERS</span>
+                <h2 class="gov-hero-slide-title">
+                    One QR Code.<br />
+                    Organized Records.
+                </h2>
+                <p class="gov-hero-slide-desc">
+                    Registered drivers receive a unique QR code linked to their driver
+                    and vehicle information, allowing faster identification and
+                    verification at the transport terminal.
+                </p>
+            </div>
+
+            <div class="gov-hero-slide" data-slide="3">
+                <span class="gov-hero-badge">OPERATIONS</span>
+                <h2 class="gov-hero-slide-title">
+                    Organized Terminal<br />
+                    Management
+                </h2>
+                <p class="gov-hero-slide-desc">
+                    The system helps authorized personnel manage prepaid balances,
+                    verify transport transactions, record payment references, and
+                    maintain organized digital transaction records.
+                </p>
+            </div>
+
+        </div>
+
+        <div class="gov-hero-dots">
+            <button class="gov-hero-dot active" data-dot="1" aria-label="Slide 1"></button>
+            <button class="gov-hero-dot" data-dot="2" aria-label="Slide 2"></button>
+            <button class="gov-hero-dot" data-dot="3" aria-label="Slide 3"></button>
+        </div>
+
+        <button class="gov-hero-scroll" id="heroScrollDown" aria-label="Scroll down">
+            <i class="fas fa-arrow-down"></i>
+        </button>
+
+         <div class="gov-hero-credit" aria-label="Video credit">
+            <i class="fas fa-video"></i>
+            <span>Video by <strong>Malakat</strong></span>
+        </div>
+
+    </section>
+
+     <section class="gov-section" id="about-preview">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg">
+                <span class="gov-eyebrow">ABOUT THE SYSTEM</span>
+                <h2 class="gov-section-title">Borongan City Transport Terminal</h2>
+                <p class="gov-section-lead">
+                    The Borongan City Transport Terminal QR-Based Transport Ticketing and Fee
+                    Collection System is a digital platform designed to support the management of
+                    registered public utility vehicle drivers and terminal transactions.
+                </p>
+            </div>
+
+            <div class="gov-about-preview-grid">
+                <div class="gov-about-preview-card">
+                    <i class="fas fa-id-card"></i>
+                    <h4>Driver &amp; Vehicle Registration</h4>
+                    <p>Centralized digital records for authorized drivers and their registered vehicles.</p>
+                </div>
+                <div class="gov-about-preview-card">
+                    <i class="fas fa-qrcode"></i>
+                    <h4>QR-Based Identification</h4>
+                    <p>Unique QR codes linked to each driver's authorized system record.</p>
+                </div>
+                <div class="gov-about-preview-card">
+                    <i class="fas fa-wallet"></i>
+                    <h4>Prepaid Balance Management</h4>
+                    <p>Authorized prepaid loads and payment reference records.</p>
+                </div>
+                <div class="gov-about-preview-card">
+                    <i class="fas fa-receipt"></i>
+                    <h4>Terminal Transactions</h4>
+                    <p>Authorized staff process and record transactions using the designated QR scanner.</p>
+                </div>
+            </div>
+
+            <div class="gov-text-center" style="margin-top: 2rem;">
+                <a href="about.html" class="gov-btn gov-btn-primary">
+                    Learn More About the System <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section gov-section-alt" id="modules-preview">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg">
+                <span class="gov-eyebrow">SYSTEM COMPONENTS</span>
+                <h2 class="gov-section-title">Core Modules of the Ticketing System</h2>
+                <p class="gov-section-lead">
+                    The system consists of interconnected modules supporting driver registration,
+                    QR identification, terminal verification, authorized fee processing, digital
+                    transaction records, and administrative reporting.
+                </p>
+            </div>
+
+            <div class="gov-components-grid">
+                <div class="gov-component-card">
+                    <span class="gov-component-cat">REGISTRATION</span>
+                    <h3>Driver &amp; Vehicle Registration</h3>
+                    <p>Centralized digital registration for authorized public utility vehicle drivers and their registered vehicles.</p>
+                    <a href="driver-registration.html" class="gov-btn gov-btn-primary gov-btn-block">
+                        Learn More <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="gov-component-card">
+                    <span class="gov-component-cat">IDENTIFICATION</span>
+                    <h3>QR Code Driver Identification</h3>
+                    <p>Each registered driver receives a unique QR code connected to their system record for authorized terminal verification.</p>
+                    <a href="qr-driver-identification.html" class="gov-btn gov-btn-primary gov-btn-block">
+                        Learn More <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="gov-component-card">
+                    <span class="gov-component-cat">VERIFICATION</span>
+                    <h3>QR Scanning at the Terminal</h3>
+                    <p>Authorized terminal staff use the designated scanner to verify drivers and process terminal transactions.</p>
+                    <a href="qr-scanning.html" class="gov-btn gov-btn-primary gov-btn-block">
+                        Learn More <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="gov-component-card">
+                    <span class="gov-component-cat">FEES</span>
+                    <h3>Automated Fee Collection</h3>
+                    <p>The system supports authorized terminal fee processing based on the configured vehicle fee schedule and prepaid balance.</p>
+                    <a href="fee-collection.html" class="gov-btn gov-btn-primary gov-btn-block">
+                        Learn More <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="gov-component-card">
+                    <span class="gov-component-cat">RECORDS</span>
+                    <h3>Digital Transaction Records</h3>
+                    <p>Centralized records allow authorized personnel to monitor, search, and review terminal transactions.</p>
+                    <a href="transaction-records.html" class="gov-btn gov-btn-primary gov-btn-block">
+                        Learn More <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="gov-component-card">
+                    <span class="gov-component-cat">REPORTS</span>
+                    <h3>Reports &amp; Monitoring</h3>
+                    <p>Authorized administrators can review system activity and generate reports from recorded transactions.</p>
+                    <a href="reports-monitoring.html" class="gov-btn gov-btn-primary gov-btn-block">
+                        Learn More <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="gov-text-center" style="margin-top: 2rem;">
+                <a href="services.html" class="gov-btn gov-btn-outline">
+                    View All Services <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section gov-featured" id="highlights">
+        <div class="gov-container">
+            <div class="gov-featured-header">
+                <div>
+                    <h2 class="gov-featured-title">Featured Highlights</h2>
+                    <p class="gov-featured-sub">Project information, orientation activities, and system rollout updates</p>
+                </div>
+            </div>
+
+            <div class="gov-featured-list">
+                <article class="gov-featured-item">
+                    <div class="gov-featured-image">
+                        <img src="images/jeep.jpg" alt="Driver Registration Orientation" />
+                    </div>
+                    <div class="gov-featured-body">
+                        <div class="gov-featured-tags">
+                            <span class="gov-tag gov-tag-primary">Registration</span>
+                            <span class="gov-tag gov-tag-muted">Project Activity</span>
+                        </div>
+                        <h3 class="gov-featured-item-title">Driver Registration and QR Issuance Orientation</h3>
+                        <p class="gov-featured-item-text">
+                            An orientation for public utility vehicle drivers regarding the QR-based
+                            driver identification and digital ticketing system. Registered drivers
+                            receive their unique QR codes for use at the terminal.
+                        </p>
+                        <div class="gov-featured-meta">
+                            <span><i class="fas fa-calendar"></i> August 24, 2026</span>
+                            <span><i class="fas fa-location-dot"></i> BCTT Main Terminal, Borongan City</span>
+                        </div>
+                        <a href="highlights/driver-registration-orientation.html" class="gov-btn gov-btn-primary gov-btn-sm">
+                            View Details <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </article>
+
+                <article class="gov-featured-item">
+                    <div class="gov-featured-image">
+                        <img src="images/jeepjeep.jpg" alt="System Rollout" />
+                    </div>
+                    <div class="gov-featured-body">
+                        <div class="gov-featured-tags">
+                            <span class="gov-tag gov-tag-primary">System Rollout</span>
+                            <span class="gov-tag gov-tag-muted">Project Information</span>
+                        </div>
+                        <h3 class="gov-featured-item-title">QR-Based Ticketing System Rollout for Public Utility Vehicles</h3>
+                        <p class="gov-featured-item-text">
+                            The QR-based ticketing and fee collection system is being configured to
+                            cover tricycles, jeepneys, multicabs, and buses operating within the
+                            terminal.
+                        </p>
+                        <div class="gov-featured-meta">
+                            <span><i class="fas fa-calendar"></i> August 21, 2026</span>
+                            <span><i class="fas fa-location-dot"></i> BCTT Main Terminal, Borongan City</span>
+                        </div>
+                        <a href="highlights/system-rollout.html" class="gov-btn gov-btn-primary gov-btn-sm">
+                            View Details <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </article>
+
+                <article class="gov-featured-item">
+                    <div class="gov-featured-image">
+                        <img src="images/tricycle.jpg" alt="Terminal Officers Training" />
+                    </div>
+                    <div class="gov-featured-body">
+                        <div class="gov-featured-tags">
+                            <span class="gov-tag gov-tag-primary">Training</span>
+                            <span class="gov-tag gov-tag-muted">Project Activity</span>
+                        </div>
+                        <h3 class="gov-featured-item-title">Training of Terminal Officers on QR Scanning and Fee Collection</h3>
+                        <p class="gov-featured-item-text">
+                            Terminal officers underwent training on using the QR scanning system,
+                            verifying driver information, and processing transportation fees in
+                            accordance with the approved fee schedule.
+                        </p>
+                        <div class="gov-featured-meta">
+                            <span><i class="fas fa-calendar"></i> August 4, 2026</span>
+                            <span><i class="fas fa-location-dot"></i> BCTT Operations Office</span>
+                        </div>
+                        <a href="highlights/terminal-officers-training.html" class="gov-btn gov-btn-primary gov-btn-sm">
+                            View Details <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section gov-section-alt" id="notices">
+        <div class="gov-container">
+            <div class="gov-featured-header">
+                <div>
+                    <h2 class="gov-featured-title">Latest Updates &amp; Notices</h2>
+                    <p class="gov-featured-sub">Sample advisories and project notices</p>
+                </div>
+            </div>
+
+            <div class="gov-notices-grid">
+                <article class="gov-notice-card">
+                    <span class="gov-tag gov-tag-primary">Advisory</span>
+                    <h3>Implementation of QR-Based Fee Collection for Tricycles</h3>
+                    <p>Sample advisory regarding QR-based terminal fee collection for tricycle drivers operating at the BCTT.</p>
+                    <div class="gov-notice-meta">
+                        <span><i class="fas fa-calendar"></i> Published: January 23, 2026</span>
+                    </div>
+                    <a href="notices/tricycle-fee-collection.html" class="gov-btn gov-btn-primary gov-btn-sm">
+                        View Details <i class="fas fa-arrow-right"></i>
+                    </a>
+                </article>
+
+                <article class="gov-notice-card">
+                    <span class="gov-tag gov-tag-primary">Notice</span>
+                    <h3>Schedule of Driver Registration for New Applicants</h3>
+                    <p>Sample schedule notice for new drivers seeking to register for a QR-linked account.</p>
+                    <div class="gov-notice-meta">
+                        <span><i class="fas fa-calendar"></i> Published: September 1, 2026</span>
+                    </div>
+                    <a href="notices/driver-registration-schedule.html" class="gov-btn gov-btn-primary gov-btn-sm">
+                        View Details <i class="fas fa-arrow-right"></i>
+                    </a>
+                </article>
+
+                <article class="gov-notice-card">
+                    <span class="gov-tag gov-tag-primary">Announcement</span>
+                    <h3>System Maintenance and Terminal Fee Schedule Update</h3>
+                    <p>Sample maintenance notice and information about updating fee configuration.</p>
+                    <div class="gov-notice-meta">
+                        <span><i class="fas fa-calendar"></i> Published: August 4, 2026</span>
+                    </div>
+                    <a href="notices/system-maintenance.html" class="gov-btn gov-btn-primary gov-btn-sm">
+                        View Details <i class="fas fa-arrow-right"></i>
+                    </a>
+                </article>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section" id="mv-preview">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg">
+                <span class="gov-eyebrow">OUR PURPOSE</span>
+                <h2 class="gov-section-title">Mission &amp; Vision</h2>
+            </div>
+            <div class="gov-grid-2">
+                <div class="gov-mv-card">
+                    <div class="gov-mv-icon-wrap"><i class="fas fa-bullseye"></i></div>
+                    <h3>Mission</h3>
+                    <p>The BCTT in collaboration with different government offices and public transport cooperatives/associations shall endeavor to develop and promote the transportation industry as source of livelihood among drivers and operators; ensure the safety, comfort, convenience, and well being of the riding public through the provision of responsive, accountable and God centered regulatory services.</p>
+                </div>
+                <div class="gov-mv-card">
+                    <div class="gov-mv-icon-wrap"><i class="fas fa-eye"></i></div>
+                    <h3>Vision</h3>
+                    <p>Consistent with the Vision and Mission of the City Government, the BCTT envisions for a progressive and self-sustaining inter-modal public land transport interchange with God-fearing, highly dedicated and flexible personnel ready to embrace an innovative transportation technology and working towards an inclusive transport business opportunities which shall spur an environment-friendly and sustainable socio-economic growth.</p>
+                </div>
+            </div>
+            <div class="gov-text-center" style="margin-top: 2rem;">
+                <a href="mission-vision.html" class="gov-btn gov-btn-primary">
+                    Read Full Mission &amp; Vision <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section gov-section-alt" id="org-preview">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg">
+                <span class="gov-eyebrow">OUR ORGANIZATION</span>
+                <h2 class="gov-section-title">Organizational Structure</h2>
+                <p class="gov-section-lead">
+                    The organizational chart presents the structure of the office responsible
+                    for the management and operation of the transport terminal.
+                </p>
+            </div>
+            <div class="gov-org-image-wrap">
+                <img src="images/organizationalchart.jpg" alt="BCTT Organizational Chart" class="gov-org-image" loading="lazy" />
+            </div>
+            <div class="gov-text-center" style="margin-top: 1.5rem;">
+                <a href="organizational-chart.html" class="gov-btn gov-btn-primary">
+                    View Full Organizational Chart <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section" id="transport-preview">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg">
+                <span class="gov-eyebrow">TRANSPORT INFORMATION</span>
+                <h2 class="gov-section-title">Vehicle Types &amp; Fee Information</h2>
+            </div>
+
+            <div class="gov-grid-4">
+                <div class="gov-info-card">
+                    <i class="fas fa-motorcycle"></i>
+                    <h4>Tricycle</h4>
+                    <p>Information about registered tricycle operations and applicable terminal transactions.</p>
+                </div>
+                <div class="gov-info-card">
+                    <i class="fas fa-shuttle-van"></i>
+                    <h4>Jeepney</h4>
+                    <p>Information about registered jeepney operations and applicable terminal transactions.</p>
+                </div>
+                <div class="gov-info-card">
+                    <i class="fas fa-truck-pickup"></i>
+                    <h4>Multicab</h4>
+                    <p>Information about registered multicab operations and applicable terminal transactions.</p>
+                </div>
+                <div class="gov-info-card">
+                    <i class="fas fa-bus"></i>
+                    <h4>Bus</h4>
+                    <p>Information about registered bus operations and applicable terminal transactions.</p>
+                </div>
+            </div>
+
+            <div class="gov-fee-block">
+                <div class="gov-fee-label">
+                    <span class="gov-eyebrow">CONFIGURED FEE SCHEDULE</span>
+                    <p>Fee amounts are subject to the approved fee schedule of the responsible office and may be updated by authorized personnel.</p>
+                </div>
+                <div class="gov-fee-grid">
+                    <div class="gov-fee-item"><span class="gov-fee-type">Tricycle</span><span class="gov-fee-amount">₱5</span></div>
+                    <div class="gov-fee-item"><span class="gov-fee-type">Jeepney</span><span class="gov-fee-amount">₱60</span></div>
+                    <div class="gov-fee-item"><span class="gov-fee-type">Multicab</span><span class="gov-fee-amount">₱60</span></div>
+                    <div class="gov-fee-item"><span class="gov-fee-type">Bus</span><span class="gov-fee-amount">₱100</span></div>
+                </div>
+            </div>
+
+            <div class="gov-text-center" style="margin-top: 2rem;">
+                <a href="transport-information.html" class="gov-btn gov-btn-primary">
+                    Full Transport Information <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-section gov-section-alt" id="faq-preview">
+        <div class="gov-container">
+            <div class="gov-text-center gov-mb-lg">
+                <span class="gov-eyebrow">FAQ</span>
+                <h2 class="gov-section-title">Frequently Asked Questions</h2>
+            </div>
+            <div class="gov-faq">
+                <details class="gov-faq-item">
+                    <summary>Who can register?</summary>
+                    <p>Authorized public utility vehicle drivers who operate within the applicable terminal procedures may register.</p>
+                </details>
+                <details class="gov-faq-item">
+                    <summary>What is the QR code used for?</summary>
+                    <p>The QR code is used to identify and verify the registered driver through the terminal's authorized scanning system.</p>
+                </details>
+                <details class="gov-faq-item">
+                    <summary>Does the system issue an official government receipt?</summary>
+                    <p>The system records authorized payment and reference information. It should only be described as issuing an official government receipt if the responsible office formally authorizes that function.</p>
+                </details>
+            </div>
+            <div class="gov-text-center" style="margin-top: 2rem;">
+                <a href="faq.html" class="gov-btn gov-btn-primary">
+                    View All FAQs <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+     <section class="gov-cta">
+        <div class="gov-container gov-text-center">
+            <span class="gov-cta-eyebrow">READY TO GET STARTED?</span>
+            <h2 class="gov-cta-title">Access the Transportation Portal</h2>
+            <p class="gov-cta-text">
+                Access the portal for driver registration, QR identification, and transportation fee services.
+            </p>
+            <div class="gov-btn-group gov-btn-group-center">
+                <a href="../register.html" class="gov-btn gov-btn-white">Register Now <i class="fas fa-user-plus"></i></a>
+                <a href="../login.html" class="gov-btn gov-btn-outline-white">Login to the System <i class="fas fa-arrow-right"></i></a>
+            </div>
+        </div>
+    </section>
+
+     <footer class="gov-footer">
+        <div class="gov-container">
+            <div class="gov-footer-grid">
+
+                <div class="gov-footer-col">
+    <h5>About</h5>
+    <ul>
+        <li><a href="about.html">About the System</a></li>
+        <li><a href="mission-vision.html">Mission &amp; Vision</a></li>
+        <li><a href="organizational-chart.html">Organizational Chart</a></li>
+        <li><a href="transport-information.html">Transport Information</a></li>
+    </ul>
+</div>
+
+<div class="gov-footer-col">
+    <h5>System</h5>
+    <ul>
+        <li><a href="driver-registration.html">Driver Registration</a></li>
+        <li><a href="qr-driver-identification.html">QR Driver Identification</a></li>
+        <li><a href="qr-scanning.html">QR Scanning</a></li>
+        <li><a href="fee-collection.html">Fee Collection</a></li>
+        <li><a href="transaction-records.html">Transaction Records</a></li>
+        <li><a href="reports-monitoring.html">Reports &amp; Monitoring</a></li>
+    </ul>
+</div>
+
+<div class="gov-footer-col">
+    <h5>Guides</h5>
+    <ul>
+        <li><a href="user-guide.html">User Guide</a></li>
+        <li><a href="user-guide.html#driver">Driver Registration Guide</a></li>
+        <li><a href="user-guide.html#cashier">QR Scanning Guide</a></li>
+        <li><a href="user-guide.html#staff">Prepaid Balance Guide</a></li>
+        <li><a href="user-guide.html#admin">Transaction Guide</a></li>
+        <li><a href="faq.html">FAQ</a></li>
+    </ul>
+</div>
+
+<div class="gov-footer-col">
+    <h5>Resources</h5>
+    <ul>
+        <li><a href="site-map.html">Site Map</a></li>
+    </ul>
+</div>
+
+<div class="gov-footer-col">
+    <h5>Policies</h5>
+    <ul>
+        <li><a href="privacy-policy.html">Data Privacy Policy</a></li>
+        <li><a href="security-policy.html">Security Policy</a></li>
+        <li><a href="ip-rights-policy.html">Intellectual Property Rights Policy</a></li>
+        <li><a href="terms-of-use.html">Terms of Use</a></li>
+    </ul>
+</div>
+
+            </div>
+
+             <div class="gov-footer-bottom">
+
+                <div class="gov-footer-bottom-block">
+                    <div class="gov-footer-seal-block">
+                        <div class="gov-footer-seal-circle">
+                            <img src="images/logo borongan.png" alt="Republic of the Philippines" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gov-container">
+                    <p class="gov-footer-bottom-title">
+                        Borongan City Transport Terminal<br />
+                        QR-Based Transport Ticketing and Fee Collection System
+                    </p>
+                    <div class="gov-footer-bottom-links">
+                        <a href="https://www.gov.ph/directory" target="_blank" rel="noopener">Government Directory</a>
+                        <span>|</span>
+                        <a href="privacy-policy.html">Privacy Policy</a>
+                        <span>|</span>
+                        <a href="security-policy.html">Security Policy</a>
+                        <span>|</span>
+                        <a href="ip-rights-policy.html">Intellectual Property Rights</a>
+                        <span>|</span>
+                        <a href="terms-of-use.html">Terms of Use</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </footer>
+
+<script>
+(function () {
+    var slides = document.querySelectorAll('.gov-hero-slide');
+    var dots = document.querySelectorAll('.gov-hero-dot');
+    if (!slides.length || !dots.length) return;
+
+    var current = 0;
+    var total = slides.length;
+    var interval = 6000;
+    var timer = null;
+
+    function goTo(index) {
+        if (index < 0) index = total - 1;
+        if (index >= total) index = 0;
+
+        slides.forEach(function (s, i) {
+            s.classList.toggle('active', i === index);
+        });
+        dots.forEach(function (d, i) {
+            d.classList.toggle('active', i === index);
+        });
+        current = index;
+    }
+
+    function next() {
+        goTo(current + 1);
+    }
+
+    function startAuto() {
+        stopAuto();
+        timer = setInterval(next, interval);
+    }
+
+    function stopAuto() {
+        if (timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+    }
+
+    dots.forEach(function (dot, i) {
+        dot.addEventListener('click', function () {
+            goTo(i);
+            startAuto();
+        });
+    });
+
+    var hero = document.querySelector('.gov-hero-slider');
+    if (hero) {
+        hero.addEventListener('mouseenter', stopAuto);
+        hero.addEventListener('mouseleave', startAuto);
+    }
+
+    goTo(0);
+    startAuto();
+})();
+</script>
+
+    <script src="assets/js/index.js"></script>
+
+    <script>
+    (function(){
+        var pre = window.__ASSET_PREFIX__ || '../';
+        var s = document.createElement("script");
+        s.src = pre + "assets/js/inner.js";
+        document.body.appendChild(s);
+    })();
+    </script>
+
+    <script>
+(function(){
+    var pre = window.__ASSET_PREFIX__ || '../';
+    ["assets/js/search-index.js", "assets/js/search.js"].forEach(function(src){
+        var s = document.createElement("script");
+        s.src = pre + src;
+        document.body.appendChild(s);
+    });
+})();
+</script>
+
+    <script>
+(function () {
+    var notice = document.getElementById('govPendingNotice');
+    if (!notice) return;
+
+    document.querySelectorAll('.gov-topbar-pending, .gov-footer-col a[title]').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            var href = link.getAttribute('href');
+            if (href === '#') {
+                e.preventDefault();
+                notice.classList.add('show');
+                clearTimeout(window.__pendingTimer);
+                window.__pendingTimer = setTimeout(function () {
+                    notice.classList.remove('show');
+                }, 3200);
+            }
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

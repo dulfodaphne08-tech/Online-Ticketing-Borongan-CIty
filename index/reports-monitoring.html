@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reports &amp; Monitoring · Borongan City Transport Terminal</title>
+    <meta name="description" content="Reports and Monitoring module of the Borongan City Transport Terminal QR-Based Transport Ticketing and Fee Collection System." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,700;1,500;1,700&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400;1,600&family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+    <script>
+    (function(){
+        var p = location.pathname.replace(/\\/g,'/');
+        var i = p.indexOf('/index/');
+        var a = i >= 0 ? p.slice(i + 7) : '';
+        var d = (a.match(/\//g) || []).length;
+        var pre = '../'.repeat(d + 1);
+        window.__ASSET_PREFIX__ = pre;
+        document.write('<link rel="stylesheet" href="' + pre + 'assets/css/index.css">');
+        document.write('<script src="' + pre + 'assets/js/path-fixer.js"><\/script>');
+    })();
+    </script>
+
+    <script>
+    (function(){
+        var pre = window.__ASSET_PREFIX__ || '../';
+        document.write('<link rel="stylesheet" href="' + pre + 'assets/css/footer.css">');
+    })();
+    </script>
+
+    <style>
+     :root {
+        --primary: #b22234;
+        --primary-dark: #8f1a2a;
+        --primary-soft: #fef2f2;
+        --primary-glow: rgba(178, 34, 52, 0.12);
+
+        --gold: #d5a928;
+        --gold-dark: #b88a1d;
+        --gold-soft: #fdf6e3;
+        --gold-glow: rgba(213, 169, 40, 0.18);
+
+        --navy: #0f1e3d;
+        --navy-soft: #eef2f9;
+
+        --ink-900: #111827;
+        --ink-700: #374151;
+        --ink-600: #4b5563;
+        --ink-500: #6b7280;
+        --ink-300: #d1d5db;
+        --ink-200: #e5e7eb;
+        --ink-100: #f3f4f6;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: #ffffff; }
+
+     .reading-progress {
+        position: fixed;
+        top: 0; left: 0;
+        height: 3px;
+        width: 0%;
+        background: linear-gradient(to right, var(--primary), var(--gold));
+        z-index: 9999;
+        transition: width 0.15s ease;
+        box-shadow: 0 0 10px var(--primary-glow);
+    }
+
+     .doc-header {
+        position: relative;
+        background: linear-gradient(135deg, #fef2f2 0%, #ffffff 55%, #fdf6e3 100%);
+        padding: 5rem 0 3.5rem;
+        border-bottom: 1px solid var(--ink-200);
+        overflow: hidden;
+    }
+    .doc-header::before {
+        content: "";
+        position: absolute;
+        top: -120px;
+        right: -100px;
+        width: 480px;
+        height: 480px;
+        background: radial-gradient(circle, var(--gold-glow), transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+    .doc-header::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(rgba(178, 34, 52, 0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(178, 34, 52, 0.035) 1px, transparent 1px);
+        background-size: 32px 32px;
+        pointer-events: none;
+        opacity: 0.9;
+        -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 90%);
+                mask-image: linear-gradient(to bottom, black 0%, transparent 90%);
+    }
+    .doc-header-inner {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .doc-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        color: var(--ink-500);
+        margin-bottom: 2rem;
+    }
+    .doc-breadcrumb a {
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none;
+        position: relative;
+    }
+    .doc-breadcrumb a::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--gold);
+        transition: width 0.3s ease;
+    }
+    .doc-breadcrumb a:hover::after { width: 100%; }
+    .doc-breadcrumb a:hover { color: var(--primary-dark); }
+    .doc-breadcrumb i {
+        font-size: 0.6rem;
+        color: var(--ink-300);
+    }
+    .doc-breadcrumb .current {
+        color: var(--ink-700);
+        font-weight: 600;
+    }
+
+    .doc-ribbon {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .doc-ribbon span {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 0.45rem 0.9rem;
+        background: rgba(255, 255, 255, 0.75);
+        border: 1px solid var(--gold);
+        color: var(--navy);
+        border-radius: 6px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .doc-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: clamp(1.9rem, 3.6vw, 2.7rem);
+        font-weight: 800;
+        color: var(--ink-900);
+        line-height: 1.1;
+        letter-spacing: -0.035em;
+        margin: 0 0 1.35rem 0;
+    }
+    .doc-title em {
+        font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+        font-style: italic;
+        font-weight: 700;
+        color: var(--primary);
+        letter-spacing: -0.01em;
+        font-size: 1.08em;
+    }
+
+    .doc-lead {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.1rem;
+        color: var(--ink-600);
+        line-height: 1.8;
+        margin: 0 0 2rem 0;
+        font-weight: 400;
+    }
+    .doc-lead strong {
+        color: var(--ink-900);
+        font-weight: 700;
+    }
+
+    .doc-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9rem;
+        color: var(--ink-500);
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--ink-200);
+        margin: 0;
+    }
+    .doc-meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+    }
+    .doc-meta-item i {
+        color: var(--primary);
+        font-size: 0.85rem;
+    }
+
+     .doc-body {
+        padding: 4rem 0 6rem;
+        background: #ffffff;
+    }
+    .doc-content {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+    }
+
+    .doc-toolbar {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0 0 2.5rem 0;
+        flex-wrap: wrap;
+    }
+    .doc-toolbar button {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 0.55rem 1.05rem;
+        border: 1px solid var(--ink-200);
+        background: #fff;
+        color: var(--ink-700);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .doc-toolbar button i {
+        color: var(--primary);
+        font-size: 0.85rem;
+    }
+    .doc-toolbar button:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: var(--primary-soft);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px -6px var(--primary-glow);
+    }
+
+    .doc-intro {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.08rem;
+        line-height: 1.85;
+        color: var(--ink-600);
+        margin: 0 0 3rem 0;
+        padding: 0 1rem 0 3.75rem;
+        max-width: 100%;
+        font-weight: 400;
+    }
+    .doc-intro strong {
+        color: var(--ink-900);
+        font-weight: 700;
+    }
+
+     .doc-section {
+        margin: 5rem 0 0 0;
+        scroll-margin-top: 90px;
+    }
+    .doc-section:first-of-type { margin-top: 0; }
+
+    .doc-section-head {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        margin: 0 0 2rem 0;
+        padding-bottom: 1.25rem;
+        border-bottom: 2px solid var(--primary-soft);
+        position: relative;
+    }
+    .doc-section-head::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 80px;
+        height: 2px;
+        background: linear-gradient(to right, var(--primary), var(--gold));
+    }
+
+    .doc-section-num {
+        font-family: 'Sora', sans-serif;
+        font-style: normal;
+        font-weight: 800;
+        font-size: 1.05rem;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        width: 46px;
+        height: 46px;
+        min-width: 46px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 16px -4px rgba(178, 34, 52, 0.4);
+        position: relative;
+        letter-spacing: -0.02em;
+    }
+    .doc-section-num::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border-radius: 16px;
+        border: 1px dashed rgba(178, 34, 52, 0.3);
+    }
+
+    .doc-section-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+        font-weight: 800;
+        color: var(--ink-900);
+        letter-spacing: -0.03em;
+        margin: 0;
+        line-height: 1.15;
+    }
+    .doc-section-title em {
+        font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+        font-style: italic;
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    .doc-section p {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.02rem;
+        line-height: 1.9;
+        color: var(--ink-600);
+        margin: 0 0 1.35rem 0;
+        padding-left: 3.75rem;
+        padding-right: 1rem;
+        max-width: 100%;
+        font-weight: 400;
+    }
+    .doc-section p:last-child { margin-bottom: 0; }
+    .doc-section p strong {
+        color: var(--ink-900);
+        font-weight: 700;
+    }
+
+     .doc-list {
+        list-style: none;
+        padding: 0 0 0 3.75rem;
+        margin: 1.25rem 0 1.75rem 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        max-width: 900px;
+    }
+    .doc-list li {
+        position: relative;
+        padding-left: 1.85rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        color: var(--ink-600);
+        line-height: 1.7;
+        font-weight: 400;
+        transition: transform 0.25s ease, color 0.25s ease;
+    }
+    .doc-list li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.55rem;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--gold));
+        box-shadow: 0 0 0 3px var(--primary-glow);
+        transition: transform 0.25s ease;
+    }
+    .doc-list li:hover {
+        transform: translateX(6px);
+        color: var(--ink-900);
+    }
+    .doc-list li:hover::before {
+        transform: scale(1.3);
+    }
+    .doc-list li strong {
+        color: var(--ink-900);
+        font-weight: 700;
+    }
+
+     .doc-divider {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 4.5rem 0 4.5rem 3.75rem;
+        max-width: 780px;
+    }
+    .doc-divider span {
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(to right, transparent, var(--primary), transparent);
+        opacity: 0.5;
+    }
+    .doc-divider i {
+        color: var(--primary);
+        font-size: 0.5rem;
+        opacity: 0.6;
+    }
+
+     .doc-report-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+        margin: 2rem 0 0 3.75rem;
+        max-width: 950px;
+    }
+    .doc-report-card {
+        position: relative;
+        padding: 1.75rem 1.85rem;
+        background: #ffffff;
+        border: 1px solid var(--ink-200);
+        border-radius: 16px;
+        transition: all 0.25s ease;
+        overflow: hidden;
+    }
+    .doc-report-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--primary) 0%, var(--gold) 100%);
+    }
+    .doc-report-card:hover {
+        box-shadow: 0 16px 36px -18px rgba(178, 34, 52, 0.22);
+        transform: translateY(-3px);
+        border-color: rgba(178, 34, 52, 0.25);
+    }
+    .doc-report-card-head {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        margin-bottom: 1rem;
+    }
+    .doc-report-card-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 11px;
+        background: linear-gradient(135deg, #fef2f2 0%, #ffe4e6 100%);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.05rem;
+        flex-shrink: 0;
+        border: 1px solid rgba(178, 34, 52, 0.10);
+    }
+    .doc-report-card-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--ink-900);
+        letter-spacing: -0.015em;
+        line-height: 1.25;
+        margin: 0;
+    }
+    .doc-report-card ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+    }
+    .doc-report-card ul li {
+        position: relative;
+        padding-left: 1.35rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.88rem;
+        line-height: 1.6;
+        color: var(--ink-600);
+        font-weight: 400;
+    }
+    .doc-report-card ul li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.55rem;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--gold));
+        opacity: 0.85;
+    }
+
+     .doc-note {
+        display: flex;
+        gap: 1.25rem;
+        align-items: flex-start;
+        background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+        border: 1px solid #fecaca;
+        border-left: 5px solid var(--primary);
+        border-radius: 14px;
+        padding: 1.75rem 2rem;
+        margin: 2rem 0 0 3.75rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .doc-note::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(225deg, var(--gold) 0%, transparent 60%);
+        opacity: 0.35;
+        pointer-events: none;
+    }
+    .doc-note-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: #ffffff;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px var(--primary-glow);
+        position: relative;
+        z-index: 1;
+    }
+    .doc-note-body {
+        position: relative;
+        z-index: 1;
+    }
+    .doc-note-body strong {
+        display: block;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+        margin: 0 0 0.6rem 0;
+        padding: 0;
+    }
+    .doc-note-body p {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.95rem;
+        color: var(--ink-700);
+        line-height: 1.75;
+        margin: 0;
+        padding: 0;
+        font-weight: 400;
+    }
+    .doc-note-body p + p {
+        margin-top: 0.85rem;
+    }
+
+     .doc-card-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        margin: 2rem 0 0 3.75rem;
+        max-width: 950px;
+    }
+    .doc-card {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 1.4rem 1.6rem;
+        background: #ffffff;
+        border: 1px solid var(--ink-200);
+        border-radius: 14px;
+        text-decoration: none;
+        transition: all 0.25s ease;
+    }
+    .doc-card:hover {
+        border-color: var(--primary);
+        box-shadow: 0 12px 28px -12px rgba(178, 34, 52, 0.18);
+        transform: translateY(-3px);
+    }
+    .doc-card-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #fef2f2 0%, #ffe4e6 100%);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        border: 1px solid rgba(178, 34, 52, 0.10);
+    }
+    .doc-card-body {
+        flex: 1;
+        min-width: 0;
+    }
+    .doc-card-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.98rem;
+        font-weight: 700;
+        color: var(--ink-900);
+        letter-spacing: -0.01em;
+        margin: 0 0 0.2rem 0;
+    }
+    .doc-card-desc {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.84rem;
+        color: var(--ink-500);
+        line-height: 1.55;
+        margin: 0;
+    }
+    .doc-card-arrow {
+        color: var(--primary);
+        font-size: 0.9rem;
+        flex-shrink: 0;
+        transition: transform 0.2s ease;
+    }
+    .doc-card:hover .doc-card-arrow {
+        transform: translateX(4px);
+    }
+
+     .doc-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-top: 4rem;
+        padding-top: 2.5rem;
+        border-top: 1px solid var(--ink-200);
+    }
+
+     @media (max-width: 900px) {
+        .doc-header { padding: 3.5rem 0 2.5rem; }
+        .doc-body { padding: 3rem 0 4rem; }
+        .doc-card-grid { grid-template-columns: 1fr; }
+        .doc-report-grid { grid-template-columns: 1fr; }
+        .doc-divider { margin-left: 0; }
+    }
+    @media (max-width: 640px) {
+        .doc-header { padding: 3rem 0 2rem; }
+        .doc-body { padding: 2.5rem 0 3rem; }
+        .doc-intro,
+        .doc-section p {
+            padding-left: 0;
+            padding-right: 0;
+            font-size: 0.98rem;
+        }
+        .doc-list { padding-left: 0; }
+        .doc-report-grid,
+        .doc-note,
+        .doc-card-grid {
+            margin-left: 0;
+        }
+        .doc-note {
+            padding: 1.25rem 1.35rem;
+            flex-direction: column;
+        }
+        .doc-actions { flex-direction: column; }
+        .doc-actions .gov-btn { width: 100%; }
+        .doc-section-num {
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            font-size: 0.9rem;
+        }
+        .doc-section-head { gap: 0.9rem; }
+    }
+
+     @media print {
+        .reading-progress,
+        .doc-toolbar,
+        .gov-topbar,
+        .gov-nav,
+        .doc-actions,
+        footer.gov-footer { display: none !important; }
+        .doc-header { padding: 1rem 0 !important; }
+    }
+
+     footer.gov-footer,
+    footer.gov-footer .gov-container,
+    footer.gov-footer .gov-footer-grid,
+    footer.gov-footer .gov-footer-bottom,
+    footer.gov-footer .gov-footer-bottom-block,
+    footer.gov-footer .gov-footer-seal-block {
+        background: #0a0a0a !important;
+        background-color: #0a0a0a !important;
+        background-image: none !important;
+    }
+    footer.gov-footer {
+        border-top: 4px solid var(--gold) !important;
+        position: relative;
+        background: #0a0a0a !important;
+    }
+    footer.gov-footer::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 1px;
+        background: linear-gradient(to right, transparent, var(--gold), transparent);
+        display: block !important;
+    }
+    footer.gov-footer .gov-footer-bottom {
+        border-top: none !important;
+        padding: 3rem 0 2.5rem !important;
+        margin: 0 !important;
+        display: block !important;
+        width: 100% !important;
+        position: relative;
+    }
+    footer.gov-footer .gov-footer-bottom-block {
+        padding: 0 !important;
+        margin: 0 0 1.5rem 0 !important;
+        display: block !important;
+        text-align: center !important;
+    }
+    footer.gov-footer .gov-footer-seal-block {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+    footer.gov-footer .gov-footer-seal-circle {
+        width: 92px !important;
+        height: 92px !important;
+        border-radius: 50% !important;
+        background: #ffffff !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        border: 3px solid var(--gold) !important;
+        box-shadow:
+            0 0 0 6px rgba(213, 169, 40, 0.15),
+            0 12px 32px rgba(0, 0, 0, 0.5) !important;
+        margin: 0 auto !important;
+    }
+    footer.gov-footer .gov-footer-seal-circle img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+        padding: 6px !important;
+        border-radius: 50% !important;
+    }
+    footer.gov-footer .gov-footer-bottom-title {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-size: 0.98rem !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+        line-height: 1.6 !important;
+        margin: 1.5rem 0 1.5rem 0 !important;
+        text-align: center !important;
+        letter-spacing: -0.01em !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+        padding: 0 1rem !important;
+        background: transparent !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.82rem !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links a {
+        color: #b8b8b8 !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+        transition: color 0.2s ease !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links a:hover {
+        color: var(--gold) !important;
+        text-decoration: underline !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links span {
+        color: rgba(255, 255, 255, 0.25) !important;
+    }
+
+     .gov-nav-item {
+        position: relative;
+    }
+    .gov-nav-item::after {
+        content: "";
+        position: absolute;
+        bottom: 0.55rem;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 2px;
+        background: var(--gold);
+        transition: width 0.3s ease;
+    }
+    .gov-nav-item:hover::after,
+    .gov-nav-item.active::after {
+        width: calc(100% - 2.4rem);
+    }
+    </style>
+</head>
+<body>
+
+     <div class="reading-progress" id="readingProgress"></div>
+
+    <div class="gov-topbar">
+        <div class="gov-topbar-inner">
+            <div class="gov-topbar-links"></div>
+            <div class="gov-topbar-right">
+                <span class="gov-topbar-tagline">BORONGANON: DISIPLINADO AKO</span>
+            </div>
+        </div>
+    </div>
+
+    <header class="gov-header">
+        <div class="gov-header-inner">
+            <div class="gov-header-left">
+                <img src="images/logo borongan.png" alt="Borongan City Seal" class="gov-header-seal" />
+                <div class="gov-header-text">
+                    <h1 class="gov-header-title">
+                        BORONGAN CITY TRANSPORT TERMINAL<br />
+                        QR-Based Transport Ticketing and Fee Collection System
+                    </h1>
+                    <p class="gov-header-subtitle">
+                        A web-based system for digital ticketing, driver identification, and fee monitoring of public utility vehicles in Borongan City.
+                    </p>
+                </div>
+            </div>
+            <div class="gov-header-right">
+                <div class="gov-header-logos">
+                    <img src="images/bctt.jpg" alt="BCTT" class="gov-header-logo" />
+                    <img src="images/bagong pilipinas.png" alt="Bagong Pilipinas" class="gov-header-logo" />
+                    <img src="images/logo dukwag.jpg" alt="Dukwag" class="gov-header-logo" />
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav class="gov-nav">
+        <div class="gov-nav-inner">
+            <button id="mobileToggle" class="gov-nav-toggle" aria-label="Toggle menu">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div id="mainNav" class="gov-nav-menu">
+                <a href="index.html" class="gov-nav-item">HOME</a>
+                <a href="about.html" class="gov-nav-item">ABOUT US</a>
+                <a href="services.html" class="gov-nav-item active">SERVICES</a>
+                <a href="mission-vision.html" class="gov-nav-item">MISSION &amp; VISION</a>
+                <a href="organizational-chart.html" class="gov-nav-item">ORGANIZATIONAL CHART</a>
+                <a href="transport-information.html" class="gov-nav-item">TRANSPORT INFORMATION</a>
+                <a href="faq.html" class="gov-nav-item">FAQ</a>
+                <a href="contact.html" class="gov-nav-item">CONTACT US</a>
+                <a href="../login.html" class="gov-nav-login">LOGIN</a>
+            </div>
+        </div>
+    </nav>
+
+     <section class="doc-header">
+        <div class="doc-header-inner">
+
+            <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+                <a href="index.html">Home</a>
+                <i class="fas fa-chevron-right"></i>
+                <a href="services.html">Services</a>
+                <i class="fas fa-chevron-right"></i>
+                <span class="current">Reports &amp; Monitoring</span>
+            </nav>
+
+            <div class="doc-ribbon">
+                <span>Service Module</span>
+                <span>Reports</span>
+                <span>Monitoring</span>
+            </div>
+
+            <h1 class="doc-title">
+                Reports &amp; <em>Monitoring</em>
+            </h1>
+
+            <p class="doc-lead">
+                The system provides authorized administrators with tools for monitoring terminal
+                activity and generating reports from recorded system transactions.
+            </p>
+
+            <div class="doc-meta">
+                <span class="doc-meta-item">
+                    <i class="fas fa-chart-bar"></i> Reports Module
+                </span>
+                <span class="doc-meta-item">
+                    <i class="fas fa-user-shield"></i> Administrators · Authorized Personnel
+                </span>
+            </div>
+
+        </div>
+    </section>
+
+     <section class="doc-body">
+        <div class="doc-content">
+
+             <div class="doc-toolbar">
+                <button onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+                <button onclick="navigator.clipboard.writeText(location.href); this.innerHTML='<i class=\'fas fa-check\'></i> Copied!'; setTimeout(()=>this.innerHTML='<i class=\'fas fa-link\'></i> Copy Link', 1800);">
+                    <i class="fas fa-link"></i> Copy Link
+                </button>
+                <button onclick="if(navigator.share){navigator.share({title:document.title,url:location.href})}">
+                    <i class="fas fa-share-nodes"></i> Share
+                </button>
+            </div>
+
+            <p class="doc-intro">
+                The Reports &amp; Monitoring module gives authorized administrators a consolidated
+                view of terminal activity. Reports are generated from recorded system data,
+                allowing administrators to review transaction volume, driver activity, vehicle-type
+                usage, cashier loading records, and staff transaction history in an organized and
+                accountable manner.
+            </p>
+
+             <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">01</span>
+                    <h2 class="doc-section-title">Available <em>Reports</em></h2>
+                </div>
+
+                <div class="doc-report-grid">
+
+                    <div class="doc-report-card">
+                        <div class="doc-report-card-head">
+                            <div class="doc-report-card-icon"><i class="fas fa-calendar-day"></i></div>
+                            <h3 class="doc-report-card-title">Daily Terminal Report</h3>
+                        </div>
+                        <ul>
+                            <li>Total transactions</li>
+                            <li>Total recorded fees</li>
+                            <li>Vehicle activity</li>
+                            <li>Driver activity</li>
+                            <li>Transaction status</li>
+                        </ul>
+                    </div>
+
+                    <div class="doc-report-card">
+                        <div class="doc-report-card-head">
+                            <div class="doc-report-card-icon"><i class="fas fa-calendar-alt"></i></div>
+                            <h3 class="doc-report-card-title">Monthly Report</h3>
+                        </div>
+                        <ul>
+                            <li>Monthly transaction count</li>
+                            <li>Monthly recorded fees</li>
+                            <li>Driver activity</li>
+                            <li>Vehicle-type activity</li>
+                        </ul>
+                    </div>
+
+                    <div class="doc-report-card">
+                        <div class="doc-report-card-head">
+                            <div class="doc-report-card-icon"><i class="fas fa-bus"></i></div>
+                            <h3 class="doc-report-card-title">Vehicle-Type Report</h3>
+                        </div>
+                        <ul>
+                            <li>Tricycle transactions</li>
+                            <li>Jeepney transactions</li>
+                            <li>Multicab transactions</li>
+                            <li>Bus transactions</li>
+                        </ul>
+                    </div>
+
+                    <div class="doc-report-card">
+                        <div class="doc-report-card-head">
+                            <div class="doc-report-card-icon"><i class="fas fa-user"></i></div>
+                            <h3 class="doc-report-card-title">Driver Transaction Report</h3>
+                        </div>
+                        <ul>
+                            <li>Driver's transaction history</li>
+                            <li>Total transactions</li>
+                            <li>Recorded deductions</li>
+                            <li>Balance activity</li>
+                        </ul>
+                    </div>
+
+                    <div class="doc-report-card">
+                        <div class="doc-report-card-head">
+                            <div class="doc-report-card-icon"><i class="fas fa-cash-register"></i></div>
+                            <h3 class="doc-report-card-title">Cashier Report</h3>
+                        </div>
+                        <ul>
+                            <li>Recorded prepaid loads</li>
+                            <li>Payment / reference records</li>
+                            <li>Date and time of loading</li>
+                            <li>Cashier responsible for the transaction</li>
+                        </ul>
+                    </div>
+
+                    <div class="doc-report-card">
+                        <div class="doc-report-card-head">
+                            <div class="doc-report-card-icon"><i class="fas fa-id-badge"></i></div>
+                            <h3 class="doc-report-card-title">Staff Transaction Report</h3>
+                        </div>
+                        <ul>
+                            <li>Transactions processed by staff</li>
+                            <li>Date and time</li>
+                            <li>Driver information</li>
+                            <li>Transaction status</li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+             <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">02</span>
+                    <h2 class="doc-section-title">Report <em>Management</em></h2>
+                </div>
+
+                <p>Authorized administrators may:</p>
+
+                <ul class="doc-list">
+                    <li>Search records</li>
+                    <li>Filter records by date</li>
+                    <li>Filter by vehicle type</li>
+                    <li>Filter by transaction status</li>
+                    <li>View transaction details</li>
+                    <li>Generate reports</li>
+                    <li>Print reports</li>
+                    <li>Review historical records</li>
+                </ul>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+             <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">03</span>
+                    <h2 class="doc-section-title">Audit and <em>Accountability</em></h2>
+                </div>
+
+                <div class="doc-note" style="margin-top: 0;">
+                    <div class="doc-note-icon">
+                        <i class="fas fa-shield-halved"></i>
+                    </div>
+                    <div class="doc-note-body">
+                        <strong>Audit and Accountability</strong>
+                        <p>
+                            Important system activities should be recorded in an audit log, including
+                            authorized changes to driver information, account management,
+                            payment/reference records, and transaction records.
+                        </p>
+                        <p>
+                            This provides greater accountability and makes it easier to determine when
+                            a record was changed and which authorized account performed the action.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+             <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">04</span>
+                    <h2 class="doc-section-title">Related System <em>Information</em></h2>
+                </div>
+
+                <div class="doc-card-grid">
+
+                    <a href="transaction-records.html" class="doc-card">
+                        <div class="doc-card-icon"><i class="fas fa-receipt"></i></div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">Digital Transaction Records</h3>
+                            <p class="doc-card-desc">How completed terminal transactions are stored and reviewed.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                    <a href="fee-collection.html" class="doc-card">
+                        <div class="doc-card-icon"><i class="fas fa-wallet"></i></div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">Prepaid Balance &amp; Fee Collection</h3>
+                            <p class="doc-card-desc">How authorized prepaid loads and terminal fee deductions are recorded.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                    <a href="qr-scanning.html" class="doc-card">
+                        <div class="doc-card-icon"><i class="fas fa-expand"></i></div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">QR Scanning at the Terminal</h3>
+                            <p class="doc-card-desc">How authorized staff verify drivers and process terminal transactions.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                    <a href="user-guide.html" class="doc-card">
+                        <div class="doc-card-icon"><i class="fas fa-book"></i></div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">User Guide</h3>
+                            <p class="doc-card-desc">Instructions for drivers, cashiers, staff, and administrators.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                    <a href="security-policy.html" class="doc-card">
+                        <div class="doc-card-icon"><i class="fas fa-lock"></i></div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">Security Policy</h3>
+                            <p class="doc-card-desc">How the system protects accounts, data, and access.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                    <a href="faq.html" class="doc-card">
+                        <div class="doc-card-icon"><i class="fas fa-circle-question"></i></div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">Frequently Asked Questions</h3>
+                            <p class="doc-card-desc">Common questions about reports, monitoring, and system access.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                </div>
+            </div>
+
+             <div class="doc-actions">
+                <a href="services.html" class="gov-btn gov-btn-outline">
+                    <i class="fas fa-arrow-left"></i> Back to Services
+                </a>
+                <a href="user-guide.html" class="gov-btn gov-btn-primary">
+                    View User Guide <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+
+        </div>
+    </section>
+
+     <footer class="gov-footer">
+        <div class="gov-container">
+            <div class="gov-footer-grid">
+                <div class="gov-footer-col">
+                    <h5>About</h5>
+                    <ul>
+                        <li><a href="about.html">About the System</a></li>
+                        <li><a href="mission-vision.html">Mission &amp; Vision</a></li>
+                        <li><a href="organizational-chart.html">Organizational Chart</a></li>
+                        <li><a href="transport-information.html">Transport Information</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>System</h5>
+                    <ul>
+                        <li><a href="driver-registration.html">Driver Registration</a></li>
+                        <li><a href="qr-driver-identification.html">QR Driver Identification</a></li>
+                        <li><a href="qr-scanning.html">QR Scanning</a></li>
+                        <li><a href="fee-collection.html">Fee Collection</a></li>
+                        <li><a href="transaction-records.html">Transaction Records</a></li>
+                        <li><a href="reports-monitoring.html">Reports &amp; Monitoring</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Guides</h5>
+                    <ul>
+                        <li><a href="user-guide.html">User Guide</a></li>
+                        <li><a href="user-guide.html#driver">Driver Registration Guide</a></li>
+                        <li><a href="user-guide.html#cashier">QR Scanning Guide</a></li>
+                        <li><a href="user-guide.html#staff">Prepaid Balance Guide</a></li>
+                        <li><a href="user-guide.html#admin">Transaction Guide</a></li>
+                        <li><a href="faq.html">FAQ</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Site Map</h5>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="about.html">About Us</a></li>
+                        <li><a href="services.html">Services</a></li>
+                        <li><a href="mission-vision.html">Mission &amp; Vision</a></li>
+                        <li><a href="organizational-chart.html">Organizational Chart</a></li>
+                        <li><a href="transport-information.html">Transport Information</a></li>
+                        <li><a href="faq.html">FAQ</a></li>
+                        <li><a href="contact.html">Contact Us</a></li>
+                        <li><a href="../login.html">Login</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Policies</h5>
+                    <ul>
+                        <li><a href="privacy-policy.html">Data Privacy Policy</a></li>
+                        <li><a href="security-policy.html">Security Policy</a></li>
+                        <li><a href="ip-rights-policy.html">Intellectual Property Rights Policy</a></li>
+                        <li><a href="terms-of-use.html">Terms of Use</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="gov-footer-bottom">
+
+                 <div class="gov-footer-bottom-block">
+                    <div class="gov-footer-seal-block">
+                        <div class="gov-footer-seal-circle">
+                            <img src="images/logo borongan.png" alt="Republic of the Philippines" />
+                        </div>
+                    </div>
+                </div>
+
+                 <div class="gov-container">
+                    <p class="gov-footer-bottom-title">
+                        Borongan City Transport Terminal<br />
+                        QR-Based Transport Ticketing and Fee Collection System
+                    </p>
+                    <div class="gov-footer-bottom-links">
+                        <a href="https://www.gov.ph/directory" target="_blank" rel="noopener">Government Directory</a>
+                        <span>|</span>
+                        <a href="privacy-policy.html">Privacy Policy</a>
+                        <span>|</span>
+                        <a href="security-policy.html">Security Policy</a>
+                        <span>|</span>
+                        <a href="ip-rights-policy.html">Intellectual Property Rights</a>
+                        <span>|</span>
+                        <a href="terms-of-use.html">Terms of Use</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </footer>
+
+<script>
+(function(){
+    var pre = window.__ASSET_PREFIX__ || '../';
+    var s = document.createElement("script");
+    s.src = pre + "assets/js/inner.js";
+    document.body.appendChild(s);
+})();
+
+ (function(){
+    var bar = document.getElementById('readingProgress');
+    if (!bar) return;
+    function update(){
+        var h = document.documentElement;
+        var scrollTop = h.scrollTop || document.body.scrollTop;
+        var scrollHeight = h.scrollHeight - h.clientHeight;
+        var pct = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+        bar.style.width = pct + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+})();
+</script>
+
+</body>
+</html>

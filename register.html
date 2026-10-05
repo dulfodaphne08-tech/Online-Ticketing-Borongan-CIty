@@ -1,201 +1,485 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Borongan Transport · Register</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Borongan City Transport Terminal · Register as Driver</title>
 
-   
-  <link rel="icon" type="image/jpeg" href="images/borongan-logo.jpg" />
-  <link rel="apple-touch-icon" href="images/borongan-logo.jpg" />
+    <link rel="icon" type="image/jpeg" href="images/borongan-logo.jpg" />
+    <link rel="apple-touch-icon" href="images/borongan-logo.jpg" />
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 
-  <link rel="stylesheet" href="assets/css/register.css" />
-  <!-- Add this line with your other script tags -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@500;600;700;800&family=Playfair+Display:ital,wght@1,600;1,700;1,800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet" />
+
+    <link rel="stylesheet" href="assets/css/register.css?v=20261010" />
 </head>
 
-<body class="bg-[#f4f7fc] min-h-screen flex flex-col items-center">
+<body>
 
-  <div class="w-full">
-    <img src="images/borongan.jpg" alt="Borongan City Transport" class="hero-banner" onerror="this.style.display='none'" />
-  </div>
+    <div class="bg-image" id="bgImage" aria-hidden="true"></div>
+    <div class="bg-overlay" aria-hidden="true"></div>
 
-  <div class="flex justify-center mt-6 mb-8 px-4 w-full">
-    <div class="card-register">
+    <div class="bg-particles" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+    </div>
 
-      <div class="text-center">
-        <div class="w-12 h-12 rounded-full bg-white shadow-md flex items-center justify-center mx-auto mb-2 border border-gray-100">
-          <img src="images/borongan-logo.jpg" alt="Borongan Transport Logo" class="w-8 h-8 object-contain" onerror="this.textContent='BT'" />
-        </div>
-        <span class="role-tag">Driver Registration</span>
-        <h1 class="text-xl font-bold text-[#1e293b] mt-1">Borongan Transport</h1>
-        <p class="text-[#4a6479] text-xs mb-3">Create your driver account</p>
-      </div>
+    <div class="page">
 
-       
-      <div id="successMsg" class="success-message">
-        <i class="fas fa-check-circle mr-2"></i>
-        <span id="successText">Account created successfully!</span>
-        <div class="text-xs mt-0.5">Redirecting to login...</div>
-      </div>
-
-      <form id="driverForm" novalidate>
-
-         
-        <div class="form-grid-3">
-          <div>
-            <label class="label-sm">Full Name <span class="text-[#b22234]">*</span></label>
-            <input type="text" id="fullName" class="input-field input-field-sm" placeholder="Juan Dela Cruz" required />
-          </div>
-          <div>
-            <label class="label-sm">Gender <span class="text-[#b22234]">*</span></label>
-            <select id="gender" class="input-field input-field-sm" required>
-              <option value="">Select</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
-          <div>
-            <label class="label-sm">Birthdate <span class="text-[#b22234]">*</span></label>
-            <input type="date" id="birthdate" class="input-field input-field-sm" required />
-          </div>
-          <div>
-            <label class="label-sm">Contact Number <span class="text-[#b22234]">*</span></label>
-            <input type="tel" id="contact" class="input-field input-field-sm" placeholder="09XX-XXX-XXXX" required />
-          </div>
-          <div class="span-2">
-            <label class="label-sm">Address <span class="text-[#b22234]">*</span></label>
-            <input type="text" id="address" class="input-field input-field-sm" placeholder="Brgy. 1, Borongan City" required />
-          </div>
-          <div class="full-width">
-            <label class="label-sm">Upload Photo</label>
-            <input type="file" id="photoUpload" accept="image/*" class="input-field input-field-sm text-sm" />
-          </div>
-        </div>
-
-        <hr class="section-divider" />
-
-         
-        <div class="form-grid-3">
-          <div>
-            <label class="label-sm">Vehicle Type <span class="text-[#b22234]">*</span></label>
-            <select id="vehicleType" class="input-field input-field-sm" required>
-              <option value="">Select Type</option>
-              <option value="Tricycle">Tricycle</option>
-              <option value="Jeepney">Jeepney</option>
-              <option value="Multicab">Multicab</option>
-              <option value="Bus">Bus</option>
-            </select>
-            <div id="vehicleTypeError" class="error-message">Please select a vehicle type.</div>
-          </div>
-          <div>
-            <label class="label-sm">Plate Number <span class="text-[#b22234]">*</span></label>
-            <input type="text" id="plateNumber" class="input-field input-field-sm" placeholder="e.g., ABC-1234" required />
-            <div id="plateError" class="error-message">Enter a valid plate number.</div>
-          </div>
-          <div>
-            <label class="label-sm">Plate Type</label>
-            <div class="radio-group">
-              <label><input type="radio" name="plateType" value="Temporary" checked /> Temporary</label>
-              <label><input type="radio" name="plateType" value="Old" /> Old</label>
-              <label><input type="radio" name="plateType" value="New" /> New LTO</label>
+        <header class="page-header">
+            <div class="header-left">
+                <div class="gov-logo">
+                    <img src="images/borongan-logo.jpg" alt="City Logo"
+                         onerror="this.style.display='none'" />
+                </div>
+                <div class="gov-text">
+                    <span class="gov-line-1">Republic of the Philippines</span>
+                    <span class="gov-line-2">City Government of Borongan</span>
+                </div>
             </div>
-            <div id="plateHint" class="format-hint"><i class="fas fa-info-circle mr-1"></i> Letters, numbers, hyphens</div>
-          </div>
-        </div>
-
-        <hr class="section-divider" />
-
-         
-        <div class="form-grid-3">
-          <div>
-            <label class="label-sm">License Number <span class="text-[#b22234]">*</span></label>
-            <input type="text" id="licenseNo" class="input-field input-field-sm" placeholder="e.g., N04-25-001618" required />
-            <div id="licenseError" class="error-message">Enter a valid driver's license number.</div>
-          </div>
-          <div>
-            <label class="label-sm">License Expiration <span class="text-[#b22234]">*</span></label>
-            <input type="date" id="licenseExpiration" class="input-field input-field-sm" required />
-            <div class="date-hint"><i class="fas fa-info-circle mr-1"></i> Enter expiry date</div>
-          </div>
-          <div>
-            <label class="label-sm">License Type</label>
-            <div class="radio-group">
-              <label><input type="radio" name="licenseType" value="Non-Professional" checked /> Non-Professional</label>
-              <label><input type="radio" name="licenseType" value="Professional" /> Professional</label>
+            <div class="header-right flex items-center gap-2">
+                <a href="index/index.html" class="text-xs font-semibold text-gray-700 hover:text-red-700 transition flex items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+                    <i class="fas fa-home text-red-600"></i> <span class="hidden sm:inline">Landing Page</span>
+                </a>
+                <a href="index/transport-information.html" class="text-xs font-semibold text-gray-700 hover:text-red-700 transition flex items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-full border border-gray-200 shadow-sm">
+                    <i class="fas fa-map-location-dot text-red-600"></i> <span class="hidden sm:inline">Terminal Map</span>
+                </a>
             </div>
-            <div class="format-hint"><i class="fas fa-info-circle mr-1"></i> Select license type</div>
-          </div>
-          <div class="full-width">
-            <label class="label-sm">Registration Date <span class="text-[#b22234]">*</span></label>
-            <input type="date" id="registrationDate" class="input-field input-field-sm" required readonly style="background:#f3f6fa;cursor:not-allowed;" />
-            <div class="date-hint"><i class="fas fa-calendar-check mr-1"></i> Auto-set to today's date</div>
-          </div>
-        </div>
+        </header>
 
-        <hr class="section-divider" />
+        <main class="page-main">
 
-         
-        <div class="form-grid-3">
-          <div>
-            <label class="label-sm">Username <span class="text-[#b22234]">*</span></label>
-            <input type="text" id="username" class="input-field input-field-sm" placeholder="Choose a username" required />
-          </div>
-          <div>
-            <label class="label-sm">Password <span class="text-[#b22234]">*</span></label>
-            <div class="pw-wrapper">
-              <input type="password" id="password" class="input-field input-field-sm" placeholder="Create a strong password" required />
-              <button type="button" class="toggle-pw" id="togglePassword">
-                <i class="fas fa-eye"></i>
-              </button>
-            </div>
-            
-            <div class="pw-requirements">
-              <span class="req"><span class="icon" id="reqLength"><i class="fas fa-circle"></i></span> 8+ chars</span>
-              <span class="req"><span class="icon" id="reqUpper"><i class="fas fa-circle"></i></span> Uppercase</span>
-              <span class="req"><span class="icon" id="reqLower"><i class="fas fa-circle"></i></span> Lowercase</span>
-              <span class="req"><span class="icon" id="reqNumber"><i class="fas fa-circle"></i></span> Number</span>
-              <span class="req"><span class="icon" id="reqSpecial"><i class="fas fa-circle"></i></span> Special</span>
-            </div>
-            <div class="pw-strength">
-              <div class="pw-strength-bar" id="bar1"></div>
-              <div class="pw-strength-bar" id="bar2"></div>
-              <div class="pw-strength-bar" id="bar3"></div>
-              <div class="pw-strength-bar" id="bar4"></div>
-            </div>
-            <div id="pwStrengthText" class="pw-strength-text">Enter a password</div>
-          </div>
-          <div>
-            <label class="label-sm">Confirm Password <span class="text-[#b22234]">*</span></label>
-            <div class="pw-wrapper">
-              <input type="password" id="confirmPassword" class="input-field input-field-sm" placeholder="Confirm your password" required />
-              <button type="button" class="toggle-pw" id="toggleConfirm">
-                <i class="fas fa-eye"></i>
-              </button>
-            </div>
-            <div id="confirmMatch" class="pw-strength-text" style="margin-top:0.1rem;"></div>
-          </div>
-        </div>
+            <section class="register-side">
 
-        <div id="registerMsg" class="text-center text-sm h-5 text-[#b22234] mt-2"></div>
+                <div class="register-card">
 
-        <button type="submit" id="registerBtn" class="btn-register mt-2">
-           Register Driver
-        </button>
+                    <div class="card-brand">
+                        <span class="brand-mark">BORONGAN</span>
+                        <h3 class="brand-title">
+                            Start the<br />
+                            <em>first page.</em>
+                        </h3>
+                        <p class="brand-sub">
+                            One account for every trip. Register once and manage
+                            everything from a single dashboard.
+                        </p>
 
-        <div class="text-center mt-3">
-          <span class="text-xs text-[#5a7489]">Already have an account? </span>
-          <a href="login.html" class="link-accent text-xs">Login here</a>
-        </div>
-      </form>
+                        <div class="step-list">
+                            <div class="step-item" data-step="1">
+                                <span class="step-dot">1</span>
+                                <span class="step-label">Personal</span>
+                            </div>
+                            <div class="step-item" data-step="2">
+                                <span class="step-dot">2</span>
+                                <span class="step-label">Vehicle</span>
+                            </div>
+                            <div class="step-item" data-step="3">
+                                <span class="step-dot">3</span>
+                                <span class="step-label">License</span>
+                            </div>
+                            <div class="step-item" data-step="4">
+                                <span class="step-dot">4</span>
+                                <span class="step-label">Account</span>
+                            </div>
+                        </div>
+
+                        <div class="brand-bus" aria-hidden="true">
+                            <i class="fas fa-bus"></i>
+                        </div>
+                    </div>
+
+                    <div class="card-form">
+
+                        <div class="card-head">
+                            <h2>Create account</h2>
+                            <p>Register as a driver of Borongan City Transport Terminal</p>
+                        </div>
+
+                        <div class="progress-track">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <p class="progress-label" id="progressLabel">0 of 4 sections complete</p>
+
+                        <p class="helper-line">
+                            <i class="fas fa-info-circle"></i>
+                            All fields marked <strong>*</strong> are required
+                        </p>
+
+                        <div id="successMsg" class="success-message">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <span id="successText">Account created successfully!</span>
+                            <div class="text-xs mt-0.5">Redirecting to login…</div>
+                        </div>
+
+                        <form id="driverForm" novalidate>
+
+                            <div class="sections-grid">
+
+                                <div class="form-section" data-section="1">
+                                    <div class="section-title">
+                                        <i class="fas fa-user"></i>
+                                        <span>Personal Information</span>
+                                    </div>
+
+                                    <div class="form-grid-2">
+                                        <div class="field span-2">
+                                            <label class="label-sm">Full Name <span class="req-star">*</span></label>
+                                            <input type="text" id="fullName" class="input-field"
+                                                   placeholder="Juan Dela Cruz" required />
+                                        </div>
+
+                                        <div class="field">
+                                            <label class="label-sm">Gender <span class="req-star">*</span></label>
+                                            <select id="gender" class="input-field" required>
+                                                <option value="">Select</option>
+                                                <option value="Male">Male</option>
+                                                <option value="Female">Female</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="field">
+                                            <label class="label-sm">Birthdate <span class="req-star">*</span></label>
+                                            <input type="date" id="birthdate" class="input-field" required />
+                                        </div>
+
+                                        <div class="field">
+                                            <label class="label-sm">Contact <span class="req-star">*</span></label>
+                                            <input type="tel" id="contact" class="input-field"
+                                                   placeholder="09XX-XXX-XXXX" required />
+                                        </div>
+
+                                        <div class="field">
+                                            <label class="label-sm">Address <span class="req-star">*</span></label>
+                                            <input type="text" id="address" class="input-field"
+                                                   placeholder="Brgy. 1, Borongan City" required />
+                                        </div>
+
+                                        <div class="field span-2">
+                                            <label class="label-sm">Upload Photo <span class="optional">(optional)</span></label>
+                                            <label for="photoUpload" class="upload-dropzone">
+                                                <i class="fas fa-camera"></i>
+                                                <div class="upload-text">
+                                                    <strong>Click to upload photo</strong>
+                                                    <span>JPG or PNG · Max 5MB</span>
+                                                </div>
+                                                <input type="file" id="photoUpload" accept="image/*" class="upload-input" />
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section" data-section="2">
+                                    <div class="section-title">
+                                        <i class="fas fa-bus"></i>
+                                        <span>Vehicle Details</span>
+                                    </div>
+
+                                    <div class="form-grid-2">
+                                        <div class="field">
+                                            <label class="label-sm">Vehicle Type <span class="req-star">*</span></label>
+                                            <select id="vehicleType" class="input-field" required>
+                                                <option value="">Select Type</option>
+                                                <option value="Tricycle">Tricycle</option>
+                                                <option value="Jeepney">Jeepney</option>
+                                                <option value="Multicab">Multicab</option>
+                                                <option value="Bus">Bus</option>
+                                            </select>
+                                            <div id="vehicleTypeError" class="error-message">Please select a vehicle type.</div>
+                                        </div>
+
+                                        <div class="field">
+                                            <label class="label-sm">
+                                                Body Number <span class="req-star">*</span>
+                                                <span class="optional" style="margin-left:.35rem;font-style:italic;">
+                                                    (as issued)
+                                                </span>
+                                            </label>
+                                            <input type="text"
+                                                   id="bodyNumber"
+                                                   class="input-field"
+                                                   placeholder="e.g., 0123"
+                                                   inputmode="numeric"
+                                                   pattern="[0-9]{4}"
+                                                   maxlength="4"
+                                                   autocomplete="off"
+                                                   required />
+                                            <div class="format-hint">
+                                                <i class="fas fa-info-circle mr-1"></i>
+                                                Enter the 4-digit body number issued by the government
+                                            </div>
+                                            <div id="bodyNumberError" class="error-message">Enter the 4-digit body number.</div>
+                                        </div>
+
+                                        <div class="field span-2">
+                                            <label class="label-sm">Plate Number <span class="req-star">*</span></label>
+                                            <input type="text" id="plateNumber" class="input-field"
+                                                   placeholder="e.g., ABC-1234" required />
+                                            <div id="plateError" class="error-message">Enter a valid plate number.</div>
+                                        </div>
+
+                                        <div class="field span-2">
+                                            <label class="label-sm">Plate Type</label>
+                                            <div class="pill-group">
+                                                <label class="pill">
+                                                    <input type="radio" name="plateType" value="Temporary" checked />
+                                                    <span>Temporary</span>
+                                                </label>
+                                                <label class="pill">
+                                                    <input type="radio" name="plateType" value="Old" />
+                                                    <span>Old</span>
+                                                </label>
+                                                <label class="pill">
+                                                    <input type="radio" name="plateType" value="New" />
+                                                    <span>New LTO</span>
+                                                </label>
+                                            </div>
+                                            <div id="plateHint" class="format-hint">
+                                                <i class="fas fa-info-circle mr-1"></i> Letters, numbers, hyphens
+                                            </div>
+                                        </div>
+
+                                        <div class="field span-2">
+                                            <label class="label-sm">Designated Terminal Base / TODA Station <span class="optional">(optional)</span></label>
+                                            <select id="driverTerminalBase" class="input-field">
+                                                <option value="">Select Primary Terminal Base</option>
+                                                <option value="TRM-CENTRAL">Borongan Central Transport Terminal (Songco Bypass)</option>
+                                                <option value="TRM-REAL">Real Street Poblacion Terminal (City Proper)</option>
+                                                <option value="TRM-MARKET">Public Market &amp; Fish Port Terminal</option>
+                                                <option value="TRM-CAMPESAO">Campesao Junction Terminal</option>
+                                                <option value="TRM-TABOC">Taboc - Bugas TODA Station</option>
+                                                <option value="TRM-BAYBAY">Baybay Boulevard Seaside Terminal</option>
+                                            </select>
+                                            <div class="format-hint">
+                                                <i class="fas fa-map-location-dot mr-1"></i>
+                                                Designates your vehicle's primary route and ticketing station
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section" data-section="3">
+                                    <div class="section-title">
+                                        <i class="fas fa-id-badge"></i>
+                                        <span>License Information</span>
+                                    </div>
+
+                                    <div class="form-grid-2">
+                                        <div class="field span-2">
+                                            <label class="label-sm">License Number <span class="req-star">*</span></label>
+                                            <input type="text" id="licenseNo" class="input-field"
+                                                   placeholder="e.g., N04-25-001618" required />
+                                            <div id="licenseError" class="error-message">Enter a valid driver's license number.</div>
+                                        </div>
+
+                                        <div class="field">
+                                            <label class="label-sm">License Expiration <span class="req-star">*</span></label>
+                                            <input type="date" id="licenseExpiration" class="input-field" required />
+                                        </div>
+
+                                        <div class="field">
+                                            <label class="label-sm">License Type</label>
+                                            <div class="pill-group">
+                                                <label class="pill">
+                                                    <input type="radio" name="licenseType" value="Non-Professional" checked />
+                                                    <span>Non-Pro</span>
+                                                </label>
+                                                <label class="pill">
+                                                    <input type="radio" name="licenseType" value="Professional" />
+                                                    <span>Professional</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="field span-2">
+                                            <label class="label-sm">Registration Date <span class="req-star">*</span></label>
+                                            <input type="date" id="registrationDate" class="input-field readonly-field" required readonly />
+                                            <div class="date-hint"><i class="fas fa-calendar-check mr-1"></i> Auto-set to today's date</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section" data-section="4">
+                                    <div class="section-title">
+                                        <i class="fas fa-lock"></i>
+                                        <span>Account Credentials</span>
+                                    </div>
+
+                                    <div class="form-grid-2">
+                                        <div class="field span-2">
+                                            <label class="label-sm">Username <span class="req-star">*</span></label>
+                                            <input type="text" id="username" class="input-field"
+                                                   placeholder="Choose a username" required />
+                                        </div>
+
+                                        <div class="field span-2">
+                                            <label class="label-sm">Password <span class="req-star">*</span></label>
+                                            <div class="pw-wrapper">
+                                                <input type="password" id="password" class="input-field"
+                                                       placeholder="Create a strong password" required />
+                                                <button type="button" class="toggle-pw" id="togglePassword">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </div>
+
+                                            <div class="pw-requirements">
+                                                <span class="req"><span class="icon" id="reqLength"><i class="fas fa-circle"></i></span> 8+ chars</span>
+                                                <span class="req"><span class="icon" id="reqUpper"><i class="fas fa-circle"></i></span> Uppercase</span>
+                                                <span class="req"><span class="icon" id="reqLower"><i class="fas fa-circle"></i></span> Lowercase</span>
+                                                <span class="req"><span class="icon" id="reqNumber"><i class="fas fa-circle"></i></span> Number</span>
+                                                <span class="req"><span class="icon" id="reqSpecial"><i class="fas fa-circle"></i></span> Special</span>
+                                            </div>
+
+                                            <div class="pw-strength">
+                                                <div class="pw-strength-bar" id="bar1"></div>
+                                                <div class="pw-strength-bar" id="bar2"></div>
+                                                <div class="pw-strength-bar" id="bar3"></div>
+                                                <div class="pw-strength-bar" id="bar4"></div>
+                                            </div>
+                                            <div id="pwStrengthText" class="pw-strength-text">Enter a password</div>
+                                        </div>
+
+                                        <div class="field span-2">
+                                            <label class="label-sm">Confirm Password <span class="req-star">*</span></label>
+                                            <div class="pw-wrapper">
+                                                <input type="password" id="confirmPassword" class="input-field"
+                                                       placeholder="Confirm your password" required />
+                                                <button type="button" class="toggle-pw" id="toggleConfirm">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </div>
+                                            <div id="confirmMatch" class="pw-strength-text" style="margin-top:0.3rem;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div id="registerMsg" class="register-msg"></div>
+
+                            <button type="submit" id="registerBtn" class="btn-register">
+                                <span>Create account</span>
+                                <i class="fas fa-arrow-right btn-arrow"></i>
+                            </button>
+
+                            <div class="register-footer">
+                                <span>Already have an account?</span>
+                                <a href="login.html" class="link-accent-red">
+                                    Sign in
+                                </a>
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
 
     </div>
-  </div>
 
-  <script src="assets/js/register.js"></script>
+    <script src="assets/js/register.js?v=20261010"></script>
+
+    <script>
+        (function bgParallax() {
+            const bg = document.getElementById('bgImage');
+            if (!bg || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            let raf;
+            window.addEventListener('mousemove', (e) => {
+                if (raf) cancelAnimationFrame(raf);
+                raf = requestAnimationFrame(() => {
+                    const x = (e.clientX / window.innerWidth - 0.5) * -8;
+                    const y = (e.clientY / window.innerHeight - 0.5) * -8;
+                    bg.style.transform = `scale(1.06) translate(${x}px, ${y}px)`;
+                });
+            });
+        })();
+
+        (function progress() {
+            const fill = document.getElementById('progressFill');
+            const label = document.getElementById('progressLabel');
+            const sections = document.querySelectorAll('.form-section');
+            if (!fill || !sections.length) return;
+
+            function update() {
+                let complete = 0;
+                sections.forEach((sec) => {
+                    const required = sec.querySelectorAll('[required]');
+                    let filled = 0;
+                    required.forEach((el) => {
+                        if (el.type === 'radio') return;
+                        if (el.value && el.value.trim()) filled++;
+                    });
+                    const radioNames = new Set();
+                    sec.querySelectorAll('input[type="radio"][required]').forEach(r => radioNames.add(r.name));
+                    const radioCount = radioNames.size;
+                    const total = required.length - sec.querySelectorAll('input[type="radio"][required]').length + radioCount;
+                    const done = filled + radioCount;
+                    if (total > 0 && done >= total) complete++;
+                });
+
+                const pct = (complete / sections.length) * 100;
+                fill.style.width = pct + '%';
+                label.textContent = `${complete} of ${sections.length} sections complete`;
+            }
+
+            document.getElementById('driverForm').addEventListener('input', update);
+            document.getElementById('driverForm').addEventListener('change', update);
+            update();
+        })();
+
+        (function bodyNumberInput() {
+            const bodyInput = document.getElementById('bodyNumber');
+            if (!bodyInput) return;
+
+            bodyInput.addEventListener('input', function () {
+                let digits = this.value.replace(/\D+/g, '');
+                if (digits.length > 4) digits = digits.slice(0, 4);
+                if (this.value !== digits) this.value = digits;
+
+                const err = document.getElementById('bodyNumberError');
+                if (err && this.value.length === 4) {
+                    this.classList.remove('input-error');
+                    err.classList.remove('show');
+                }
+            });
+
+            bodyInput.addEventListener('keydown', function (e) {
+                const allowed = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+                if (allowed.includes(e.key)) return;
+                if ((e.ctrlKey || e.metaKey) && ['a','c','v','x'].includes(e.key.toLowerCase())) return;
+                if (!/^\d$/.test(e.key)) e.preventDefault();
+            });
+
+            bodyInput.addEventListener('paste', function (e) {
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+                let digits = text.replace(/\D+/g, '').slice(0, 4);
+                this.value = digits;
+                this.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+
+            bodyInput.addEventListener('blur', function () {
+                const err = document.getElementById('bodyNumberError');
+                if (!err) return;
+                if (!/^\d{4}$/.test(this.value)) {
+                    this.classList.add('input-error');
+                    err.textContent = this.value.length === 0
+                        ? 'Body number is required.'
+                        : 'Body number must be exactly 4 digits.';
+                    err.classList.add('show');
+                } else {
+                    this.classList.remove('input-error');
+                    err.classList.remove('show');
+                }
+            });
+        })();
+    </script>
 </body>
 </html>

@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Terminal Officers Training · BCTT Highlights</title>
+    <meta name="description" content="Highlight: Training of Terminal Officers on QR Scanning and Fee Collection." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,700;1,500;1,700&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400;1,600&family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+    <script>
+    (function(){
+        var p = location.pathname.replace(/\\/g,'/');
+        var i = p.indexOf('/index/');
+        var a = i >= 0 ? p.slice(i + 7) : '';
+        var d = (a.match(/\//g) || []).length;
+        var pre = '../'.repeat(d + 1);
+        window.__ASSET_PREFIX__ = pre;
+        document.write('<link rel="stylesheet" href="' + pre + 'assets/css/index.css">');
+        document.write('<script src="' + pre + 'assets/js/path-fixer.js"><\/script>');
+    })();
+    </script>
+
+    <script>
+    (function(){
+        var pre = window.__ASSET_PREFIX__ || '../';
+        document.write('<link rel="stylesheet" href="' + pre + 'assets/css/footer.css">');
+    })();
+    </script>
+
+    <style>
+    /* ============================================================
+       DESIGN TOKENS
+       ============================================================ */
+    :root {
+        --primary: #b22234;
+        --primary-dark: #8f1a2a;
+        --primary-soft: #fef2f2;
+        --primary-glow: rgba(178, 34, 52, 0.12);
+
+        --gold: #d5a928;
+        --gold-dark: #b88a1d;
+        --gold-soft: #fdf6e3;
+        --gold-glow: rgba(213, 169, 40, 0.18);
+
+        --navy: #0f1e3d;
+        --navy-soft: #eef2f9;
+
+        --ink-900: #111827;
+        --ink-700: #374151;
+        --ink-600: #4b5563;
+        --ink-500: #6b7280;
+        --ink-300: #d1d5db;
+        --ink-200: #e5e7eb;
+        --ink-100: #f3f4f6;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: #ffffff; }
+
+    /* ============================================================
+       READING PROGRESS BAR
+       ============================================================ */
+    .reading-progress {
+        position: fixed;
+        top: 0; left: 0;
+        height: 3px;
+        width: 0%;
+        background: linear-gradient(to right, var(--primary), var(--gold));
+        z-index: 9999;
+        transition: width 0.15s ease;
+        box-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    /* ============================================================
+       PAGE HEADER
+       ============================================================ */
+    .doc-header {
+        position: relative;
+        background: linear-gradient(135deg, #fef2f2 0%, #ffffff 55%, #fdf6e3 100%);
+        padding: 5rem 0 3.5rem;
+        border-bottom: 1px solid var(--ink-200);
+        overflow: hidden;
+    }
+    .doc-header::before {
+        content: "";
+        position: absolute;
+        top: -120px;
+        right: -100px;
+        width: 480px;
+        height: 480px;
+        background: radial-gradient(circle, var(--gold-glow), transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+    .doc-header::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(rgba(178, 34, 52, 0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(178, 34, 52, 0.035) 1px, transparent 1px);
+        background-size: 32px 32px;
+        pointer-events: none;
+        opacity: 0.9;
+        -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 90%);
+                mask-image: linear-gradient(to bottom, black 0%, transparent 90%);
+    }
+    .doc-header-inner {
+        max-width: 820px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .doc-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        color: var(--ink-500);
+        margin-bottom: 2rem;
+    }
+    .doc-breadcrumb a {
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none;
+        position: relative;
+    }
+    .doc-breadcrumb a::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--gold);
+        transition: width 0.3s ease;
+    }
+    .doc-breadcrumb a:hover::after { width: 100%; }
+    .doc-breadcrumb a:hover { color: var(--primary-dark); }
+    .doc-breadcrumb i {
+        font-size: 0.6rem;
+        color: var(--ink-300);
+    }
+    .doc-breadcrumb .current {
+        color: var(--ink-700);
+        font-weight: 600;
+    }
+
+    .doc-ribbon {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .doc-ribbon span {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 0.45rem 0.9rem;
+        background: rgba(255, 255, 255, 0.75);
+        border: 1px solid var(--gold);
+        color: var(--navy);
+        border-radius: 6px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .doc-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: clamp(1.9rem, 3.6vw, 2.7rem);
+        font-weight: 800;
+        color: var(--ink-900);
+        line-height: 1.1;
+        letter-spacing: -0.035em;
+        margin: 0 0 1.35rem 0;
+    }
+    .doc-title em {
+        font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+        font-style: italic;
+        font-weight: 700;
+        color: var(--primary);
+        letter-spacing: -0.01em;
+        font-size: 1.08em;
+    }
+
+    .doc-lead {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.1rem;
+        color: var(--ink-600);
+        line-height: 1.8;
+        margin: 0 0 2rem 0;
+        font-weight: 400;
+    }
+
+    .doc-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9rem;
+        color: var(--ink-500);
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--ink-200);
+    }
+    .doc-meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+    }
+    .doc-meta-item i {
+        color: var(--primary);
+        font-size: 0.85rem;
+    }
+
+    /* ============================================================
+       ARTICLE BODY
+       ============================================================ */
+    .doc-body {
+        padding: 4rem 0 6rem;
+        background: #ffffff;
+    }
+    .doc-content {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+    }
+
+    .doc-toolbar {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0 0 2.5rem 0;
+        flex-wrap: wrap;
+    }
+    .doc-toolbar button {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 0.55rem 1.05rem;
+        border: 1px solid var(--ink-200);
+        background: #fff;
+        color: var(--ink-700);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .doc-toolbar button i {
+        color: var(--primary);
+        font-size: 0.85rem;
+    }
+    .doc-toolbar button:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: var(--primary-soft);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px -6px var(--primary-glow);
+    }
+
+    /* Featured image */
+    .doc-image {
+        position: relative;
+        margin: 0 0 4rem 0;
+        border-radius: 22px;
+        overflow: hidden;
+        border: 1px solid var(--ink-200);
+        box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.22);
+        transition: box-shadow 0.5s ease;
+    }
+    .doc-image::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, transparent 55%, rgba(15, 30, 61, 0.35) 100%);
+        pointer-events: none;
+        z-index: 1;
+        opacity: 0.75;
+        transition: opacity 0.5s ease;
+    }
+    .doc-image::after {
+        content: "";
+        position: absolute;
+        inset: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 14px;
+        pointer-events: none;
+        z-index: 2;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+    }
+    .doc-image:hover {
+        box-shadow: 0 32px 70px -24px rgba(178, 34, 52, 0.28);
+    }
+    .doc-image:hover::after { opacity: 1; }
+    .doc-image:hover::before { opacity: 0.55; }
+    .doc-image img {
+        width: 100%;
+        height: auto;
+        display: block;
+        transition: transform 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
+    }
+    .doc-image:hover img {
+        transform: scale(1.03);
+    }
+
+    .doc-image-caption {
+        position: absolute;
+        bottom: 1.5rem;
+        left: 1.75rem;
+        z-index: 3;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #ffffff;
+        background: rgba(15, 30, 61, 0.75);
+        border: 1px solid rgba(213, 169, 40, 0.4);
+        padding: 0.55rem 1rem;
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+    .doc-image-caption i {
+        color: var(--gold);
+        font-size: 0.7rem;
+    }
+
+    /* ============================================================
+       SECTIONS
+       ============================================================ */
+    .doc-section {
+        margin: 5rem 0 0 0;
+        scroll-margin-top: 90px;
+    }
+    .doc-section:first-of-type { margin-top: 0; }
+
+    .doc-section-head {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        margin: 0 0 2rem 0;
+        padding-bottom: 1.25rem;
+        border-bottom: 2px solid var(--primary-soft);
+        position: relative;
+    }
+    .doc-section-head::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 80px;
+        height: 2px;
+        background: linear-gradient(to right, var(--primary), var(--gold));
+    }
+
+    .doc-section-num {
+        font-family: 'Sora', sans-serif;
+        font-style: normal;
+        font-weight: 800;
+        font-size: 1.05rem;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        width: 46px;
+        height: 46px;
+        min-width: 46px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 16px -4px rgba(178, 34, 52, 0.4);
+        position: relative;
+        letter-spacing: -0.02em;
+    }
+    .doc-section-num::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border-radius: 16px;
+        border: 1px dashed rgba(178, 34, 52, 0.3);
+    }
+
+    .doc-section-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+        font-weight: 800;
+        color: var(--ink-900);
+        letter-spacing: -0.03em;
+        margin: 0;
+        line-height: 1.15;
+    }
+    .doc-section-title em {
+        font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+        font-style: italic;
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    .doc-section p {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.02rem;
+        line-height: 1.9;
+        color: var(--ink-600);
+        margin: 0 0 1.35rem 0;
+        padding-left: 3.75rem;
+        padding-right: 1rem;
+        max-width: 100%;
+        font-weight: 400;
+    }
+    .doc-section p:last-child { margin-bottom: 0; }
+    .doc-section p strong {
+        color: var(--ink-900);
+        font-weight: 700;
+    }
+
+    .doc-list {
+        list-style: none;
+        padding: 0 0 0 3.75rem;
+        margin: 1.25rem 0 1.75rem 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+    .doc-list li {
+        position: relative;
+        padding-left: 1.85rem;
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        color: var(--ink-600);
+        line-height: 1.7;
+        font-weight: 400;
+        transition: transform 0.25s ease, color 0.25s ease;
+    }
+    .doc-list li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.55rem;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--gold));
+        box-shadow: 0 0 0 3px var(--primary-glow);
+        transition: transform 0.25s ease;
+    }
+    .doc-list li:hover {
+        transform: translateX(6px);
+        color: var(--ink-900);
+    }
+    .doc-list li:hover::before {
+        transform: scale(1.3);
+    }
+    .doc-list li strong {
+        color: var(--ink-900);
+        font-weight: 700;
+    }
+
+    /* Sub-sections */
+    .doc-subsection {
+        margin-top: 2rem;
+        padding-left: 3.75rem;
+    }
+    .doc-subsection:first-of-type { margin-top: 1.5rem; }
+    .doc-subtitle {
+        display: flex;
+        align-items: baseline;
+        gap: 0.75rem;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--ink-900);
+        letter-spacing: -0.015em;
+        margin: 0 0 0.85rem 0;
+        line-height: 1.4;
+    }
+    .doc-subtitle-num {
+        font-family: 'Sora', sans-serif;
+        font-style: normal;
+        font-weight: 800;
+        font-size: 0.85rem;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        min-width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        letter-spacing: -0.02em;
+    }
+    .doc-subsection p {
+        padding-left: 0;
+        padding-right: 0;
+        font-size: 1rem;
+        line-height: 1.85;
+        margin-bottom: 1rem;
+    }
+    .doc-subsection p:last-child { margin-bottom: 0; }
+
+    /* Decorative divider */
+    .doc-divider {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 4.5rem 0 4.5rem 3.75rem;
+        max-width: 780px;
+    }
+    .doc-divider span {
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(to right, transparent, var(--primary), transparent);
+        opacity: 0.5;
+    }
+    .doc-divider i {
+        color: var(--primary);
+        font-size: 0.5rem;
+        opacity: 0.6;
+    }
+
+    /* Note box */
+    .doc-note {
+        display: flex;
+        gap: 1.25rem;
+        align-items: flex-start;
+        background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+        border: 1px solid #fecaca;
+        border-left: 5px solid var(--primary);
+        border-radius: 14px;
+        padding: 1.75rem 2rem;
+        margin: 2.5rem 0 0 3.75rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .doc-note::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(225deg, var(--gold) 0%, transparent 60%);
+        opacity: 0.35;
+        pointer-events: none;
+    }
+    .doc-note-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: #ffffff;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px var(--primary-glow);
+        position: relative;
+        z-index: 1;
+    }
+    .doc-note-body {
+        position: relative;
+        z-index: 1;
+    }
+    .doc-note-body strong {
+        display: block;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.01em;
+    }
+    .doc-note-body p {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.95rem;
+        color: var(--ink-700);
+        line-height: 1.75;
+        margin: 0;
+        padding: 0;
+        font-weight: 400;
+    }
+    .doc-note-body p + p { margin-top: 0.85rem; }
+
+    /* Card Grid */
+    .doc-card-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin: 2rem 0 0 3.75rem;
+    }
+    .doc-card {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 1.5rem 1.75rem;
+        border-radius: 16px;
+        text-decoration: none;
+        background:
+            linear-gradient(#ffffff, #ffffff) padding-box,
+            linear-gradient(135deg, var(--ink-200), var(--ink-200)) border-box;
+        border: 1.5px solid transparent;
+        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    box-shadow 0.35s ease,
+                    background 0.35s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    }
+    .doc-card:hover {
+        background:
+            linear-gradient(#fffafa, #ffffff) padding-box,
+            linear-gradient(135deg, var(--primary), var(--gold)) border-box;
+        box-shadow: 0 16px 32px -14px rgba(178, 34, 52, 0.28);
+        transform: translateY(-3px);
+    }
+    .doc-card::before {
+        content: attr(data-num);
+        position: absolute;
+        top: 1.1rem;
+        right: 1.35rem;
+        font-family: 'Sora', sans-serif;
+        font-size: 0.68rem;
+        font-weight: 800;
+        color: var(--primary);
+        opacity: 0.28;
+        letter-spacing: 0.12em;
+    }
+    .doc-card-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--primary-soft) 0%, #ffe4e6 100%);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+        flex-shrink: 0;
+        border: 1px solid rgba(178, 34, 52, 0.10);
+        transition: transform 0.3s ease;
+    }
+    .doc-card:hover .doc-card-icon {
+        transform: scale(1.06) rotate(-3deg);
+    }
+    .doc-card-body {
+        flex: 1;
+        min-width: 0;
+    }
+    .doc-card-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 1.02rem;
+        font-weight: 800;
+        color: var(--ink-900);
+        letter-spacing: -0.02em;
+        margin: 0 0 0.3rem 0;
+        line-height: 1.3;
+    }
+    .doc-card-desc {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.88rem;
+        color: var(--ink-500);
+        line-height: 1.55;
+        margin: 0;
+        font-weight: 400;
+    }
+    .doc-card-arrow {
+        color: var(--primary);
+        font-size: 1rem;
+        flex-shrink: 0;
+        transition: transform 0.3s ease;
+    }
+    .doc-card:hover .doc-card-arrow {
+        transform: translateX(5px);
+    }
+
+    /* Actions */
+    .doc-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-top: 4rem;
+        padding-top: 2.5rem;
+        border-top: 1px solid var(--ink-200);
+    }
+
+    /* ============================================================
+       RESPONSIVE
+       ============================================================ */
+    @media (max-width: 900px) {
+        .doc-header { padding: 3.5rem 0 2.5rem; }
+        .doc-body { padding: 3rem 0 4rem; }
+        .doc-card-grid { grid-template-columns: 1fr; }
+        .doc-divider { margin-left: 0; }
+    }
+    @media (max-width: 640px) {
+        .doc-header { padding: 3rem 0 2rem; }
+        .doc-body { padding: 2.5rem 0 3rem; }
+        .doc-section p {
+            padding-left: 0;
+            padding-right: 0;
+            font-size: 0.98rem;
+        }
+        .doc-list { padding-left: 0; }
+        .doc-subsection { padding-left: 0; }
+        .doc-note {
+            margin-left: 0;
+            padding: 1.25rem 1.35rem;
+            flex-direction: column;
+        }
+        .doc-card-grid { margin-left: 0; }
+        .doc-actions { flex-direction: column; }
+        .doc-actions .gov-btn { width: 100%; }
+        .doc-section-num {
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            font-size: 0.9rem;
+        }
+        .doc-section-head { gap: 0.9rem; }
+        .doc-image-caption {
+            bottom: 1rem;
+            left: 1rem;
+            font-size: 0.62rem;
+            padding: 0.45rem 0.75rem;
+        }
+    }
+
+    /* Print */
+    @media print {
+        .reading-progress,
+        .doc-toolbar,
+        .gov-topbar,
+        .gov-nav,
+        .doc-actions,
+        footer.gov-footer { display: none !important; }
+        .doc-header { padding: 1rem 0 !important; }
+    }
+
+    /* ============================================================
+       FOOTER — SINGLE SOLID COLOR (flat)
+       ============================================================ */
+    footer.gov-footer,
+    footer.gov-footer .gov-container,
+    footer.gov-footer .gov-footer-grid,
+    footer.gov-footer .gov-footer-bottom,
+    footer.gov-footer .gov-footer-bottom-block,
+    footer.gov-footer .gov-footer-seal-block {
+        background: #0a0a0a !important;
+        background-color: #0a0a0a !important;
+        background-image: none !important;
+    }
+    footer.gov-footer {
+        border-top: 4px solid var(--gold) !important;
+        position: relative;
+        background: #0a0a0a !important;
+    }
+    footer.gov-footer::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 1px;
+        background: linear-gradient(to right, transparent, var(--gold), transparent);
+        display: block !important;
+    }
+    footer.gov-footer .gov-footer-bottom {
+        border-top: none !important;
+        padding: 3rem 0 2.5rem !important;
+        margin: 0 !important;
+        display: block !important;
+        width: 100% !important;
+        position: relative;
+    }
+    footer.gov-footer .gov-footer-bottom-block {
+        padding: 0 !important;
+        margin: 0 0 1.5rem 0 !important;
+        display: block !important;
+        text-align: center !important;
+    }
+    footer.gov-footer .gov-footer-seal-block {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+    footer.gov-footer .gov-footer-seal-circle {
+        width: 92px !important;
+        height: 92px !important;
+        border-radius: 50% !important;
+        background: #ffffff !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        border: 3px solid var(--gold) !important;
+        box-shadow:
+            0 0 0 6px rgba(213, 169, 40, 0.15),
+            0 12px 32px rgba(0, 0, 0, 0.5) !important;
+        margin: 0 auto !important;
+    }
+    footer.gov-footer .gov-footer-seal-circle img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+        padding: 6px !important;
+        border-radius: 50% !important;
+    }
+    footer.gov-footer .gov-footer-bottom-title {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-size: 0.98rem !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+        line-height: 1.6 !important;
+        margin: 1.5rem 0 1.5rem 0 !important;
+        text-align: center !important;
+        letter-spacing: -0.01em !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+        padding: 0 1rem !important;
+        background: transparent !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.82rem !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links a {
+        color: #b8b8b8 !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+        transition: color 0.2s ease !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links a:hover {
+        color: var(--gold) !important;
+        text-decoration: underline !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links span {
+        color: rgba(255, 255, 255, 0.25) !important;
+    }
+
+    /* Nav gold hover underline */
+    .gov-nav-item {
+        position: relative;
+    }
+    .gov-nav-item::after {
+        content: "";
+        position: absolute;
+        bottom: 0.55rem;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 2px;
+        background: var(--gold);
+        transition: width 0.3s ease;
+    }
+    .gov-nav-item:hover::after,
+    .gov-nav-item.active::after {
+        width: calc(100% - 2.4rem);
+    }
+    </style>
+</head>
+<body>
+
+    <!-- Reading progress -->
+    <div class="reading-progress" id="readingProgress"></div>
+
+    <div class="gov-topbar">
+        <div class="gov-topbar-inner">
+            <div class="gov-topbar-links"></div>
+            <div class="gov-topbar-right">
+                <span class="gov-topbar-tagline">BORONGANON: DISIPLINADO AKO</span>
+            </div>
+        </div>
+    </div>
+
+    <header class="gov-header">
+        <div class="gov-header-inner">
+            <div class="gov-header-left">
+                <img src="../../images/logo borongan.png" alt="Borongan City Seal" class="gov-header-seal" />
+                <div class="gov-header-text">
+                    <h1 class="gov-header-title">
+                        BORONGAN CITY TRANSPORT TERMINAL<br />
+                        QR-Based Transport Ticketing and Fee Collection System
+                    </h1>
+                    <p class="gov-header-subtitle">
+                        A web-based system for digital ticketing, driver identification, and fee monitoring of public utility vehicles in Borongan City.
+                    </p>
+                </div>
+            </div>
+            <div class="gov-header-right">
+                <div class="gov-header-logos">
+                    <img src="../../images/bctt.jpg" alt="BCTT" class="gov-header-logo" />
+                    <img src="../../images/bagong pilipinas.png" alt="Bagong Pilipinas" class="gov-header-logo" />
+                    <img src="../../images/logo dukwag.jpg" alt="Dukwag" class="gov-header-logo" />
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav class="gov-nav">
+        <div class="gov-nav-inner">
+            <button id="mobileToggle" class="gov-nav-toggle" aria-label="Toggle menu">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div id="mainNav" class="gov-nav-menu">
+                <a href="../index.html" class="gov-nav-item">HOME</a>
+                <a href="../about.html" class="gov-nav-item">ABOUT US</a>
+                <a href="../services.html" class="gov-nav-item">SERVICES</a>
+                <a href="../mission-vision.html" class="gov-nav-item">MISSION &amp; VISION</a>
+                <a href="../organizational-chart.html" class="gov-nav-item">ORGANIZATIONAL CHART</a>
+                <a href="../transport-information.html" class="gov-nav-item">TRANSPORT INFORMATION</a>
+                <a href="../faq.html" class="gov-nav-item">FAQ</a>
+                <a href="../contact.html" class="gov-nav-item">CONTACT US</a>
+                <a href="../../../login.html" class="gov-nav-login">LOGIN</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ==================== PAGE HEADER ==================== -->
+    <section class="doc-header">
+        <div class="doc-header-inner">
+
+            <nav class="doc-breadcrumb" aria-label="Breadcrumb">
+                <a href="../index.html">Home</a>
+                <i class="fas fa-chevron-right"></i>
+                <a href="../index.html#highlights">Featured Highlights</a>
+                <i class="fas fa-chevron-right"></i>
+                <span class="current">Terminal Officers Training</span>
+            </nav>
+
+            <div class="doc-ribbon">
+                <span>Featured Highlight</span>
+                <span>August 4, 2026</span>
+                <span>BCTT Operations Office</span>
+            </div>
+
+            <h1 class="doc-title">
+                Training of Terminal Officers on <em>QR Scanning</em> and Fee Collection
+            </h1>
+
+            <p class="doc-lead">
+                Terminal officers underwent training on using the QR scanning system, verifying
+                driver information, and processing transportation fees in accordance with the
+                approved fee schedule.
+            </p>
+
+            <div class="doc-meta">
+                <span class="doc-meta-item">
+                    <i class="fas fa-calendar"></i> August 4, 2026
+                </span>
+                <span class="doc-meta-item">
+                    <i class="fas fa-location-dot"></i> BCTT Operations Office
+                </span>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ==================== ARTICLE BODY ==================== -->
+    <section class="doc-body">
+        <div class="doc-content">
+
+            <!-- Toolbar -->
+            <div class="doc-toolbar">
+                <button onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+                <button onclick="navigator.clipboard.writeText(location.href); this.innerHTML='<i class=\'fas fa-check\'></i> Copied!'; setTimeout(()=>this.innerHTML='<i class=\'fas fa-link\'></i> Copy Link', 1800);">
+                    <i class="fas fa-link"></i> Copy Link
+                </button>
+                <button onclick="if(navigator.share){navigator.share({title:document.title,url:location.href})}">
+                    <i class="fas fa-share-nodes"></i> Share
+                </button>
+            </div>
+
+            <!-- Featured image -->
+            <div class="doc-image">
+                <img src="../../images/tricycle.jpg" alt="Terminal Officers Training" />
+                <span class="doc-image-caption">
+                    <i class="fas fa-camera"></i> BCTT Operations Office · Officer Training
+                </span>
+            </div>
+
+            <!-- ============ 01 — TRAINING OVERVIEW ============ -->
+            <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">01</span>
+                    <h2 class="doc-section-title">Training <em>Overview</em></h2>
+                </div>
+                <p>
+                    The training prepared authorized terminal officers to operate the QR scanning
+                    system during their shifts and to process terminal transactions in accordance
+                    with the configured procedures.
+                </p>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+            <!-- ============ 02 — TOPICS COVERED ============ -->
+            <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">02</span>
+                    <h2 class="doc-section-title">Topics <em>Covered</em></h2>
+                </div>
+
+                <ul class="doc-list">
+                    <li>Overview of the QR-based Transport Ticketing and Fee Collection System</li>
+                    <li>Using the designated QR scanner</li>
+                    <li>Verifying driver information displayed by the system</li>
+                    <li>Checking transaction eligibility and available prepaid balance</li>
+                    <li>Processing authorized terminal transactions</li>
+                    <li>Recording transaction references when applicable</li>
+                    <li>Generating and handling transaction records</li>
+                </ul>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+            <!-- ============ 03 — VERIFICATION AND RECEIPT HANDLING ============ -->
+            <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">03</span>
+                    <h2 class="doc-section-title">Verification and <em>Receipt Handling</em></h2>
+                </div>
+
+                <p>
+                    Training also covered the proper handling of transaction records. Where the system
+                    is authorized to produce a receipt or reference record, officers are trained to
+                    ensure the correct information is recorded and associated with the correct
+                    transaction.
+                </p>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+            <!-- ============ 04 — KEY PROCEDURES ============ -->
+            <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">04</span>
+                    <h2 class="doc-section-title">Key <em>Procedures</em></h2>
+                </div>
+
+                <p>The following 5-step scanning workflow was demonstrated and practiced during the training.</p>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span class="doc-subtitle-num">1</span>
+                        <span>Scan the QR Code</span>
+                    </div>
+                    <p>Use the designated hardware scanner to read the driver's QR code.</p>
+                </div>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span class="doc-subtitle-num">2</span>
+                        <span>Retrieve Driver Record</span>
+                    </div>
+                    <p>The system displays the driver's registered information and account status.</p>
+                </div>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span class="doc-subtitle-num">3</span>
+                        <span>Verify Eligibility</span>
+                    </div>
+                    <p>Confirm the driver's account status, vehicle type, and applicable fee.</p>
+                </div>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span class="doc-subtitle-num">4</span>
+                        <span>Process Transaction</span>
+                    </div>
+                    <p>Complete the authorized terminal transaction and deduct the fee if applicable.</p>
+                </div>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span class="doc-subtitle-num">5</span>
+                        <span>Record and Print</span>
+                    </div>
+                    <p>Ensure the transaction is recorded and, if authorized, print a receipt or transaction record.</p>
+                </div>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+            <!-- ============ 05 — STAFF ROLES AND RESPONSIBILITIES ============ -->
+            <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">05</span>
+                    <h2 class="doc-section-title">Staff Roles and <em>Responsibilities</em></h2>
+                </div>
+
+                <p>The training also introduced the responsibilities of authorized terminal personnel during QR-based terminal operations.</p>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span>QR Verification</span>
+                    </div>
+                    <p>Staff are responsible for using the designated hardware scanner to retrieve and verify the driver's registered information.</p>
+                </div>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span>Transaction Processing</span>
+                    </div>
+                    <p>Staff process authorized terminal transactions after confirming the driver's account status and applicable transaction requirements.</p>
+                </div>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span>Transaction Recording</span>
+                    </div>
+                    <p>Staff ensure that completed transactions are properly recorded in the system and associated with the correct driver.</p>
+                </div>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span>Record Review</span>
+                    </div>
+                    <p>Staff can review relevant transaction information to help identify incomplete, unsuccessful, or recorded transactions that require attention.</p>
+                </div>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+            <!-- ============ 06 — HARDWARE AND EQUIPMENT ============ -->
+            <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">06</span>
+                    <h2 class="doc-section-title">Hardware and <em>Equipment</em></h2>
+                </div>
+
+                <p>The training included familiarization with the equipment used during terminal operations.</p>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span>Designated QR Scanner</span>
+                    </div>
+                    <p>The QR scanner is used by authorized staff to read the driver's QR code and retrieve the corresponding system record.</p>
+                </div>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span>Terminal Workstation</span>
+                    </div>
+                    <p>The workstation provides access to the staff dashboard where driver information and transaction details can be displayed.</p>
+                </div>
+
+                <div class="doc-subsection">
+                    <div class="doc-subtitle">
+                        <span>Receipt or Transaction Printer</span>
+                    </div>
+                    <p>Where applicable and authorized, a designated receipt or transaction printer may be used to produce a transaction record.</p>
+                </div>
+
+                <div class="doc-note">
+                    <div class="doc-note-icon">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="doc-note-body">
+                        <strong>Important Note</strong>
+                        <p>
+                            The system should only be described as issuing an official receipt if this function
+                            has been formally authorized by the responsible office. Keep the wording
+                            "receipt or transaction record" unless your office has officially authorized your
+                            system to issue government official receipts.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+            <!-- ============ 07 — TRANSACTION VALIDATION ============ -->
+            <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">07</span>
+                    <h2 class="doc-section-title">Transaction <em>Validation</em></h2>
+                </div>
+
+                <p>Before completing an authorized terminal transaction, staff are expected to verify the information displayed by the system.</p>
+
+                <p>The validation process includes:</p>
+                <ul class="doc-list">
+                    <li>Confirming the driver's registered identity.</li>
+                    <li>Checking the registered vehicle information.</li>
+                    <li>Checking the driver's account status.</li>
+                    <li>Confirming the applicable vehicle type and configured fee.</li>
+                    <li>Checking the available prepaid balance when required.</li>
+                    <li>Confirming that the transaction has been successfully recorded.</li>
+                </ul>
+
+                <p>
+                    If the transaction cannot be completed, the staff member should follow the applicable
+                    terminal procedure rather than manually changing the system record without authorization.
+                </p>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+            <!-- ============ 08 — TRAINING OUTCOME ============ -->
+            <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">08</span>
+                    <h2 class="doc-section-title">Training <em>Outcome</em></h2>
+                </div>
+
+                <p>
+                    Following the training, authorized terminal officers are expected to understand
+                    the basic workflow for QR-based driver verification and terminal transaction recording.
+                </p>
+
+                <p>
+                    The training supports consistent use of the designated scanner, accurate driver
+                    verification, proper transaction processing, and reliable maintenance of digital
+                    terminal records.
+                </p>
+
+                <p>
+                    These procedures are intended to help ensure that terminal transactions are properly
+                    associated with the correct driver and maintained in the centralized transaction database.
+                </p>
+
+                <div class="doc-note">
+                    <div class="doc-note-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="doc-note-body">
+                        <strong>Result</strong>
+                        <p>
+                            Terminal officers are prepared to process authorized terminal transactions using
+                            the QR scanning system and to record them in the terminal transaction database for
+                            monitoring and reporting.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+            <!-- ============ 09 — RELATED SYSTEM INFORMATION ============ -->
+            <div class="doc-section">
+                <div class="doc-section-head">
+                    <span class="doc-section-num">09</span>
+                    <h2 class="doc-section-title">Related System <em>Information</em></h2>
+                </div>
+
+                <p>For more information about the modules discussed during the training, you may visit the following pages:</p>
+
+                <div class="doc-card-grid">
+
+                    <a href="../qr-scanning.html" class="doc-card" data-num="01">
+                        <div class="doc-card-icon">
+                            <i class="fas fa-expand"></i>
+                        </div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">QR Scanning at the Terminal</h3>
+                            <p class="doc-card-desc">How staff verify drivers using the designated scanner.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                    <a href="../fee-collection.html" class="doc-card" data-num="02">
+                        <div class="doc-card-icon">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">Fee Collection</h3>
+                            <p class="doc-card-desc">How terminal fees are processed and recorded.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                    <a href="../transaction-records.html" class="doc-card" data-num="03">
+                        <div class="doc-card-icon">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">Transaction Records</h3>
+                            <p class="doc-card-desc">How terminal transactions are stored and reviewed.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                    <a href="../reports-monitoring.html" class="doc-card" data-num="04">
+                        <div class="doc-card-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">Reports &amp; Monitoring</h3>
+                            <p class="doc-card-desc">How transaction data is used for reporting.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                    <a href="../user-guide.html" class="doc-card" data-num="05">
+                        <div class="doc-card-icon">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">User Guide</h3>
+                            <p class="doc-card-desc">Complete guide for drivers, cashiers, staff, and administrators.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                    <a href="../faq.html" class="doc-card" data-num="06">
+                        <div class="doc-card-icon">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <div class="doc-card-body">
+                            <h3 class="doc-card-title">Frequently Asked Questions</h3>
+                            <p class="doc-card-desc">Common questions about the system.</p>
+                        </div>
+                        <i class="fas fa-arrow-right doc-card-arrow"></i>
+                    </a>
+
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="doc-actions">
+                <a href="../index.html#highlights" class="gov-btn gov-btn-outline">
+                    <i class="fas fa-arrow-left"></i> Back to Highlights
+                </a>
+                <a href="../fee-collection.html" class="gov-btn gov-btn-primary">
+                    Fee Collection Module <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="gov-footer">
+        <div class="gov-container">
+            <div class="gov-footer-grid">
+                <div class="gov-footer-col">
+                    <h5>About</h5>
+                    <ul>
+                        <li><a href="../about.html">About the System</a></li>
+                        <li><a href="../mission-vision.html">Mission &amp; Vision</a></li>
+                        <li><a href="../organizational-chart.html">Organizational Chart</a></li>
+                        <li><a href="../transport-information.html">Transport Information</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>System</h5>
+                    <ul>
+                        <li><a href="../driver-registration.html">Driver Registration</a></li>
+                        <li><a href="../qr-driver-identification.html">QR Driver Identification</a></li>
+                        <li><a href="../qr-scanning.html">QR Scanning</a></li>
+                        <li><a href="../fee-collection.html">Fee Collection</a></li>
+                        <li><a href="../transaction-records.html">Transaction Records</a></li>
+                        <li><a href="../reports-monitoring.html">Reports &amp; Monitoring</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Guides</h5>
+                    <ul>
+                        <li><a href="../user-guide.html">User Guide</a></li>
+                        <li><a href="../user-guide.html#driver">Driver Registration Guide</a></li>
+                        <li><a href="../user-guide.html#cashier">QR Scanning Guide</a></li>
+                        <li><a href="../user-guide.html#staff">Prepaid Balance Guide</a></li>
+                        <li><a href="../user-guide.html#admin">Transaction Guide</a></li>
+                        <li><a href="../faq.html">FAQ</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Site Map</h5>
+                    <ul>
+                        <li><a href="../index.html">Home</a></li>
+                        <li><a href="../about.html">About Us</a></li>
+                        <li><a href="../services.html">Services</a></li>
+                        <li><a href="../mission-vision.html">Mission &amp; Vision</a></li>
+                        <li><a href="../organizational-chart.html">Organizational Chart</a></li>
+                        <li><a href="../transport-information.html">Transport Information</a></li>
+                        <li><a href="../faq.html">FAQ</a></li>
+                        <li><a href="../contact.html">Contact Us</a></li>
+                        <li><a href="../../../login.html">Login</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Policies</h5>
+                    <ul>
+                        <li><a href="../privacy-policy.html">Data Privacy Policy</a></li>
+                        <li><a href="../security-policy.html">Security Policy</a></li>
+                        <li><a href="../ip-rights-policy.html">Intellectual Property Rights Policy</a></li>
+                        <li><a href="../terms-of-use.html">Terms of Use</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="gov-footer-bottom">
+                <div class="gov-footer-bottom-block">
+                    <div class="gov-footer-seal-block">
+                        <div class="gov-footer-seal-circle">
+                            <img src="../../images/logo borongan.png" alt="Republic of the Philippines" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gov-container">
+                    <p class="gov-footer-bottom-title">
+                        Borongan City Transport Terminal<br />
+                        QR-Based Transport Ticketing and Fee Collection System
+                    </p>
+                    <div class="gov-footer-bottom-links">
+                        <a href="https://www.gov.ph/directory" target="_blank" rel="noopener">Government Directory</a>
+                        <span>|</span>
+                        <a href="../privacy-policy.html">Privacy Policy</a>
+                        <span>|</span>
+                        <a href="../security-policy.html">Security Policy</a>
+                        <span>|</span>
+                        <a href="../ip-rights-policy.html">Intellectual Property Rights</a>
+                        <span>|</span>
+                        <a href="../terms-of-use.html">Terms of Use</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+    (function(){
+        var s = document.createElement("script");
+        s.src = "../../assets/js/inner.js";
+        document.body.appendChild(s);
+    })();
+
+    /* Reading progress bar */
+    (function(){
+        var bar = document.getElementById('readingProgress');
+        if (!bar) return;
+        function update(){
+            var h = document.documentElement;
+            var scrollTop = h.scrollTop || document.body.scrollTop;
+            var scrollHeight = h.scrollHeight - h.clientHeight;
+            var pct = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+            bar.style.width = pct + '%';
+        }
+        window.addEventListener('scroll', update, { passive: true });
+        window.addEventListener('resize', update);
+        update();
+    })();
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mission &amp; Vision · Borongan City Transport Terminal</title>
+    <meta name="description" content="Mission and Vision of the Borongan City Transport Terminal." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,700;1,500;1,700&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400;1,600&family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+    <script>
+    (function(){
+        var p = location.pathname.replace(/\\/g,'/');
+        var i = p.indexOf('/index/');
+        var a = i >= 0 ? p.slice(i + 7) : '';
+        var d = (a.match(/\//g) || []).length;
+        var pre = '../'.repeat(d + 1);
+        window.__ASSET_PREFIX__ = pre;
+        document.write('<link rel="stylesheet" href="' + pre + 'assets/css/index.css">');
+        document.write('<script src="' + pre + 'assets/js/path-fixer.js"><\/script>');
+    })();
+    </script>
+
+    <script>
+    (function(){
+        var pre = window.__ASSET_PREFIX__ || '../';
+        document.write('<link rel="stylesheet" href="' + pre + 'assets/css/footer.css">');
+    })();
+    </script>
+
+    <style>
+     :root {
+        --primary: #b22234;
+        --primary-dark: #8f1a2a;
+        --primary-soft: #fef2f2;
+        --primary-glow: rgba(178, 34, 52, 0.12);
+
+        --gold: #d5a928;
+        --gold-dark: #b88a1d;
+        --gold-soft: #fdf6e3;
+        --gold-glow: rgba(213, 169, 40, 0.18);
+
+        --navy: #0f1e3d;
+        --navy-soft: #eef2f9;
+
+        --ink-900: #111827;
+        --ink-700: #374151;
+        --ink-600: #4b5563;
+        --ink-500: #6b7280;
+        --ink-300: #d1d5db;
+        --ink-200: #e5e7eb;
+        --ink-100: #f3f4f6;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: #ffffff; }
+
+    .highlight-hero .gov-container,
+.highlight-body .gov-container {
+    max-width: 1080px !important;
+    margin: 0 auto !important;
+    padding: 0 1.5rem !important;
+}
+
+     .reading-progress {
+        position: fixed;
+        top: 0; left: 0;
+        height: 3px;
+        width: 0%;
+        background: linear-gradient(to right, var(--primary), var(--gold));
+        z-index: 9999;
+        transition: width 0.15s ease;
+        box-shadow: 0 0 10px var(--primary-glow);
+    }
+
+     .highlight-hero {
+        position: relative;
+        background: linear-gradient(135deg, #fef2f2 0%, #ffffff 55%, #fdf6e3 100%);
+        padding: 5rem 0 4.5rem;
+        overflow: hidden;
+        border-bottom: 1px solid var(--ink-200);
+    }
+    .highlight-hero::before {
+        content: "";
+        position: absolute;
+        top: -120px;
+        right: -100px;
+        width: 480px;
+        height: 480px;
+        background: radial-gradient(circle, var(--gold-glow), transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+    .highlight-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(rgba(178, 34, 52, 0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(178, 34, 52, 0.035) 1px, transparent 1px);
+        background-size: 32px 32px;
+        pointer-events: none;
+        opacity: 0.9;
+        -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 90%);
+                mask-image: linear-gradient(to bottom, black 0%, transparent 90%);
+    }
+    .highlight-hero .gov-container {
+        position: relative;
+        z-index: 1;
+    }
+
+    .gov-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        color: var(--ink-500);
+        margin: 0 0 2rem 0;
+        padding: 0;
+    }
+    .gov-breadcrumb a {
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none;
+        position: relative;
+    }
+    .gov-breadcrumb a::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--gold);
+        transition: width 0.3s ease;
+    }
+    .gov-breadcrumb a:hover::after { width: 100%; }
+    .gov-breadcrumb a:hover { color: var(--primary-dark); }
+    .gov-breadcrumb i {
+        font-size: 0.6rem;
+        color: var(--ink-300);
+    }
+    .gov-breadcrumb .current {
+        color: var(--ink-700);
+        font-weight: 600;
+    }
+
+    .hero-ribbon {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .hero-ribbon span {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 0.45rem 0.9rem;
+        background: rgba(255, 255, 255, 0.75);
+        border: 1px solid var(--gold);
+        color: var(--navy);
+        border-radius: 6px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .highlight-hero-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: clamp(1.9rem, 3.6vw, 2.7rem);
+        font-weight: 800;
+        color: var(--ink-900);
+        line-height: 1.1;
+        letter-spacing: -0.035em;
+        margin: 0 0 1.5rem 0;
+        max-width: 900px;
+    }
+    .highlight-hero-title em {
+        font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+        font-style: italic;
+        font-weight: 700;
+        color: var(--primary);
+        letter-spacing: -0.01em;
+        font-size: 1.08em;
+    }
+
+    .highlight-hero-lead {
+        font-family: 'Inter', sans-serif;
+        font-size: clamp(1.02rem, 1.35vw, 1.15rem);
+        color: var(--ink-600);
+        line-height: 1.75;
+        max-width: 780px;
+        margin: 0;
+        font-weight: 400;
+    }
+
+     .highlight-body {
+        padding: 5rem 0 5rem;
+        background: #ffffff;
+    }
+
+    .hero-toolbar {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0 0 3rem 0;
+        flex-wrap: wrap;
+    }
+    .hero-toolbar button {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 0.55rem 1.05rem;
+        border: 1px solid var(--ink-200);
+        background: #fff;
+        color: var(--ink-700);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .hero-toolbar button i {
+        color: var(--primary);
+        font-size: 0.85rem;
+    }
+    .hero-toolbar button:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: var(--primary-soft);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px -6px var(--primary-glow);
+    }
+
+     .highlight-section {
+        margin: 5rem 0 0 0;
+        scroll-margin-top: 90px;
+    }
+    .highlight-section:first-of-type { margin-top: 0; }
+
+    .highlight-section-head {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        margin: 0 0 2.5rem 0;
+        padding-bottom: 1.25rem;
+        border-bottom: 2px solid var(--primary-soft);
+        position: relative;
+    }
+    .highlight-section-head::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 80px;
+        height: 2px;
+        background: linear-gradient(to right, var(--primary), var(--gold));
+    }
+
+    .highlight-section-num {
+        font-family: 'Sora', sans-serif;
+        font-style: normal;
+        font-weight: 800;
+        font-size: 1.05rem;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        width: 46px;
+        height: 46px;
+        min-width: 46px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 16px -4px rgba(178, 34, 52, 0.4);
+        position: relative;
+        letter-spacing: -0.02em;
+    }
+    .highlight-section-num::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border-radius: 16px;
+        border: 1px dashed rgba(178, 34, 52, 0.3);
+    }
+
+    .highlight-section-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+        font-weight: 800;
+        color: var(--ink-900);
+        letter-spacing: -0.03em;
+        margin: 0;
+        line-height: 1.15;
+    }
+    .highlight-section-title em {
+        font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+        font-style: italic;
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+     .mv-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.75rem;
+        margin: 0 0 2rem 0;
+    }
+
+    .mv-card {
+        position: relative;
+        padding: 2.75rem 2.35rem 2.5rem;
+        background:
+            linear-gradient(#ffffff, #ffffff) padding-box,
+            linear-gradient(135deg, var(--ink-200), var(--ink-200)) border-box;
+        border: 1.5px solid transparent;
+        border-radius: 20px;
+        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    box-shadow 0.35s ease,
+                    background 0.4s ease;
+        overflow: hidden;
+    }
+    .mv-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--gold) 100%);
+    }
+    .mv-card::after {
+        content: "";
+        position: absolute;
+        top: -80px;
+        right: -80px;
+        width: 240px;
+        height: 240px;
+        background: radial-gradient(circle, var(--gold-glow), transparent 70%);
+        border-radius: 50%;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+        pointer-events: none;
+    }
+    .mv-card:hover {
+        background:
+            linear-gradient(#fffafa, #ffffff) padding-box,
+            linear-gradient(135deg, var(--primary), var(--gold)) border-box;
+        box-shadow: 0 24px 50px -20px rgba(178, 34, 52, 0.28);
+        transform: translateY(-5px);
+    }
+    .mv-card:hover::after { opacity: 1; }
+
+    .mv-icon-wrap {
+        position: relative;
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, var(--primary-soft) 0%, #ffe4e6 100%);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.55rem;
+        border: 1px solid rgba(178, 34, 52, 0.12);
+        margin-bottom: 1.75rem;
+        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    box-shadow 0.35s ease;
+        z-index: 1;
+    }
+    .mv-icon-wrap::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border-radius: 20px;
+        border: 1px dashed rgba(213, 169, 40, 0.4);
+        opacity: 0;
+        transition: opacity 0.35s ease;
+    }
+    .mv-card:hover .mv-icon-wrap {
+        transform: scale(1.08) rotate(-4deg);
+        box-shadow: 0 12px 26px -10px var(--primary-glow);
+    }
+    .mv-card:hover .mv-icon-wrap::after { opacity: 1; }
+
+    .mv-card h3 {
+        position: relative;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: var(--ink-900);
+        letter-spacing: -0.03em;
+        line-height: 1.15;
+        margin: 0 0 1.15rem 0;
+        z-index: 1;
+    }
+    .mv-card h3 em {
+        font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+        font-style: italic;
+        font-weight: 700;
+        color: var(--primary);
+        font-size: 1.08em;
+    }
+    .mv-card p {
+        position: relative;
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        line-height: 1.85;
+        color: var(--ink-600);
+        margin: 0;
+        font-weight: 400;
+        z-index: 1;
+    }
+    .mv-card p::first-letter {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 3.2rem;
+        font-weight: 700;
+        color: var(--primary);
+        float: left;
+        line-height: 0.85;
+        padding: 0.35rem 0.65rem 0 0;
+        font-style: italic;
+    }
+
+     .doc-divider {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 4.5rem 0;
+        max-width: 780px;
+    }
+    .doc-divider span {
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(to right, transparent, var(--primary), transparent);
+        opacity: 0.5;
+    }
+    .doc-divider i {
+        color: var(--primary);
+        font-size: 0.5rem;
+        opacity: 0.6;
+    }
+
+     .highlight-related {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+        margin-top: 1.75rem;
+    }
+    .highlight-related-link {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.5rem 1.6rem;
+        background:
+            linear-gradient(#ffffff, #ffffff) padding-box,
+            linear-gradient(135deg, var(--ink-200), var(--ink-200)) border-box;
+        border: 1.5px solid transparent;
+        border-radius: 16px;
+        text-decoration: none;
+        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    box-shadow 0.35s ease,
+                    background 0.35s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    }
+    .highlight-related-link:hover {
+        background:
+            linear-gradient(#fffafa, #ffffff) padding-box,
+            linear-gradient(135deg, var(--primary), var(--gold)) border-box;
+        box-shadow: 0 16px 32px -14px rgba(178, 34, 52, 0.28);
+        transform: translateY(-3px);
+    }
+    .highlight-related-link::before {
+        content: attr(data-num);
+        position: absolute;
+        top: 1rem;
+        right: 1.35rem;
+        font-family: 'Sora', sans-serif;
+        font-size: 0.68rem;
+        font-weight: 800;
+        color: var(--primary);
+        opacity: 0.28;
+        letter-spacing: 0.12em;
+    }
+    .highlight-related-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--primary-soft) 0%, #ffe4e6 100%);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        border: 1px solid rgba(178, 34, 52, 0.10);
+        transition: transform 0.3s ease;
+    }
+    .highlight-related-link:hover .highlight-related-icon {
+        transform: scale(1.06) rotate(-3deg);
+    }
+    .highlight-related-body {
+        flex: 1;
+        min-width: 0;
+    }
+    .highlight-related-body strong {
+        display: block;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: var(--ink-900);
+        letter-spacing: -0.01em;
+        margin-bottom: 0.25rem;
+    }
+    .highlight-related-body span {
+        display: block;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.82rem;
+        color: var(--ink-500);
+        line-height: 1.55;
+    }
+    .highlight-related-link > i {
+        color: var(--primary);
+        font-size: 0.9rem;
+        transition: transform 0.3s ease;
+        flex-shrink: 0;
+    }
+    .highlight-related-link:hover > i {
+        transform: translateX(5px);
+    }
+
+     .highlight-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-top: 4rem;
+        padding-top: 2.5rem;
+        border-top: 1px solid var(--ink-200);
+    }
+
+     @media (max-width: 900px) {
+        .highlight-hero { padding: 3.5rem 0 3rem; }
+        .highlight-body { padding: 3.5rem 0 3rem; }
+        .mv-grid { grid-template-columns: 1fr; gap: 1.35rem; }
+        .highlight-related { grid-template-columns: 1fr; }
+        .doc-divider { margin-left: 0; }
+    }
+    @media (max-width: 560px) {
+        .highlight-hero { padding: 3rem 0 2.5rem; }
+        .highlight-body { padding: 3rem 0 2rem; }
+        .highlight-hero-title { font-size: 1.55rem; }
+        .highlight-section-num {
+            width: 38px;
+            height: 38px;
+            min-width: 38px;
+            font-size: 0.9rem;
+        }
+        .highlight-section-head { gap: 0.9rem; }
+        .highlight-section-title { font-size: 1.2rem; }
+        .mv-card { padding: 2rem 1.5rem; }
+        .mv-card h3 { font-size: 1.3rem; }
+        .mv-card p::first-letter { font-size: 2.6rem; }
+        .highlight-actions { flex-direction: column; }
+        .highlight-actions .gov-btn { width: 100%; }
+        .hero-toolbar { margin-bottom: 2rem; }
+    }
+
+     @media print {
+        .reading-progress,
+        .hero-toolbar,
+        .gov-topbar,
+        .gov-nav,
+        .highlight-actions,
+        footer.gov-footer { display: none !important; }
+        .highlight-hero { padding: 1rem 0 !important; }
+    }
+
+     footer.gov-footer,
+    footer.gov-footer .gov-container,
+    footer.gov-footer .gov-footer-grid,
+    footer.gov-footer .gov-footer-bottom,
+    footer.gov-footer .gov-footer-bottom-block,
+    footer.gov-footer .gov-footer-seal-block {
+        background: #0a0a0a !important;
+        background-color: #0a0a0a !important;
+    }
+    footer.gov-footer {
+        border-top: 4px solid var(--gold) !important;
+        position: relative;
+        background: #0a0a0a !important;
+    }
+    footer.gov-footer::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 1px;
+        background: linear-gradient(to right, transparent, var(--gold), transparent);
+        display: block !important;
+    }
+    footer.gov-footer .gov-footer-bottom {
+        border-top: none !important;
+        padding: 3rem 0 2.5rem !important;
+        margin: 0 !important;
+        display: block !important;
+        width: 100% !important;
+        position: relative;
+    }
+    footer.gov-footer .gov-footer-bottom-block {
+        padding: 0 !important;
+        margin: 0 0 1.5rem 0 !important;
+        display: block !important;
+        text-align: center !important;
+    }
+    footer.gov-footer .gov-footer-seal-block {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+    footer.gov-footer .gov-footer-seal-circle {
+        width: 92px !important;
+        height: 92px !important;
+        border-radius: 50% !important;
+        background: #ffffff !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        border: 3px solid var(--gold) !important;
+        box-shadow:
+            0 0 0 6px rgba(213, 169, 40, 0.15),
+            0 12px 32px rgba(0, 0, 0, 0.5) !important;
+        margin: 0 auto !important;
+    }
+    footer.gov-footer .gov-footer-seal-circle img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain !important;
+        padding: 6px !important;
+        border-radius: 50% !important;
+    }
+    footer.gov-footer .gov-footer-bottom-title {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-size: 0.98rem !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+        line-height: 1.6 !important;
+        margin: 1.5rem 0 1.5rem 0 !important;
+        text-align: center !important;
+        letter-spacing: -0.01em !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+        padding: 0 1rem !important;
+        background: transparent !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.82rem !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links a {
+        color: #b8b8b8 !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+        transition: color 0.2s ease !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links a:hover {
+        color: var(--gold) !important;
+        text-decoration: underline !important;
+    }
+    footer.gov-footer .gov-footer-bottom-links span {
+        color: rgba(255, 255, 255, 0.25) !important;
+    }
+
+     .gov-nav-item {
+        position: relative;
+    }
+    .gov-nav-item::after {
+        content: "";
+        position: absolute;
+        bottom: 0.55rem;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 2px;
+        background: var(--gold);
+        transition: width 0.3s ease;
+    }
+    .gov-nav-item:hover::after,
+    .gov-nav-item.active::after {
+        width: calc(100% - 2.4rem);
+    }
+    </style>
+</head>
+<body>
+
+     <div class="reading-progress" id="readingProgress"></div>
+
+    <div class="gov-topbar">
+        <div class="gov-topbar-inner">
+            <div class="gov-topbar-links"></div>
+            <div class="gov-topbar-right">
+                <span class="gov-topbar-tagline">BORONGANON: DISIPLINADO AKO</span>
+            </div>
+        </div>
+    </div>
+
+    <header class="gov-header">
+        <div class="gov-header-inner">
+            <div class="gov-header-left">
+                <img src="images/logo borongan.png" alt="Borongan City Seal" class="gov-header-seal" />
+                <div class="gov-header-text">
+                    <h1 class="gov-header-title">
+                        BORONGAN CITY TRANSPORT TERMINAL<br />
+                        QR-Based Transport Ticketing and Fee Collection System
+                    </h1>
+                    <p class="gov-header-subtitle">
+                        A web-based system for digital ticketing, driver identification, and fee monitoring of public utility vehicles in Borongan City.
+                    </p>
+                </div>
+            </div>
+            <div class="gov-header-right">
+                <div class="gov-header-logos">
+                    <img src="images/bctt.jpg" alt="BCTT" class="gov-header-logo" />
+                    <img src="images/bagong pilipinas.png" alt="Bagong Pilipinas" class="gov-header-logo" />
+                    <img src="images/logo dukwag.jpg" alt="Dukwag" class="gov-header-logo" />
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav class="gov-nav">
+        <div class="gov-nav-inner">
+            <button id="mobileToggle" class="gov-nav-toggle" aria-label="Toggle menu">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div id="mainNav" class="gov-nav-menu">
+                <a href="index.html" class="gov-nav-item">HOME</a>
+                <a href="about.html" class="gov-nav-item">ABOUT US</a>
+                <a href="services.html" class="gov-nav-item">SERVICES</a>
+                <a href="mission-vision.html" class="gov-nav-item active">MISSION &amp; VISION</a>
+                <a href="organizational-chart.html" class="gov-nav-item">ORGANIZATIONAL CHART</a>
+                <a href="transport-information.html" class="gov-nav-item">TRANSPORT INFORMATION</a>
+                <a href="faq.html" class="gov-nav-item">FAQ</a>
+                <a href="contact.html" class="gov-nav-item">CONTACT US</a>
+                <a href="../login.html" class="gov-nav-login">LOGIN</a>
+            </div>
+        </div>
+    </nav>
+
+     <section class="highlight-hero">
+        <div class="gov-container">
+
+            <nav class="gov-breadcrumb" aria-label="Breadcrumb">
+                <a href="index.html">Home</a>
+                <i class="fas fa-chevron-right"></i>
+                <span class="current">Mission &amp; Vision</span>
+            </nav>
+
+            <div class="hero-ribbon">
+                <span>Our Purpose</span>
+                <span>Guiding Principles</span>
+                <span>BCTT</span>
+            </div>
+
+            <h1 class="highlight-hero-title">
+                Mission &amp; <em>Vision</em>
+            </h1>
+
+            <p class="highlight-hero-lead">
+                The official Mission and Vision of the Borongan City Transport Terminal.
+            </p>
+
+        </div>
+    </section>
+
+     <section class="highlight-body">
+        <div class="gov-container">
+
+             <div class="hero-toolbar">
+                <button onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+                <button onclick="navigator.clipboard.writeText(location.href); this.innerHTML='<i class=\'fas fa-check\'></i> Copied!'; setTimeout(()=>this.innerHTML='<i class=\'fas fa-link\'></i> Copy Link', 1800);">
+                    <i class="fas fa-link"></i> Copy Link
+                </button>
+                <button onclick="if(navigator.share){navigator.share({title:document.title,url:location.href})}">
+                    <i class="fas fa-share-nodes"></i> Share
+                </button>
+            </div>
+
+             <div class="highlight-section">
+                <div class="highlight-section-head">
+                    <span class="highlight-section-num">01</span>
+                    <h2 class="highlight-section-title">Vision &amp; <em>Mission</em></h2>
+                </div>
+
+                <div class="mv-grid">
+
+                    <div class="mv-card">
+                        <div class="mv-icon-wrap"><i class="fas fa-eye"></i></div>
+                        <h3>Our <em>Vision</em></h3>
+                        <p>
+                            Consistent with the Vision and Mission of the City Government, the BCTT
+                            envisions for a progressive and self-sustaining inter-modal public land
+                            transport interchange with God-fearing, highly dedicated and flexible
+                            personnel ready to embrace an innovative transportation technology and
+                            working towards an inclusive transport business opportunities which shall
+                            spur an environment-friendly and sustainable socio-economic growth.
+                        </p>
+                    </div>
+
+                    <div class="mv-card">
+                        <div class="mv-icon-wrap"><i class="fas fa-bullseye"></i></div>
+                        <h3>Our <em>Mission</em></h3>
+                        <p>
+                            The BCTT in collaboration with different government offices and public
+                            transport cooperatives/associations shall endeavor to develop and promote
+                            the transportation industry as source of livelihood among drivers and
+                            operators; ensure the safety, comfort, convenience, and well being of the
+                            riding public through the provision of responsive, accountable and God
+                            centered regulatory services.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="doc-divider" aria-hidden="true">
+                <span></span><i class="fas fa-diamond"></i><span></span>
+            </div>
+
+             <div class="highlight-section">
+                <div class="highlight-section-head">
+                    <span class="highlight-section-num">02</span>
+                    <h2 class="highlight-section-title">Related System <em>Information</em></h2>
+                </div>
+
+                <div class="highlight-related">
+
+                    <a href="about.html" class="highlight-related-link" data-num="01">
+                        <div class="highlight-related-icon"><i class="fas fa-info-circle"></i></div>
+                        <div class="highlight-related-body">
+                            <strong>About the System</strong>
+                            <span>Background, purpose, and scope of the QR-based system.</span>
+                        </div>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+
+                    <a href="organizational-chart.html" class="highlight-related-link" data-num="02">
+                        <div class="highlight-related-icon"><i class="fas fa-sitemap"></i></div>
+                        <div class="highlight-related-body">
+                            <strong>Organizational Chart</strong>
+                            <span>Structure of the office responsible for terminal operations.</span>
+                        </div>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+
+                    <a href="privacy-policy.html" class="highlight-related-link" data-num="03">
+                        <div class="highlight-related-icon"><i class="fas fa-shield"></i></div>
+                        <div class="highlight-related-body">
+                            <strong>Data Privacy Policy</strong>
+                            <span>How personal information is collected, used, and protected.</span>
+                        </div>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+
+                    <a href="terms-of-use.html" class="highlight-related-link" data-num="04">
+                        <div class="highlight-related-icon"><i class="fas fa-file-contract"></i></div>
+                        <div class="highlight-related-body">
+                            <strong>Terms of Use</strong>
+                            <span>Rules and conditions for using the system.</span>
+                        </div>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+
+                </div>
+            </div>
+
+             <div class="highlight-actions">
+                <a href="index.html" class="gov-btn gov-btn-outline">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </a>
+                <a href="organizational-chart.html" class="gov-btn gov-btn-primary">
+                    Organizational Chart <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+
+        </div>
+    </section>
+
+     <footer class="gov-footer">
+        <div class="gov-container">
+            <div class="gov-footer-grid">
+                <div class="gov-footer-col">
+                    <h5>About</h5>
+                    <ul>
+                        <li><a href="about.html">About the System</a></li>
+                        <li><a href="mission-vision.html">Mission &amp; Vision</a></li>
+                        <li><a href="organizational-chart.html">Organizational Chart</a></li>
+                        <li><a href="transport-information.html">Transport Information</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>System</h5>
+                    <ul>
+                        <li><a href="driver-registration.html">Driver Registration</a></li>
+                        <li><a href="qr-driver-identification.html">QR Driver Identification</a></li>
+                        <li><a href="qr-scanning.html">QR Scanning</a></li>
+                        <li><a href="fee-collection.html">Fee Collection</a></li>
+                        <li><a href="transaction-records.html">Transaction Records</a></li>
+                        <li><a href="reports-monitoring.html">Reports &amp; Monitoring</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Guides</h5>
+                    <ul>
+                        <li><a href="user-guide.html">User Guide</a></li>
+                        <li><a href="user-guide.html#driver">Driver Registration Guide</a></li>
+                        <li><a href="user-guide.html#cashier">QR Scanning Guide</a></li>
+                        <li><a href="user-guide.html#staff">Prepaid Balance Guide</a></li>
+                        <li><a href="user-guide.html#admin">Transaction Guide</a></li>
+                        <li><a href="faq.html">FAQ</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Site Map</h5>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="about.html">About Us</a></li>
+                        <li><a href="services.html">Services</a></li>
+                        <li><a href="mission-vision.html">Mission &amp; Vision</a></li>
+                        <li><a href="organizational-chart.html">Organizational Chart</a></li>
+                        <li><a href="transport-information.html">Transport Information</a></li>
+                        <li><a href="faq.html">FAQ</a></li>
+                        <li><a href="contact.html">Contact Us</a></li>
+                        <li><a href="../login.html">Login</a></li>
+                    </ul>
+                </div>
+                <div class="gov-footer-col">
+                    <h5>Policies</h5>
+                    <ul>
+                        <li><a href="privacy-policy.html">Data Privacy Policy</a></li>
+                        <li><a href="security-policy.html">Security Policy</a></li>
+                        <li><a href="ip-rights-policy.html">Intellectual Property Rights Policy</a></li>
+                        <li><a href="terms-of-use.html">Terms of Use</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="gov-footer-bottom">
+
+                 <div class="gov-footer-bottom-block">
+                    <div class="gov-footer-seal-block">
+                        <div class="gov-footer-seal-circle">
+                            <img src="images/logo borongan.png" alt="Republic of the Philippines" />
+                        </div>
+                    </div>
+                </div>
+
+                 <div class="gov-container">
+                    <p class="gov-footer-bottom-title">
+                        Borongan City Transport Terminal<br />
+                        QR-Based Transport Ticketing and Fee Collection System
+                    </p>
+                    <div class="gov-footer-bottom-links">
+                        <a href="https://www.gov.ph/directory" target="_blank" rel="noopener">Government Directory</a>
+                        <span>|</span>
+                        <a href="privacy-policy.html">Privacy Policy</a>
+                        <span>|</span>
+                        <a href="security-policy.html">Security Policy</a>
+                        <span>|</span>
+                        <a href="ip-rights-policy.html">Intellectual Property Rights</a>
+                        <span>|</span>
+                        <a href="terms-of-use.html">Terms of Use</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </footer>
+
+<script>
+(function(){
+    var pre = window.__ASSET_PREFIX__ || '../';
+    var s = document.createElement("script");
+    s.src = pre + "assets/js/inner.js";
+    document.body.appendChild(s);
+})();
+
+ (function(){
+    var bar = document.getElementById('readingProgress');
+    if (!bar) return;
+    function update(){
+        var h = document.documentElement;
+        var scrollTop = h.scrollTop || document.body.scrollTop;
+        var scrollHeight = h.scrollHeight - h.clientHeight;
+        var pct = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+        bar.style.width = pct + '%';
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+})();
+</script>
+
+</body>
+</html>

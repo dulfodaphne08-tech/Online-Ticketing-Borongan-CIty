@@ -1,10 +1,6 @@
 <?php
-require 'config.php';
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    respond(['success' => false, 'error' => 'Method not allowed'], 405);
-}
+ declare(strict_types=1);
+require_once __DIR__ . '/config.php';
 
 endAuthenticatedSession();
-respond(['success' => true]);
-?>
+ok(null, 'Logged out successfully.');

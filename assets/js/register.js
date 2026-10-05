@@ -1,3 +1,9 @@
+/* ============================================================
+   BORONGAN TRANSPORT — DRIVER REGISTRATION
+   register.js — full validation, body number, password strength,
+   duplicate checks, and submission handler.
+   ============================================================ */
+
 (function () {
   const form = document.getElementById("driverForm");
   const registerBtn = document.getElementById("registerBtn");
@@ -5,33 +11,47 @@
   const successMsg = document.getElementById("successMsg");
   const successText = document.getElementById("successText");
 
-   let existingDrivers = [];
-  fetch("api/drivers.php")
-    .then(r => r.json())
-    .then(data => {
-      if (data.success && data.drivers) {
-        existingDrivers = data.drivers;
-      }
-    })
-    .catch(() => {});
+   const takenCache = {};
 
-  const getExistingPlateNumbers = () => {
-    return existingDrivers.map((d) => d.plateNumber);
-  };
+  async function isTaken(field, value) {
+    const key = field + ":" + value.toUpperCase();
+    if (key in takenCache) return takenCache[key];
+    try {
+      const res = await fetch(
+        "api/register.php?check=" +
+          encodeURIComponent(field) +
+          "&value=" +
+          encodeURIComponent(value)
+      );
+      const json = await res.json();
+      takenCache[key] = !!(json.success && json.data && json.data.available === false);
+    } catch (e) {
+      takenCache[key] = false;  
+    }
+    return takenCache[key];
+  }
 
-  const getExistingLicenseNumbers = () => {
-    return existingDrivers.map((d) => d.licenseNo);
-  };
+  function showFieldError(input, errorEl, text) {
+    input.classList.add("input-error");
+    errorEl.textContent = text;
+    errorEl.classList.add("show");
+  }
 
    const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
-  document.getElementById("registrationDate").value = todayStr;
-  document.getElementById("registrationDate").setAttribute("readonly", true);
+  const regDateInput = document.getElementById("registrationDate");
+  if (regDateInput) {
+    regDateInput.value = todayStr;
+    regDateInput.setAttribute("readonly", true);
+  }
 
    const vehicleType = document.getElementById("vehicleType");
+  const bodyInput = document.getElementById("bodyNumber");
   const plateInput = document.getElementById("plateNumber");
   const licenseInput = document.getElementById("licenseNo");
+
   const vehicleTypeError = document.getElementById("vehicleTypeError");
+  const bodyNumberError = document.getElementById("bodyNumberError");
   const plateError = document.getElementById("plateError");
   const licenseError = document.getElementById("licenseError");
 
@@ -43,7 +63,7 @@
     return "Temporary";
   }
 
-   function getSelectedLicenseType() {
+  function getSelectedLicenseType() {
     const radios = document.querySelectorAll('input[name="licenseType"]');
     for (let radio of radios) {
       if (radio.checked) return radio.value;
@@ -51,21 +71,39 @@
     return "Non-Professional";
   }
 
- 
-  function validateVehicleType() {
+   function validateVehicleType() {
     const value = vehicleType.value;
     if (!value) {
       vehicleType.classList.add("input-error");
       vehicleTypeError.classList.add("show");
       return false;
-    } else {
-      vehicleType.classList.remove("input-error");
-      vehicleTypeError.classList.remove("show");
-      return true;
     }
+    vehicleType.classList.remove("input-error");
+    vehicleTypeError.classList.remove("show");
+    return true;
   }
 
-  function validatePlateNumber() {
+   function validateBodyNumber() {
+    const value = bodyInput.value.trim();
+    if (!value) {
+      bodyInput.classList.add("input-error");
+      bodyNumberError.textContent = "Body number is required.";
+      bodyNumberError.classList.add("show");
+      return false;
+    }
+    if (!/^\d{4}$/.test(value)) {
+      bodyInput.classList.add("input-error");
+      bodyNumberError.textContent =
+        "Body number must be exactly 4 digits (0–9).";
+      bodyNumberError.classList.add("show");
+      return false;
+    }
+    bodyInput.classList.remove("input-error");
+    bodyNumberError.classList.remove("show");
+    return true;
+  }
+
+   function validatePlateNumber() {
     const plate = plateInput.value.trim();
     if (!plate) {
       plateInput.classList.add("input-error");
@@ -75,8 +113,7 @@
     }
     if (plate.length < 3 || plate.length > 15) {
       plateInput.classList.add("input-error");
-      plateError.textContent =
-        "Plate number must be between 3 and 15 characters.";
+      plateError.textContent = "Plate number must be between 3 and 15 characters.";
       plateError.classList.add("show");
       return false;
     }
@@ -86,19 +123,12 @@
       plateError.classList.add("show");
       return false;
     }
-    const existingPlates = getExistingPlateNumbers();
-    if (existingPlates.includes(plate.toUpperCase())) {
-      plateInput.classList.add("input-error");
-      plateError.textContent = "Plate number already registered.";
-      plateError.classList.add("show");
-      return false;
-    }
     plateInput.classList.remove("input-error");
     plateError.classList.remove("show");
     return true;
   }
 
-  function validateLicenseNumber() {
+   function validateLicenseNumber() {
     const license = licenseInput.value.trim();
     if (!license) {
       licenseInput.classList.add("input-error");
@@ -108,21 +138,13 @@
     }
     if (license.length < 5 || license.length > 20) {
       licenseInput.classList.add("input-error");
-      licenseError.textContent =
-        "License number must be between 5 and 20 characters.";
+      licenseError.textContent = "License number must be between 5 and 20 characters.";
       licenseError.classList.add("show");
       return false;
     }
     if (!/^[A-Za-z0-9-]+$/.test(license)) {
       licenseInput.classList.add("input-error");
       licenseError.textContent = "Use letters, numbers, and hyphens only.";
-      licenseError.classList.add("show");
-      return false;
-    }
-    const existingLicenses = getExistingLicenseNumbers();
-    if (existingLicenses.includes(license.toUpperCase())) {
-      licenseInput.classList.add("input-error");
-      licenseError.textContent = "Driver's license number already registered.";
       licenseError.classList.add("show");
       return false;
     }
@@ -133,21 +155,78 @@
 
    vehicleType.addEventListener("change", validateVehicleType);
 
-  plateInput.addEventListener("input", function () {
+   bodyInput.addEventListener("input", function () {
+    let digits = this.value.replace(/\D+/g, "");
+    if (digits.length > 4) digits = digits.slice(0, 4);
+    if (this.value !== digits) this.value = digits;
+
+     if (digits.length === 4) {
+      this.classList.remove("input-error");
+      bodyNumberError.classList.remove("show");
+    }
+  });
+
+  bodyInput.addEventListener("keydown", function (e) {
+    const allowed = [
+      "Backspace",
+      "Delete",
+      "Tab",
+      "ArrowLeft",
+      "ArrowRight",
+      "Home",
+      "End",
+    ];
+    if (allowed.includes(e.key)) return;
+    if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase()))
+      return;
+    if (!/^\d$/.test(e.key)) e.preventDefault();
+  });
+
+  bodyInput.addEventListener("paste", function (e) {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData("text") || "";
+    let digits = text.replace(/\D+/g, "").slice(0, 4);
+    this.value = digits;
+    this.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  bodyInput.addEventListener("blur", validateBodyNumber);
+
+   plateInput.addEventListener("input", function () {
     if (plateInput.classList.contains("input-error")) {
       plateInput.classList.remove("input-error");
       plateError.classList.remove("show");
     }
   });
-  plateInput.addEventListener("blur", validatePlateNumber);
 
-  licenseInput.addEventListener("input", function () {
+  plateInput.addEventListener("blur", async function () {
+    if (
+      validatePlateNumber() &&
+      (await isTaken("plateNumber", plateInput.value.trim()))
+    ) {
+      showFieldError(plateInput, plateError, "Plate number already registered.");
+    }
+  });
+
+   licenseInput.addEventListener("input", function () {
     if (licenseInput.classList.contains("input-error")) {
       licenseInput.classList.remove("input-error");
       licenseError.classList.remove("show");
     }
   });
-  licenseInput.addEventListener("blur", validateLicenseNumber);
+
+  licenseInput.addEventListener("blur", async function () {
+    if (
+      validateLicenseNumber() &&
+      (await isTaken("licenseNo", licenseInput.value.trim()))
+    ) {
+      showFieldError(
+        licenseInput,
+        licenseError,
+        "Driver's license number already registered."
+      );
+    }
+  });
 
    document.querySelectorAll('input[name="plateType"]').forEach((radio) => {
     radio.addEventListener("change", function () {
@@ -175,9 +254,7 @@
     e.stopPropagation();
     const isPass = passInput.type === "password";
     passInput.type = isPass ? "text" : "password";
-    this.querySelector("i").className = isPass
-      ? "fas fa-eye-slash"
-      : "fas fa-eye";
+    this.querySelector("i").className = isPass ? "fas fa-eye-slash" : "fas fa-eye";
     passInput.focus();
   });
 
@@ -186,9 +263,7 @@
     e.stopPropagation();
     const isPass = confirmInput.type === "password";
     confirmInput.type = isPass ? "text" : "password";
-    this.querySelector("i").className = isPass
-      ? "fas fa-eye-slash"
-      : "fas fa-eye";
+    this.querySelector("i").className = isPass ? "fas fa-eye-slash" : "fas fa-eye";
     confirmInput.focus();
   });
 
@@ -282,10 +357,10 @@
       return;
     }
     if (pass === confirm) {
-      matchDiv.textContent = "✓ Passwords match";
+      matchDiv.textContent = "Passwords match";
       matchDiv.style.color = "#22c55e";
     } else {
-      matchDiv.textContent = "✗ Passwords do not match";
+      matchDiv.textContent = "Passwords do not match";
       matchDiv.style.color = "#ef4444";
     }
   }
@@ -301,7 +376,7 @@
     });
   }
 
-  function formatDate(dateStr) {
+   function formatDate(dateStr) {
     if (!dateStr) return "--";
     const date = new Date(dateStr + "T00:00:00");
     return date.toLocaleDateString("en-US", {
@@ -317,18 +392,18 @@
     msgDiv.innerHTML = "";
     successMsg.classList.remove("show");
 
-    const isVehicleTypeValid = validateVehicleType();
+     const isVehicleTypeValid = validateVehicleType();
+    const isBodyNumberValid = validateBodyNumber();
     const isPlateValid = validatePlateNumber();
     const isLicenseValid = validateLicenseNumber();
 
-    const fullName = document.getElementById("fullName").value.trim();
+     const fullName = document.getElementById("fullName").value.trim();
     const address = document.getElementById("address").value.trim();
     const contact = document.getElementById("contact").value.trim();
     const birthdate = document.getElementById("birthdate").value;
     const gender = document.getElementById("gender").value;
     const registrationDate = document.getElementById("registrationDate").value;
-    const licenseExpiration =
-      document.getElementById("licenseExpiration").value;
+    const licenseExpiration = document.getElementById("licenseExpiration").value;
     const username = document.getElementById("username").value.trim();
     const password = document.getElementById("password").value;
     const confirmPassword = document.getElementById("confirmPassword").value;
@@ -336,7 +411,7 @@
     const plateType = getSelectedPlateType();
     const licenseType = getSelectedLicenseType();
 
-    if (!fullName) {
+     if (!fullName) {
       msgDiv.innerHTML =
         '<i class="fas fa-exclamation-circle mr-1"></i> Full Name is required.';
       return;
@@ -382,19 +457,24 @@
       return;
     }
 
-    if (!isVehicleTypeValid || !isPlateValid || !isLicenseValid) {
+     if (
+      !isVehicleTypeValid ||
+      !isBodyNumberValid ||
+      !isPlateValid ||
+      !isLicenseValid
+    ) {
       msgDiv.innerHTML =
         '<i class="fas fa-exclamation-circle mr-1"></i> Please fix all errors before continuing.';
       return;
     }
 
-    if (licenseExpiration <= registrationDate) {
+     if (licenseExpiration <= registrationDate) {
       msgDiv.innerHTML =
         '<i class="fas fa-exclamation-circle mr-1"></i> License expiration must be after registration date.';
       return;
     }
 
-    const pwChecks = checkPasswordStrength(password);
+     const pwChecks = checkPasswordStrength(password);
     const isStrong =
       pwChecks.length &&
       pwChecks.upper &&
@@ -407,22 +487,22 @@
       return;
     }
 
-    if (password !== confirmPassword) {
+     if (password !== confirmPassword) {
       msgDiv.innerHTML =
         '<i class="fas fa-exclamation-circle mr-1"></i> Passwords do not match.';
       return;
     }
 
-    if (existingDrivers.some((d) => d.username === username)) {
+     if (await isTaken("username", username)) {
       msgDiv.innerHTML =
         '<i class="fas fa-exclamation-circle mr-1"></i> Username already taken.';
       return;
     }
 
-    registerBtn.disabled = true;
+     registerBtn.disabled = true;
     registerBtn.innerHTML = '<span class="spinner"></span> Registering...';
 
-    const driverData = {
+     const driverData = {
       driverId: "",
       fullName,
       address,
@@ -430,19 +510,20 @@
       birthdate,
       gender,
       vehicleType: vehicleType.value,
+      bodyNumber: bodyInput.value.trim(),  
       plateType: plateType,
       plateNumber: plateInput.value.trim().toUpperCase(),
       licenseType: licenseType,
       licenseNo: licenseInput.value.trim().toUpperCase(),
-      registrationDate: formatDate(registrationDate),
-      licenseExpiration: formatDate(licenseExpiration),
+      registrationDate: registrationDate,
+      licenseExpiration: licenseExpiration,
       username,
       password,
       status: "Active",
       photo: null,
     };
 
-    if (photoFile) {
+     if (photoFile) {
       try {
         driverData.photo = await readFileAsDataURL(photoFile);
       } catch (err) {
@@ -454,7 +535,7 @@
       }
     }
 
-    fetch("api/drivers.php", {
+     fetch("api/register.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(driverData),
@@ -467,14 +548,15 @@
 
           form.reset();
           document.getElementById("registrationDate").value = todayStr;
-          registerBtn.innerHTML = "✓ Registered!";
+          registerBtn.innerHTML = "Registered!";
 
           setTimeout(function () {
             window.location.href = "login.html?registered=true";
           }, 3000);
         } else {
           msgDiv.innerHTML =
-            '<i class="fas fa-exclamation-circle mr-1"></i> Registration failed: ' + (data.error || "Unknown error");
+            '<i class="fas fa-exclamation-circle mr-1"></i> Registration failed: ' +
+            (data.error || "Unknown error");
           registerBtn.disabled = false;
           registerBtn.innerHTML = "Register Driver";
         }
@@ -488,7 +570,7 @@
       });
   });
 
-  document
+   document
     .querySelectorAll("#driverForm input, #driverForm select")
     .forEach((el) => {
       el.addEventListener("focus", () => {

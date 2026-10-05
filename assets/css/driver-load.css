@@ -1,0 +1,362 @@
+/* ============================================================
+   DRIVER LOAD PAGE
+   ============================================================ */
+
+*,*::before,*::after { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #f4f7fc;
+    color: #1e293b;
+    line-height: 1.6;
+}
+
+.load-page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem;
+}
+
+.load-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+.load-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0.5rem 0 0.25rem;
+    color: #1e293b;
+}
+.load-header p {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin: 0;
+}
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #64748b;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s;
+    margin-bottom: 1rem;
+}
+.back-link:hover { color: #b22234; border-color: #b22234; }
+
+ .wallet-card {
+    background: linear-gradient(135deg, #b22234 0%, #8f1a2a 100%);
+    color: white;
+    border-radius: 1rem;
+    padding: 2rem 1.75rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 10px 30px rgba(178, 34, 52, 0.25);
+}
+.wallet-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    margin-bottom: 0.5rem;
+}
+.wallet-value {
+    font-size: 2.75rem;
+    font-weight: 800;
+    font-family: 'Courier New', monospace;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.4rem;
+}
+.wallet-meta {
+    font-size: 0.85rem;
+    opacity: 0.9;
+    margin-bottom: 1.5rem;
+}
+.btn-load-action {
+    background: white;
+    color: #b22234;
+    border: none;
+    padding: 0.85rem 2rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.btn-load-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+
+ .card {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 1px solid #e5e7eb;
+}
+.section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.section-title i { color: #b22234; }
+
+.load-steps {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.9rem;
+    color: #475569;
+    line-height: 1.8;
+}
+.load-steps li { margin-bottom: 0.4rem; }
+.load-steps strong { color: #1e293b; }
+
+ .table-wrap { overflow-x: auto; }
+.txn-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.txn-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #64748b;
+    border-bottom: 1px solid #e5e7eb;
+}
+.txn-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+}
+.txn-table tbody tr:hover { background: #f8fafc; }
+.txn-empty {
+    text-align: center;
+    padding: 2rem 1rem !important;
+    color: #94a3b8;
+    font-style: italic;
+}
+.txn-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.txn-badge-load { background: #f0fdf4; color: #16a34a; }
+.txn-badge-fee  { background: #fef2f2; color: #b22234; }
+
+.btn-refresh {
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    padding: 0.35rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+.btn-refresh:hover { color: #b22234; border-color: #b22234; }
+
+ .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+.modal-overlay.active { display: flex; }
+.modal-box {
+    background: white;
+    border-radius: 1.25rem;
+    padding: 1.75rem;
+    max-width: 420px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+    animation: fadeIn 0.25s ease;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+.modal-box h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.modal-box h3 i { color: #b22234; }
+.modal-box > p {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 0 0 1.25rem;
+}
+.form-group { margin-bottom: 1rem; }
+.form-group label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.4rem;
+}
+.input-field {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 0.6rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: #1e293b;
+    outline: none;
+    transition: all 0.2s;
+    background: white;
+}
+.input-field:focus {
+    border-color: #b22234;
+    box-shadow: 0 0 0 4px rgba(178,34,52,0.1);
+}
+.quick-btns {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+}
+.quick-btn {
+    padding: 0.5rem;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 0.5rem;
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.quick-btn:hover {
+    background: #fbe9ea;
+    border-color: #b22234;
+    color: #b22234;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1.25rem;
+}
+.modal-actions button {
+    flex: 1;
+    padding: 0.75rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+}
+.btn-cancel { background: #eef2f6; color: #1f3a4b; }
+.btn-cancel:hover { background: #dce4ed; }
+.btn-confirm {
+    background: #b22234;
+    color: white;
+    box-shadow: 0 4px 10px rgba(178,34,52,0.3);
+}
+.btn-confirm:hover { background: #8f1a2a; }
+.modal-message {
+    text-align: center;
+    font-size: 0.85rem;
+    margin-top: 0.75rem;
+    min-height: 1em;
+}
+
+ .slip {
+    font-family: 'Courier New', monospace;
+    border: 2px dashed #94a3b8;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    background: #fefefe;
+}
+.slip-header {
+    text-align: center;
+    border-bottom: 2px dashed #94a3b8;
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+.slip-title { font-weight: 800; font-size: 1rem; letter-spacing: 0.05em; }
+.slip-subtitle {
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: #64748b;
+    margin-top: 2px;
+}
+.slip-body { font-size: 0.85rem; }
+.slip-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px dotted #cbd5e1;
+}
+.slip-row span:first-child { color: #64748b; font-size: 0.78rem; }
+.slip-row span:last-child { font-weight: 700; text-align: right; }
+.slip-row-total {
+    border-top: 2px solid #334155;
+    border-bottom: 2px solid #334155;
+    padding: 8px 0;
+    margin: 8px 0;
+    font-size: 0.95rem;
+}
+.slip-row-total span:last-child { color: #b22234; font-size: 1.1rem; }
+.slip-footer {
+    text-align: center;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 2px dashed #94a3b8;
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+.slip-footer strong { color: #b22234; }
+
+@media (max-width: 640px) {
+    .load-page { padding: 1.5rem 1rem; }
+    .wallet-value { font-size: 2.25rem; }
+    .quick-btns { grid-template-columns: repeat(2, 1fr); }
+}
