@@ -7,6 +7,10 @@ RUN apt-get update \
 	&& php -m | grep -q '^pdo_pgsql$' \
 	&& rm -rf /var/lib/apt/lists/*
 
+RUN printf '%s\n' 'DirectoryIndex index.php index.html index/index.html' \
+	> /etc/apache2/conf-available/ticketing-directory-index.conf \
+	&& a2enconf ticketing-directory-index
+
 COPY . /var/www/html/
 
 RUN chown -R www-data:www-data /var/www/html
