@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Staff Panel · Borongan Transport</title>
+    <link rel="icon" type="image/jpeg" href="images/borongan-logo.jpg" />
+
+    <script src="assets/js/guard.js?v=20261004" data-role="staff admin"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="assets/css/confirm-modal.css?v=20261004" />
+    <link rel="stylesheet" href="assets/css/staff-dashboard.css?v=20261004-3" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
+    <i class="fas fa-bars"></i>
+</button>
+<div class="toast-container" id="toastContainer"></div>
+
+<nav class="sidebar" id="sidebar" aria-label="Staff navigation">
+    <div class="sidebar-brand">
+        <div class="logo-circle">
+            <img src="images/borongan-logo.jpg" alt="Borongan Transport"
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23b22234%22/%3E%3Ctext x=%2250%22 y=%2255%22 font-size=%2240%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22sans-serif%22 font-weight=%22bold%22%3EB%3C/text%3E%3C/svg%3E'">
+        </div>
+        <div>
+            <div class="brand-title">STAFF PANEL</div>
+            <div class="brand-subtitle">Borongan Transport</div>
+        </div>
+    </div>
+
+    <div class="sidebar-scroll">
+        <button class="sidebar-item active" data-page="dashboard">
+            <i class="fa-solid fa-gauge-high"></i><span>Dashboard</span>
+        </button>
+
+        <div class="sidebar-section-title">Terminal Operations</div>
+        <button class="sidebar-item" data-page="scan">
+            <i class="fa-solid fa-qrcode"></i><span>Scan Driver QR</span>
+        </button>
+        <button class="sidebar-item" data-page="today">
+            <i class="fa-solid fa-calendar-day"></i><span>Today's Transactions</span>
+        </button>
+        <button class="sidebar-item" data-page="history">
+            <i class="fa-solid fa-clock-rotate-left"></i><span>Transaction History</span>
+        </button>
+        <button class="sidebar-item" data-page="stations-map">
+            <i class="fa-solid fa-map-location-dot"></i><span>Station &amp; Checkpoints</span>
+        </button>
+
+        <div class="sidebar-section-title">Records</div>
+        <button class="sidebar-item" data-page="drivers">
+            <i class="fa-solid fa-id-card"></i><span>Driver Records</span>
+        </button>
+        <button class="sidebar-item" data-page="vehicles">
+            <i class="fa-solid fa-car"></i><span>Vehicle Records</span>
+        </button>
+        <button class="sidebar-item" data-page="summary">
+            <i class="fa-solid fa-chart-simple"></i><span>Daily Summary</span>
+        </button>
+
+        <div class="sidebar-section-title">Attendance</div>
+        <button class="sidebar-item" data-page="attendance">
+            <i class="fa-solid fa-user-clock"></i><span>My Attendance</span>
+        </button>
+
+        <div class="sidebar-section-title">Account</div>
+        <button class="sidebar-item" data-page="profile">
+            <i class="fa-solid fa-user"></i><span>My Profile</span>
+        </button>
+        <button class="sidebar-item sidebar-item-logout" id="logoutBtn">
+            <i class="fa-solid fa-right-from-bracket"></i><span>Logout</span>
+        </button>
+    </div>
+
+    <div class="sidebar-shift-info">
+        <div class="shift-label">Signed in as</div>
+        <div class="shift-value" id="sidebarUser">—</div>
+        <div class="shift-duration">Shift: <span id="shiftDuration">0m</span></div>
+    </div>
+</nav>
+
+<main class="main-content">
+
+    <section id="page-dashboard" class="page-section active">
+        <div class="dashboard-header">
+            <div class="greeting">
+                <h1 id="stationTitle">Staff Dashboard</h1>
+                <p>Welcome, <span class="greeting-name" id="greetingName">—</span>
+                   · Updated <span id="lastUpdatedTime">--</span></p>
+            </div>
+            <div class="header-right">
+                <button class="btn-outline btn-sm" id="refreshStatsBtn">
+                    <i class="fas fa-rotate"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+            <div class="stat-card">
+                <div class="stat-card-row">
+                    <div class="stat-card-body">
+                        <div class="label">Today's Transactions</div>
+                        <div class="value" id="statTransactions">0</div>
+                        <div class="sub">Total scans</div>
+                    </div>
+                    <div class="stat-icon stat-icon-blue"><i class="fas fa-receipt"></i></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-row">
+                    <div class="stat-card-body">
+                        <div class="label">Successful</div>
+                        <div class="value text-green-600" id="statSuccessful">0</div>
+                        <div class="sub">Completed</div>
+                    </div>
+                    <div class="stat-icon stat-icon-green"><i class="fas fa-circle-check"></i></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-row">
+                    <div class="stat-card-body">
+                        <div class="label">Failed</div>
+                        <div class="value text-red-600" id="statFailed">0</div>
+                        <div class="sub">Not completed</div>
+                    </div>
+                    <div class="stat-icon stat-icon-red"><i class="fas fa-circle-xmark"></i></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-row">
+                    <div class="stat-card-body">
+                        <div class="label">Fees Recorded</div>
+                        <div class="value" id="statFees">₱0.00</div>
+                        <div class="sub">Today</div>
+                    </div>
+                    <div class="stat-icon stat-icon-purple"><i class="fas fa-money-bill-wave"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-card mb-5">
+            <h3 class="card-title"><i class="fas fa-signal text-primary"></i> Terminal Status</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mt-2">
+                <div class="flex items-center gap-2">
+                    <span class="status-dot"></span> <strong>QR Scanner</strong> · Connected
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="status-dot"></span> <strong>Receipt Printer</strong> · Ready
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="status-dot"></span> <strong>Database</strong> · Connected
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="status-dot"></span> <strong>Terminal</strong> · Active
+                </div>
+            </div>
+            <div class="flex gap-2 mt-4 flex-wrap">
+                <button class="btn-outline btn-sm" id="testScannerBtn">
+                    <i class="fas fa-qrcode"></i> Test Scanner
+                </button>
+                <button class="btn-outline btn-sm" id="testPrinterBtn">
+                    <i class="fas fa-print"></i> Test Print
+                </button>
+            </div>
+        </div>
+
+        <div class="action-grid mb-5">
+            <button class="action-tile" data-goto="scan">
+                <i class="fas fa-qrcode"></i>
+                <span class="action-tile-title">Scan Driver QR</span>
+                <span class="action-tile-sub">Use the hardware scanner or type the Driver ID</span>
+            </button>
+            <button class="action-tile" data-goto="today">
+                <i class="fas fa-calendar-day"></i>
+                <span class="action-tile-title">Today's Transactions</span>
+                <span class="action-tile-sub">View today's processed transactions</span>
+            </button>
+        </div>
+
+        <div class="table-card">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="card-title"><i class="fas fa-list text-primary"></i> Recent Transactions</h3>
+                <button class="btn-outline btn-sm" data-goto="today">View All</button>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Reference</th>
+                            <th>Driver</th>
+                            <th>Vehicle</th>
+                            <th>Fee</th>
+                            <th>Balance After</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentTable">
+                        <tr><td colspan="7"><div class="empty-state"><i class="fas fa-inbox"></i><p>Loading…</p></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section id="page-scan" class="page-section">
+        <div class="dashboard-header">
+            <div class="greeting">
+                <h1>Scan Driver QR</h1>
+                <p>Hardware scanner input. The terminal fee is calculated automatically.</p>
+            </div>
+        </div>
+
+        <div class="table-card scanner-card">
+            <h3 class="card-title"><i class="fas fa-barcode text-primary"></i> Scanner Input</h3>
+
+            <div class="scanner-input-wrapper">
+                <label for="scannerInput" class="form-label">
+                    <i class="fas fa-barcode"></i> QR scanner device / Driver ID
+                </label>
+                <div class="flex gap-2">
+                    <input type="text" id="scannerInput" class="input-field input-mono flex-1"
+                           placeholder="Waiting for driver..." autocomplete="off" autofocus>
+                    <button class="btn-outline" id="manualScanBtn">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+            <p class="form-hint" id="scanStatus">Ready — waiting for a driver QR.</p>
+
+            <div id="terminalReady">
+                <div class="hint-card mt-3">
+                    <i class="fas fa-info-circle hint-card-icon"></i>
+                    <div>
+                        <div class="hint-card-title">Hardware Scanner Active</div>
+                        <div class="hint-card-text">
+                            Scan the driver's QR code, or type the Driver ID manually and press Enter.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="verifyStep" hidden>
+                <h3 class="card-title mt-4">Driver Verified</h3>
+                <div class="driver-info-card">
+                    <div class="driver-info-row">
+                        <div class="driver-info-avatar" id="vdAvatar"><span>D</span></div>
+                        <div class="driver-info-name">
+                            <div class="driver-info-fullname" id="vdName">—</div>
+                            <div class="driver-info-sub">
+                                <span id="vdId">—</span> · <span id="vdVehicle">—</span> · <span id="vdPlate">—</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="verify-grid">
+                    <div><span>Body Number</span><strong id="vdBody">—</strong></div>
+                    <div><span>Status</span><strong id="vdStatus">—</strong></div>
+                    <div><span>Current Balance</span><strong id="vdBalance">₱0.00</strong></div>
+                    <div class="verify-fee"><span>Applicable Fee</span><strong id="vdFee">₱0.00</strong></div>
+                    <div class="verify-after"><span>Remaining Balance</span><strong id="vdRemaining">₱0.00</strong></div>
+                </div>
+
+                <div class="alert-box alert-warning" id="duplicateWarning" style="display:none;">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <div>
+                        <strong>Recent transaction detected.</strong>
+                        This driver was just scanned. Verify before proceeding.
+                    </div>
+                </div>
+
+                <div class="verify-actions">
+                    <button class="btn-outline" onclick="resetScan()">
+                        <i class="fas fa-xmark"></i> Cancel
+                    </button>
+                    <button class="btn-primary btn-large" onclick="reviewTransaction()">
+                        <i class="fas fa-circle-check"></i> Confirm Transaction
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+     <section id="page-today" class="page-section">
+        <div class="dashboard-header">
+            <div class="greeting">
+                <h1>Today's Transactions</h1>
+                <p>Transactions processed today</p>
+            </div>
+        </div>
+        <div class="table-card">
+            <div class="filter-bar">
+                <div class="filter-group filter-group-search">
+                    <label for="todaySearch">Search</label>
+                    <input type="search" id="todaySearch" class="input-field input-field-sm"
+                           placeholder="Driver / Plate / Reference">
+                </div>
+                <div class="filter-group">
+                    <label for="todayVehicle">Vehicle</label>
+                    <select id="todayVehicle" class="input-field input-field-sm">
+                        <option value="">All</option>
+                        <option>Tricycle</option>
+                        <option>Jeepney</option>
+                        <option>Multicab</option>
+                        <option>Bus</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="todayStatus">Status</label>
+                    <select id="todayStatus" class="input-field input-field-sm">
+                        <option value="">All</option>
+                        <option>SUCCESSFUL</option>
+                        <option>FAILED</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <button class="btn-outline btn-sm" id="todayClearBtn">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Reference</th>
+                            <th>Time</th>
+                            <th>Driver</th>
+                            <th>Vehicle</th>
+                            <th>Fee</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="todayTable">
+                        <tr><td colspan="6"><div class="empty-state"><i class="fas fa-clock-rotate-left"></i><p>Loading…</p></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="form-hint mt-2" id="todayCount"></p>
+        </div>
+    </section>
+
+     <section id="page-history" class="page-section">
+        <div class="dashboard-header">
+            <div class="greeting">
+                <h1>Transaction History</h1>
+                <p>All transactions you processed</p>
+            </div>
+            <div class="header-right">
+                <button class="btn-outline btn-sm" id="exportCsvBtn">
+                    <i class="fas fa-file-csv"></i> Export CSV
+                </button>
+            </div>
+        </div>
+        <div class="table-card">
+            <div class="filter-bar">
+                <div class="filter-group filter-group-search">
+                    <label for="histSearch">Search</label>
+                    <input type="search" id="histSearch" class="input-field input-field-sm"
+                           placeholder="Driver, plate, or reference…">
+                </div>
+                <div class="filter-group">
+                    <label for="histFrom">From</label>
+                    <input type="date" id="histFrom" class="input-field input-field-sm">
+                </div>
+                <div class="filter-group">
+                    <label for="histTo">To</label>
+                    <input type="date" id="histTo" class="input-field input-field-sm">
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <button class="btn-outline btn-sm" id="histClearBtn">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date &amp; Time</th>
+                            <th>Reference</th>
+                            <th>Driver</th>
+                            <th>Vehicle</th>
+                            <th>Fee</th>
+                            <th>Previous</th>
+                            <th>Balance After</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTable">
+                        <tr><td colspan="8"><div class="empty-state"><i class="fas fa-clock-rotate-left"></i><p>Loading…</p></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="form-hint mt-2" id="historyCount"></p>
+        </div>
+    </section>
+
+     <section id="page-drivers" class="page-section">
+        <div class="dashboard-header">
+            <div class="greeting">
+                <h1>Driver Records</h1>
+                <p>Read-only view. Report issues to Admin — do not edit.</p>
+            </div>
+        </div>
+        <div class="table-card">
+            <div class="filter-bar">
+                <div class="filter-group filter-group-search">
+                    <label for="driverSearch">Search</label>
+                    <input type="search" id="driverSearch" class="input-field input-field-sm"
+                           placeholder="Driver ID / Name / Plate / Body Number">
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Driver ID</th>
+                            <th>Name</th>
+                            <th>Vehicle Type</th>
+                            <th>Body Number</th>
+                            <th>Plate Number</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="driverTable">
+                        <tr><td colspan="7"><div class="empty-state"><i class="fas fa-id-card"></i><p>Loading…</p></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+     <section id="page-vehicles" class="page-section">
+        <div class="dashboard-header">
+            <div class="greeting">
+                <h1>Vehicle Records</h1>
+                <p>Read-only view. Admin handles corrections.</p>
+            </div>
+        </div>
+        <div class="table-card">
+            <div class="filter-bar">
+                <div class="filter-group filter-group-search">
+                    <label for="vehicleSearch">Search</label>
+                    <input type="search" id="vehicleSearch" class="input-field input-field-sm"
+                           placeholder="Body Number / Plate Number">
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Vehicle Type</th>
+                            <th>Body Number</th>
+                            <th>Plate Number</th>
+                            <th>Assigned Driver</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vehicleTable">
+                        <tr><td colspan="5"><div class="empty-state"><i class="fas fa-car"></i><p>Loading…</p></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+     <section id="page-summary" class="page-section">
+        <div class="dashboard-header">
+            <div class="greeting">
+                <h1>Daily Terminal Summary</h1>
+                <p id="summaryDate">—</p>
+            </div>
+            <div class="header-right">
+                <button class="btn-outline btn-sm" id="summaryPrintBtn">
+                    <i class="fas fa-print"></i> Print Summary
+                </button>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+            <div class="stat-card">
+                <div class="stat-card-row">
+                    <div class="stat-card-body">
+                        <div class="label">Total Scans</div>
+                        <div class="value" id="summaryScans">0</div>
+                    </div>
+                    <div class="stat-icon stat-icon-blue"><i class="fas fa-qrcode"></i></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-row">
+                    <div class="stat-card-body">
+                        <div class="label">Successful</div>
+                        <div class="value text-green-600" id="summarySuccessful">0</div>
+                    </div>
+                    <div class="stat-icon stat-icon-green"><i class="fas fa-circle-check"></i></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-row">
+                    <div class="stat-card-body">
+                        <div class="label">Failed</div>
+                        <div class="value text-red-600" id="summaryFailed">0</div>
+                    </div>
+                    <div class="stat-icon stat-icon-red"><i class="fas fa-circle-xmark"></i></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-row">
+                    <div class="stat-card-body">
+                        <div class="label">Total Fees Recorded</div>
+                        <div class="value" id="summaryFees">₱0.00</div>
+                    </div>
+                    <div class="stat-icon stat-icon-purple"><i class="fas fa-money-bill-wave"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="table-card">
+            <h3 class="card-title"><i class="fas fa-truck text-primary"></i> Vehicle Breakdown</h3>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Vehicle Type</th>
+                            <th>Transactions</th>
+                            <th>Total Fees</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryVehicleTable">
+                        <tr><td colspan="3"><div class="empty-state"><i class="fas fa-truck"></i><p>Loading…</p></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+     <section id="page-attendance" class="page-section">
+        <div class="dashboard-header">
+            <div class="greeting">
+                <h1>My Attendance</h1>
+                <p>Time in / time out for your shift</p>
+            </div>
+        </div>
+        <div class="table-card mb-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div>
+                    <div class="text-gray-500 text-xs uppercase font-semibold">Scheduled</div>
+                    <div class="mt-1 font-medium">8:00 AM – 5:00 PM</div>
+                </div>
+                <div>
+                    <div class="text-gray-500 text-xs uppercase font-semibold">Time In</div>
+                    <div class="mt-1 font-medium" id="attTimeIn">—</div>
+                </div>
+                <div>
+                    <div class="text-gray-500 text-xs uppercase font-semibold">Time Out</div>
+                    <div class="mt-1 font-medium" id="attTimeOut">—</div>
+                </div>
+                <div>
+                    <div class="text-gray-500 text-xs uppercase font-semibold">Status</div>
+                    <div class="mt-1" id="attStatus">
+                        <span class="text-gray-400">Not clocked in</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-4 flex-wrap">
+                <button class="btn-primary" id="timeInBtn">
+                    <i class="fas fa-sign-in-alt"></i> Time In
+                </button>
+                <button class="btn-outline" id="timeOutBtn">
+                    <i class="fas fa-sign-out-alt"></i> Time Out
+                </button>
+            </div>
+            <p class="form-hint mt-2" id="attMessage"></p>
+        </div>
+    </section>
+
+     <section id="page-profile" class="page-section">
+        <div class="dashboard-header">
+            <div class="greeting">
+                <h1>My Profile</h1>
+                <p>Your account</p>
+            </div>
+        </div>
+        <div class="table-card profile-card">
+            <div class="profile-header">
+                <div class="profile-avatar"><i class="fas fa-user"></i></div>
+                <div class="profile-header-info">
+                    <div class="profile-name" id="profName">—</div>
+                    <div class="profile-username" id="profUsername">—</div>
+                    <span class="profile-badge" id="profRole">—</span>
+                </div>
+            </div>
+            <form class="profile-password-section" id="passwordForm" novalidate>
+                <h4 class="profile-password-title">Change Password</h4>
+                <div class="profile-password-form">
+                    <input type="password" id="currentPassword" class="input-field" placeholder="Current password">
+                    <input type="password" id="newPassword" class="input-field" placeholder="New password (min 8 characters)">
+                    <input type="password" id="confirmPassword" class="input-field" placeholder="Confirm new password">
+                    <button type="submit" class="btn-primary btn-full">
+                        <i class="fas fa-save"></i> Update Password
+                    </button>
+                    <div id="profileMsg" class="form-message"></div>
+                </div>
+            </form>
+        </div>
+    </section>
+
+     <section id="page-stations-map" class="page-section">
+        <div class="dashboard-header">
+            <div class="greeting">
+                <h1>Station &amp; Checkpoint Map</h1>
+                <p>Live locator for Borongan ticketing stations and route inspection checkpoints</p>
+            </div>
+            <div class="header-right flex items-center gap-2">
+                <button class="btn-outline btn-sm" onclick="initStaffStationsMap(true)">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="table-card p-0 overflow-hidden mb-4" style="border-radius:16px;">
+            <div class="p-3.5 bg-gray-50 border-b border-gray-200 flex justify-between items-center flex-wrap gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        <i class="fas fa-map text-primary mr-1"></i> Borongan Checkpoints &amp; Stations
+                    </span>
+                    <span class="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold">7 Active Stations</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-600">
+                    <span class="flex items-center gap-1.5"><span style="width:10px;height:10px;border-radius:50%;background:#b22234;display:inline-block;"></span> Ticketing Station</span>
+                    <span class="flex items-center gap-1.5 ml-2"><span style="width:10px;height:10px;border-radius:50%;background:#059669;display:inline-block;"></span> Checkpoint</span>
+                </div>
+            </div>
+            <div id="staffStationsMap" style="height: 440px; width: 100%; background: #f8fafc; z-index: 10;"></div>
+        </div>
+
+        <div class="table-card">
+            <h3 class="font-bold text-gray-800 text-sm mb-3">
+                <i class="fas fa-list-check text-primary mr-1"></i> Assigned Checkpoints &amp; Terminals
+            </h3>
+            <div id="staffStationsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+             </div>
+        </div>
+    </section>
+</main>
+
+ <div class="modal-overlay" id="confirmModal">
+    <div class="modal-box">
+        <h2 class="modal-title">Transaction Confirmation</h2>
+        <p class="modal-subtitle">Verify with the driver before confirming.</p>
+        <div class="confirm-details">
+            <div class="confirm-row"><span>Driver</span><span id="cfDriver">—</span></div>
+            <div class="confirm-row"><span>Driver ID</span><span id="cfDriverId">—</span></div>
+            <div class="confirm-row"><span>Vehicle</span><span id="cfVehicle">—</span></div>
+            <div class="confirm-row"><span>Body Number</span><span id="cfBody">—</span></div>
+            <div class="confirm-row"><span>Plate Number</span><span id="cfPlate">—</span></div>
+            <div class="confirm-row"><span>Current Balance</span><span id="cfPrev">₱0.00</span></div>
+            <div class="confirm-row"><span>Terminal Fee</span><span id="cfFee" class="text-primary">₱0.00</span></div>
+            <div class="confirm-row confirm-row-total"><span>Remaining Balance</span><span id="cfAfter">₱0.00</span></div>
+            <div class="confirm-row"><span>Processed By</span><span id="cfStaff">—</span></div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-outline" onclick="closeConfirmModal()">Cancel</button>
+            <button type="button" class="btn-primary" id="processTransactionBtn">
+                <i class="fas fa-check-circle"></i> Confirm &amp; Process
+            </button>
+        </div>
+    </div>
+</div>
+
+ <div class="modal-overlay" id="successModal">
+    <div class="modal-box">
+        <div class="success-icon"><i class="fas fa-check"></i></div>
+        <h2 class="success-title">TRANSACTION SUCCESSFUL</h2>
+        <div class="confirm-details">
+            <div class="confirm-row"><span>Transaction ID</span><span id="scRef">—</span></div>
+            <div class="confirm-row"><span>Driver</span><span id="scDriver">—</span></div>
+            <div class="confirm-row"><span>Vehicle</span><span id="scVehicle">—</span></div>
+            <div class="confirm-row"><span>Fee</span><span id="scFeeBig" class="text-primary">₱0.00</span></div>
+            <div class="confirm-row"><span>Previous Balance</span><span id="scPrev">₱0.00</span></div>
+            <div class="confirm-row confirm-row-total"><span>Remaining Balance</span><span id="scAfter">₱0.00</span></div>
+            <div class="confirm-row"><span>Processed By</span><span id="scStaff">—</span></div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-outline" onclick="backToDashboardFromSuccess()">Back to Dashboard</button>
+            <button type="button" class="btn-outline" id="printReceiptBtn">
+                <i class="fas fa-print"></i> Print Receipt
+            </button>
+            <button type="button" class="btn-primary" onclick="scanNextDriver()">
+                <i class="fas fa-qrcode"></i> Scan Next Driver
+            </button>
+        </div>
+    </div>
+</div>
+
+ <div class="modal-overlay" id="insufficientModal">
+    <div class="modal-box">
+        <div class="alert-icon alert-icon-warning"><i class="fas fa-triangle-exclamation"></i></div>
+        <h2 class="modal-title" style="text-align:center;">Insufficient Balance</h2>
+        <p class="modal-subtitle" style="text-align:center;">Transaction cannot be completed.</p>
+        <div class="confirm-details">
+            <div class="confirm-row"><span>Driver</span><span id="inDriver">—</span></div>
+            <div class="confirm-row"><span>Current Balance</span><span id="inBalance">₱0.00</span></div>
+            <div class="confirm-row"><span>Required Fee</span><span id="inFee">₱0.00</span></div>
+            <div class="confirm-row confirm-row-total"><span>Short by</span><span id="inShortage">₱0.00</span></div>
+        </div>
+        <div class="alert-box alert-warning">
+            <i class="fas fa-info-circle"></i>
+            <div>
+                Please proceed to the authorized Cashier loading process.
+                <strong>No amount was deducted.</strong>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-primary" onclick="scanNextDriverFromInsufficient()">
+                Scan Next Driver
+            </button>
+        </div>
+    </div>
+</div>
+
+ <div class="modal-overlay" id="invalidModal">
+    <div class="modal-box">
+        <div class="alert-icon alert-icon-danger"><i class="fas fa-circle-exclamation"></i></div>
+        <h2 class="modal-title" style="text-align:center;">Invalid QR Code</h2>
+        <p class="modal-subtitle" style="text-align:center;">
+            The scanned QR code could not be matched with an active driver record.
+            Please verify the Driver ID or refer the issue to the authorized administrator.
+        </p>
+        <div class="modal-actions">
+            <button type="button" class="btn-primary" onclick="closeInvalidModal()">OK</button>
+        </div>
+    </div>
+</div>
+
+ <div class="modal-overlay" id="inactiveModal">
+    <div class="modal-box">
+        <div class="alert-icon alert-icon-danger"><i class="fas fa-ban"></i></div>
+        <h2 class="modal-title" style="text-align:center;">Driver Account Inactive</h2>
+        <p class="modal-subtitle" style="text-align:center;">
+            This driver cannot currently process a terminal transaction.
+            Please contact the authorized administrator.
+        </p>
+        <div class="confirm-details">
+            <div class="confirm-row"><span>Driver</span><span id="inactDriver">—</span></div>
+            <div class="confirm-row"><span>Driver ID</span><span id="inactDriverId">—</span></div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-primary" onclick="closeInactiveModal()">OK</button>
+        </div>
+    </div>
+</div>
+
+ <div id="receiptPrintArea" style="display:none;">
+    <div class="receipt" style="max-width:340px;margin:0 auto;padding:1rem;border:2px dashed #333;border-radius:8px;font-family:'Courier New',monospace;">
+        <div class="receipt-head" style="text-align:center;border-bottom:2px solid #333;padding-bottom:.5rem;margin-bottom:.75rem;">
+            <div class="receipt-org" style="font-weight:800;font-size:.8rem;">BORONGAN CITY TRANSPORT TERMINAL</div>
+            <div class="receipt-kind" style="font-size:.7rem;font-weight:700;color:#b22234;">TRANSACTION RECORD</div>
+        </div>
+        <div class="receipt-rows" style="font-size:.8rem;">
+            <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Reference:</span><strong id="rctTxn">—</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Date:</span><strong id="rctDate">—</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Time:</span><strong id="rctTime">—</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Driver:</span><strong id="rctDriver">—</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Driver ID:</span><strong id="rctDriverId">—</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Vehicle:</span><strong id="rctVehicle">—</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Body No.:</span><strong id="rctBody">—</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Plate No.:</span><strong id="rctPlate">—</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:.4rem 0;font-weight:800;border-top:1px dashed #333;margin-top:.3rem;"><span>Terminal Fee:</span><strong id="rctFee">—</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Remaining Balance:</span><strong id="rctAfter">—</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Processed by:</span><strong id="rctStaff">—</strong></div>
+        </div>
+        <div class="receipt-foot" style="text-align:center;font-size:.7rem;color:#555;margin-top:.75rem;border-top:1px dashed #ccc;padding-top:.5rem;">
+            Keep this transaction record. Thank you!
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        body * { visibility: hidden !important; }
+        #receiptPrintArea, #receiptPrintArea * { visibility: visible !important; }
+        #receiptPrintArea { display: block !important; position: absolute; top: 0; left: 0; width: 100%; padding: 20px; background: #fff; }
+    }
+</style>
+
+<script src="assets/js/confirm-modal.js?v=20261005"></script>
+<script src="assets/js/staff-dashboard.js?v=20261005-4"></script>
+
+</body>
+</html>
