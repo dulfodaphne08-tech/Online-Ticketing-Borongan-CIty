@@ -310,6 +310,10 @@ html, body {
     background: #fef3c7; color: #854d0e;
     border-left: 4px solid var(--yellow);
 }
+.notification-banner.insufficient {
+    background: #fee2e2; color: #991b1b;
+    border-left: 4px solid var(--red);
+}
 .nb-title { font-weight: 700; }
 .nb-message { font-size: .82rem; margin-top: .15rem; line-height: 1.4; }
 
@@ -506,15 +510,87 @@ tbody td { padding: .7rem .5rem; color: #334155; }
     border-radius: .6rem;
 }
 
- .mini-chart {
-    display: flex; align-items: flex-end;
-    gap: .5rem; height: 140px; padding: .5rem 0;
+.mini-chart {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: .65rem;
+    height: 160px;
+    padding: 0;
+    margin-top: .25rem;
 }
+
+.mini-chart .bar-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1 1 0;
+    height: 100%;
+    min-width: 0;
+    gap: .25rem;
+}
+
+
 .mini-chart .bar {
-    flex: 1;
-    background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+    width: 100%;
+    max-width: 42px;
+    min-height: 6px;
     border-radius: 6px 6px 2px 2px;
-    min-height: 8px; position: relative;
+    transition: transform .2s ease, filter .2s ease;
+    cursor: default;
+}
+
+.mini-chart .bar:hover {
+    filter: brightness(1.08);
+    transform: scaleY(1.04);
+}
+
+
+.mini-chart .mini-chart-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    color: #94a3b8;
+    font-size: .82rem;
+    gap: .35rem;
+    text-align: center;
+}
+
+.mini-chart .mini-chart-empty i {
+    font-size: 1.75rem;
+    color: #cbd5e1;
+    margin-bottom: .15rem;
+}
+
+.mini-chart .mini-chart-empty span {
+    font-weight: 500;
+    color: #94a3b8;
+}
+
+.table-card .mini-chart {
+    height: 170px;
+}
+
+
+@media (max-width: 550px) {
+    .mini-chart {
+        height: 130px;
+        gap: .4rem;
+    }
+    .mini-chart .bar {
+        max-width: 28px;
+    }
+    .mini-chart .mini-chart-empty {
+        font-size: .75rem;
+    }
+    .mini-chart .mini-chart-empty i {
+        font-size: 1.4rem;
+    }
 }
 
  .profile-header {

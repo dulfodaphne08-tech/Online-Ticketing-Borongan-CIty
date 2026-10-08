@@ -8,10 +8,10 @@
 const LOW_BALANCE_THRESHOLD = 50;
 const POLL_MS = 5000;
 
- let currentDriver = null;
-let driverTransactions = [];    
+let currentDriver = null;
+let driverTransactions = [];
 let driverNotifications = [];
-let loadHistory = [];          
+let loadHistory = [];
 let currentBalance = 0;
 let currentFee = 0;
 let lastTransactionRef = null;
@@ -21,7 +21,10 @@ let dashboardResumeRefreshInProgress = false;
 let lastSyncTime = null;
 let notificationFilter = 'all';
 
- function showToast(message, type = 'success') {
+// ------------------------------------------------------------
+// Utility helpers
+// ------------------------------------------------------------
+function showToast(message, type = 'success') {
     const container = document.getElementById('toastContainer');
     if (!container) return;
     const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-triangle-exclamation' };
@@ -47,7 +50,7 @@ function formatDate(dateStr) {
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
- function localDateKey(d = new Date()) {
+function localDateKey(d = new Date()) {
     return d.toLocaleDateString('en-CA');
 }
 
@@ -57,11 +60,16 @@ function escapeHtml(value) {
     }[c]));
 }
 
- function getFee() {
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function getFee() {
     return currentFee;
 }
 
- async function apiGet(endpoint, query = {}) {
+async function apiGet(endpoint, query = {}) {
     const res = await window.api(endpoint, { query });
     if (!res.success) throw new Error(res.message || `HTTP ${res.status}`);
     return res.data || {};
@@ -71,7 +79,10 @@ function safeStorage(fn, fallback) {
     try { return fn(); } catch (e) { return fallback; }
 }
 
- async function loadDriverProfile() {
+// ------------------------------------------------------------
+// Data loaders
+// ------------------------------------------------------------
+async function loadDriverProfile() {
     try {
         const data = await apiGet('drivers.php', { me: 1 });
         if (data.driver) {
@@ -103,7 +114,7 @@ function normalizeDriver(d) {
     };
 }
 
- async function loadDriverBalance() {
+async function loadDriverBalance() {
     if (!currentDriver) return null;
     try {
         const data = await apiGet('wallet.php', { action: 'balance' });
@@ -119,7 +130,7 @@ function normalizeDriver(d) {
     }
 }
 
- async function loadWalletHistory() {
+async function loadWalletHistory() {
     if (!currentDriver) return;
     const data = await apiGet('wallet.php', { action: 'history', limit: 300 });
     const rows = Array.isArray(data.transactions) ? data.transactions : [];
@@ -163,7 +174,7 @@ async function loadDriverNotifications() {
     }
 }
 
- function notificationKind(type) {
+function notificationKind(type) {
     const t = String(type || '').toUpperCase();
     if (t === 'WALLET_LOAD') return 'load';
     if (t === 'TRANSPORT_FEE') return 'payment';
@@ -187,11 +198,14 @@ function setSyncIndicator(state) {
     }
 }
 
- function populateDashboard() {
+// ------------------------------------------------------------
+// Dashboard population
+// ------------------------------------------------------------
+function populateDashboard() {
     const d = currentDriver;
     if (!d) return;
 
-    document.getElementById('driverName').textContent = d.fullName || 'Driver';
+    setText('driverName', d.fullName || 'Driver');
 
     const photo = document.getElementById('profilePhoto');
     if (photo) {
@@ -199,30 +213,30 @@ function setSyncIndicator(state) {
         else photo.textContent = (d.fullName || 'D').charAt(0).toUpperCase();
     }
 
-     document.getElementById('heroBalance').textContent = formatCurrency(currentBalance);
-    document.getElementById('heroStatus').textContent = d.status || 'Active';
-    document.getElementById('heroVehicle').textContent = d.vehicleType || '--';
-    document.getElementById('heroFee').textContent = formatCurrency(currentFee || getFee(d.vehicleType));
+    setText('heroBalance', formatCurrency(currentBalance));
+    setText('heroStatus', d.status || 'Active');
+    setText('heroVehicle', d.vehicleType || '--');
+    setText('heroFee', formatCurrency(currentFee || getFee(d.vehicleType)));
 
-     document.getElementById('statBalance').textContent = formatCurrency(currentBalance);
+    setText('statBalance', formatCurrency(currentBalance));
 
     const today = localDateKey();
     const todayTrans = driverTransactions.filter(t => (t.date || '').startsWith(today));
     const todayTotal = todayTrans.reduce((s, t) => s + t.amount, 0);
 
-    document.getElementById('todayTrips').textContent = todayTrans.length;
-    document.getElementById('todayFees').textContent = formatCurrency(todayTotal);
-    document.getElementById('statVehicleStatus').textContent = (d.status || 'Active').toUpperCase();
-    document.getElementById('statPlate').textContent = d.plateNumber || '--';
+    setText('todayTrips', todayTrans.length);
+    setText('todayFees', formatCurrency(todayTotal));
+    setText('statVehicleStatus', (d.status || 'Active').toUpperCase());
+    setText('statPlate', d.plateNumber || '--');
 
-     document.getElementById('feePerTripValue').textContent = formatCurrency(currentFee || getFee(d.vehicleType));
+    setText('feePerTripValue', formatCurrency(currentFee || getFee(d.vehicleType)));
 
-     document.getElementById('qrDriverName').textContent = d.fullName || '--';
-    document.getElementById('qrVehicleType').textContent = d.vehicleType || '--';
-    document.getElementById('qrPlateNumber').textContent = d.plateNumber || '--';
-    document.getElementById('qrFee').textContent = formatCurrency(currentFee || getFee(d.vehicleType));
+    setText('qrDriverName', d.fullName || '--');
+    setText('qrPageVehicle', d.vehicleType || '--');
+    setText('qrPagePlate', d.plateNumber || '--');
+    setText('qrFee', formatCurrency(currentFee || getFee(d.vehicleType)));
 
-     const statusEl = document.getElementById('paymentStatusBadge');
+    const statusEl = document.getElementById('paymentStatusBadge');
     if (statusEl) {
         if (todayTrans.length > 0) {
             statusEl.textContent = `${todayTrans.length} trip${todayTrans.length === 1 ? '' : 's'} today`;
@@ -265,6 +279,9 @@ function checkBalanceNotifications() {
     }
 }
 
+// ------------------------------------------------------------
+// Last-7-days mini chart
+// ------------------------------------------------------------
 function renderMiniChart() {
     const wrap = document.getElementById('miniChart');
     if (!wrap) return;
@@ -279,19 +296,44 @@ function renderMiniChart() {
         const total = driverTransactions
             .filter(t => (t.date || '').startsWith(key))
             .reduce((s, t) => s + t.amount, 0);
-        last7.push({ key, day: days[(d.getDay() + 6) % 7], total });
+        last7.push({ key, day: days[(d.getDay() + 6) % 7], total, date: d });
     }
 
     const max = Math.max(...last7.map(l => l.total), 1);
-    wrap.innerHTML = last7.map(l => {
-        const pct = Math.max((l.total / max) * 100, 4);
-        return `<div class="bar" style="height:${pct}%" title="${l.day}: ${formatCurrency(l.total)}">
-            <span>${l.day.charAt(0)}</span>
+    const hasData = last7.some(l => l.total > 0);
+
+    if (!hasData) {
+    wrap.innerHTML = `
+        <div class="mini-chart-empty">
+            <i class="fas fa-chart-simple"></i>
+            <span>No fees paid in the last 7 days</span>
         </div>`;
+    return;
+}
+
+    wrap.innerHTML = last7.map(l => {
+        const heightPx = l.total > 0 ? Math.max((l.total / max) * 110, 14) : 6;
+        const isToday = localDateKey(new Date()) === l.key;
+        return `
+            <div class="bar-wrapper" style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;flex:1;gap:4px;height:100%;">
+                <div style="font-size:.65rem;font-weight:700;color:${l.total > 0 ? '#b22234' : '#cbd5e1'};">
+                    ${l.total > 0 ? '₱' + l.total.toFixed(0) : ''}
+                </div>
+                <div class="bar"
+                     style="height:${heightPx}px;width:100%;background:${l.total > 0 ? 'linear-gradient(180deg,#b22234,#8f1a2a)' : '#e2e8f0'};border-radius:6px 6px 2px 2px;transition:all .3s ease;"
+                     title="${l.day} ${l.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}: ${formatCurrency(l.total)}">
+                </div>
+                <div style="font-size:.65rem;font-weight:${isToday ? '800' : '600'};color:${isToday ? '#b22234' : '#64748b'};">
+                    ${l.day.charAt(0)}
+                </div>
+            </div>`;
     }).join('');
 }
 
- function generateQR() {
+// ------------------------------------------------------------
+// QR code generation
+// ------------------------------------------------------------
+function generateQR() {
     const d = currentDriver;
     if (!d) return;
     const qrText = d.qrPayload || JSON.stringify({
@@ -387,23 +429,26 @@ function printQRCard() {
     window.print();
 }
 
- function populateQRPage() {
+// ------------------------------------------------------------
+// Page-specific populate functions
+// ------------------------------------------------------------
+function populateQRPage() {
     const d = currentDriver;
     if (!d) return;
-    document.getElementById('displayRegNumber').textContent = d.driverId || '--';
-    document.getElementById('displayIdBadge').textContent = d.driverId || '--';
-    document.getElementById('displayName').textContent = d.fullName || '--';
-    document.getElementById('displayBirthdate').textContent = formatDate(d.birthdate);
-    document.getElementById('displayGender').textContent = d.gender || '--';
-    document.getElementById('displayContact').textContent = d.contact || '--';
-    document.getElementById('displayVehicle').textContent = d.vehicleType || '--';
-    document.getElementById('displayPlate').textContent = d.plateNumber || '--';
-    document.getElementById('displayBodyNumber').textContent = d.bodyNumber || '--';
+    setText('displayRegNumber', d.driverId || '--');
+    setText('displayIdBadge', d.driverId || '--');
+    setText('displayName', d.fullName || '--');
+    setText('displayBirthdate', formatDate(d.birthdate));
+    setText('displayGender', d.gender || '--');
+    setText('displayContact', d.contact || '--');
+    setText('displayVehicle', d.vehicleType || '--');
+    setText('displayPlate', d.plateNumber || '--');
+    setText('displayBodyNumber', d.bodyNumber || '--');
 
-    document.getElementById('qrPageDriverId').textContent = d.driverId || '--';
-    document.getElementById('qrPageVehicle').textContent = d.vehicleType || '--';
-    document.getElementById('qrPageBodyNumber').textContent = d.bodyNumber || '--';
-    document.getElementById('qrPagePlate').textContent = d.plateNumber || '--';
+    setText('qrPageDriverId', d.driverId || '--');
+    setText('qrPageVehicle', d.vehicleType || '--');
+    setText('qrPageBodyNumber', d.bodyNumber || '--');
+    setText('qrPagePlate', d.plateNumber || '--');
 
     const photoLarge = document.getElementById('photoDisplayLarge');
     if (photoLarge) {
@@ -417,50 +462,50 @@ function printQRCard() {
     }
 }
 
- function populateProfile() {
+function populateProfile() {
     const d = currentDriver;
     if (!d) return;
-    document.getElementById('profileName').textContent = d.fullName || '--';
-    document.getElementById('profileId').textContent = d.driverId || '--';
-    document.getElementById('profileFullName').textContent = d.fullName || '--';
-    document.getElementById('profileAddress').textContent = d.address || '--';
-    document.getElementById('profileContact').textContent = d.contact || '--';
-    document.getElementById('profileBirthdate').textContent = formatDate(d.birthdate);
-    document.getElementById('profileGender').textContent = d.gender || '--';
-    document.getElementById('profileDriverId').textContent = d.driverId || '--';
-    document.getElementById('profileStatus').textContent = d.status || 'Active';
-    document.getElementById('profileVehicleType').textContent = d.vehicleType || '--';
-    document.getElementById('profileBodyNumber').textContent = d.bodyNumber || '--';
-    document.getElementById('profilePlateNumber').textContent = d.plateNumber || '--';
-    document.getElementById('profileVehicleStatus').textContent = d.status || 'Active';
+    setText('profileName', d.fullName || '--');
+    setText('profileId', d.driverId || '--');
+    setText('profileFullName', d.fullName || '--');
+    setText('profileAddress', d.address || '--');
+    setText('profileContact', d.contact || '--');
+    setText('profileBirthdate', formatDate(d.birthdate));
+    setText('profileGender', d.gender || '--');
+    setText('profileDriverId', d.driverId || '--');
+    setText('profileStatus', d.status || 'Active');
+    setText('profileVehicleType', d.vehicleType || '--');
+    setText('profileBodyNumber', d.bodyNumber || '--');
+    setText('profilePlateNumber', d.plateNumber || '--');
+    setText('profileVehicleStatus', d.status || 'Active');
 }
 
- function populateVehicle() {
+function populateVehicle() {
     const d = currentDriver;
     if (!d) return;
-    document.getElementById('vehicleType').textContent = d.vehicleType || '--';
-    document.getElementById('vehicleBodyNumber').textContent = d.bodyNumber || '--';
-    document.getElementById('vehiclePlateNumber').textContent = d.plateNumber || '--';
-    document.getElementById('vehicleStatus').textContent = (d.status || 'ACTIVE').toUpperCase();
-    document.getElementById('vehicleFee').textContent = formatCurrency(currentFee || getFee(d.vehicleType));
+    setText('vehicleType', d.vehicleType || '--');
+    setText('vehicleBodyNumber', d.bodyNumber || '--');
+    setText('vehiclePlateNumber', d.plateNumber || '--');
+    setText('vehicleStatus', (d.status || 'ACTIVE').toUpperCase());
+    setText('vehicleFee', formatCurrency(currentFee || getFee(d.vehicleType)));
 }
 
- function populateBalance() {
-    document.getElementById('balanceAmount').textContent = formatCurrency(currentBalance);
-    document.getElementById('balanceAccountStatus').textContent = currentDriver?.status || 'ACTIVE';
-    document.getElementById('balanceFeePerTrip').textContent = formatCurrency(currentFee || getFee(currentDriver?.vehicleType));
+function populateBalance() {
+    setText('balanceAmount', formatCurrency(currentBalance));
+    setText('balanceAccountStatus', currentDriver?.status || 'ACTIVE');
+    setText('balanceFeePerTrip', formatCurrency(currentFee || getFee(currentDriver?.vehicleType)));
 
     const lastLoad = loadHistory[0];
     if (lastLoad) {
-        document.getElementById('balanceLastLoad').textContent = formatCurrency(lastLoad.amount);
-        document.getElementById('balanceLastUpdated').textContent = formatDate(lastLoad.date);
+        setText('balanceLastLoad', formatCurrency(lastLoad.amount));
+        setText('balanceLastUpdated', formatDate(lastLoad.date));
     } else {
-        document.getElementById('balanceLastLoad').textContent = '--';
-        document.getElementById('balanceLastUpdated').textContent = '--';
+        setText('balanceLastLoad', '--');
+        setText('balanceLastUpdated', '--');
     }
 }
 
- function renderLoadHistory() {
+function renderLoadHistory() {
     const table = document.getElementById('loadHistoryTable');
     if (!table) return;
     if (!loadHistory.length) {
@@ -478,12 +523,11 @@ function printQRCard() {
     `).join('');
 }
 
- function renderPaymentHistory() {
+function renderPaymentHistory() {
     const search = document.getElementById('paymentSearch')?.value.toLowerCase() || '';
     const filter = document.getElementById('paymentFilter')?.value || 'all';
     const table = document.getElementById('paymentHistoryTable');
     const count = document.getElementById('paymentCount');
-    const count2 = document.getElementById('paymentCount2');
     if (!table) return;
 
     let data = driverTransactions;
@@ -499,10 +543,9 @@ function printQRCard() {
     const monthPaid = driverTransactions.filter(t => new Date(t.date) >= monthStart)
         .reduce((sum, t) => sum + t.amount, 0);
 
-    document.getElementById('totalPaidAmount').textContent = formatCurrency(totalPaid);
-    document.getElementById('monthPaidAmount').textContent = formatCurrency(monthPaid);
+    setText('totalPaidAmount', formatCurrency(totalPaid));
+    setText('monthPaidAmount', formatCurrency(monthPaid));
     if (count) count.textContent = data.length;
-    if (count2) count2.textContent = data.length;
 
     if (!data.length) {
         table.innerHTML = '<tr><td colspan="7"><div class="empty-state py-4"><i class="fas fa-receipt"></i><h3>No transactions found</h3></div></td></tr>';
@@ -558,15 +601,16 @@ function viewTransactionDetail(id) {
 function printTransaction(id) {
     const t = driverTransactions.find(x => x.id === id);
     if (!t) return showToast('Transaction not found', 'error');
-    document.getElementById('rReceiptNo').textContent = t.id;
-    document.getElementById('rDate').textContent = formatDate(t.date);
-    document.getElementById('rTime').textContent = t.time || '--';
-    document.getElementById('rDriver').textContent = currentDriver.fullName;
-    document.getElementById('rPlate').textContent = currentDriver.plateNumber;
-    document.getElementById('rVehicle').textContent = currentDriver.vehicleType;
-    document.getElementById('rAmount').textContent = formatCurrency(t.amount);
-    document.getElementById('rStatus').textContent = (t.status || 'Successful').toUpperCase();
+    setText('rReceiptNo', t.id);
+    setText('rDate', formatDate(t.date));
+    setText('rTime', t.time || '--');
+    setText('rDriver', currentDriver.fullName);
+    setText('rPlate', currentDriver.plateNumber);
+    setText('rVehicle', currentDriver.vehicleType);
+    setText('rAmount', formatCurrency(t.amount));
+    setText('rStatus', (t.status || 'Successful').toUpperCase());
     const printArea = document.getElementById('receiptPrintArea');
+    if (!printArea) return;
     printArea.classList.add('show-receipt-print');
     printArea.style.display = 'block';
     setTimeout(() => {
@@ -578,7 +622,10 @@ function printTransaction(id) {
     }, 100);
 }
 
- function formatDriverNotificationTime(timestamp) {
+// ------------------------------------------------------------
+// Notifications
+// ------------------------------------------------------------
+function formatDriverNotificationTime(timestamp) {
     const date = new Date(timestamp);
     if (Number.isNaN(date.getTime())) return '';
     return date.toLocaleString('en-US', {
@@ -595,6 +642,12 @@ function renderDriverNotifications() {
     const unreadCount = driverNotifications.filter(n => !n.read).length;
     badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
     badge.hidden = unreadCount === 0;
+
+    const badgeBell = document.getElementById('driverNotificationBadgeBell');
+    if (badgeBell) {
+        badgeBell.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+        badgeBell.hidden = unreadCount === 0;
+    }
 
     if (!driverNotifications.length) {
         list.innerHTML = '<div class="driver-notification__empty">No notifications yet.</div>';
@@ -696,7 +749,10 @@ async function initDriverNotifications() {
     });
 }
 
- function renderAll() {
+// ------------------------------------------------------------
+// Rendering & refresh orchestration
+// ------------------------------------------------------------
+function renderAll() {
     populateDashboard();
     populateBalance();
     populateVehicle();
@@ -704,7 +760,7 @@ async function initDriverNotifications() {
     renderLoadHistory();
 }
 
- function flashBalance(direction) {
+function flashBalance(direction) {
     ['heroBalance', 'statBalance', 'balanceAmount'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -714,7 +770,7 @@ async function initDriverNotifications() {
     });
 }
 
- async function refreshDriverPayments(force = false) {
+async function refreshDriverPayments(force = false) {
     if (driverPaymentRefreshInProgress || !currentDriver) return;
     driverPaymentRefreshInProgress = true;
     try {
@@ -812,7 +868,7 @@ async function refreshDriverDashboardOnResume() {
     }
 }
 
- document.addEventListener('visibilitychange', () => {
+document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
         stopDriverPaymentPolling();
     } else {
@@ -822,7 +878,10 @@ async function refreshDriverDashboardOnResume() {
 window.addEventListener('focus', refreshDriverDashboardOnResume);
 window.addEventListener('pageshow', refreshDriverDashboardOnResume);
 
- function getActivityLog(driverId) {
+// ------------------------------------------------------------
+// Local activity log
+// ------------------------------------------------------------
+function getActivityLog(driverId) {
     return safeStorage(() => JSON.parse(localStorage.getItem('borongan_driver_activity_' + driverId) || '[]'), []);
 }
 function saveActivityLog(driverId, log) {
@@ -858,6 +917,9 @@ function renderActivities() {
     `).join('');
 }
 
+// ------------------------------------------------------------
+// Stations map
+// ------------------------------------------------------------
 let driverStationsMapInstance = null;
 let driverStationMarkers = {};
 
@@ -884,7 +946,7 @@ async function initDriverStationsMap(forceRefresh = false) {
         const list = (res && res.success && res.data && res.data.terminals) ? res.data.terminals : [];
         if (!list.length) return;
 
-         Object.values(driverStationMarkers).forEach(m => driverStationsMapInstance.removeLayer(m));
+        Object.values(driverStationMarkers).forEach(m => driverStationsMapInstance.removeLayer(m));
         driverStationMarkers = {};
 
         const markersGroup = [];
@@ -966,7 +1028,10 @@ function focusDriverStation(code, lat, lng) {
 }
 window.focusDriverStation = focusDriverStation;
 
- function navigateTo(page) {
+// ------------------------------------------------------------
+// Navigation
+// ------------------------------------------------------------
+function navigateTo(page) {
     document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
     const target = document.getElementById('page-' + page);
     if (target) target.classList.add('active');
@@ -993,7 +1058,10 @@ window.focusDriverStation = focusDriverStation;
 }
 window.navigateTo = navigateTo;
 
- async function initDriverDashboard() {
+// ------------------------------------------------------------
+// Init
+// ------------------------------------------------------------
+async function initDriverDashboard() {
     const driver = await loadDriverProfile();
     if (!driver) {
         showToast('Your driver profile could not be loaded. Please log in again or contact the BCTT office.', 'error');
@@ -1007,18 +1075,13 @@ window.navigateTo = navigateTo;
         loadWalletHistory().catch(e => console.warn('history failed:', e))
     ]);
 
-     populateDashboard();
+    renderAll();
     generateQR();
     populateQRPage();
     populateProfile();
     populateVehicle();
     populateBalance();
-    renderPaymentHistory();
-    renderLoadHistory();
 
-    document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    });
     updateLastUpdated();
     setInterval(updateLastUpdated, 60000);
 
@@ -1037,7 +1100,7 @@ function updateLastUpdated() {
     if (el) el.textContent = new Date().toLocaleTimeString();
 }
 
- window.logout = function() {
+window.logout = function() {
     const doLogout = () => {
         logDriverActivity('Logged out', 'fa-sign-out-alt', 'log-logout');
         stopDriverPaymentPolling();
@@ -1052,7 +1115,7 @@ function updateLastUpdated() {
     });
 };
 
- window.setNotifFilter = function(type) {
+window.setNotifFilter = function(type) {
     notificationFilter = type;
     document.querySelectorAll('.notif-tab').forEach(t => {
         t.classList.toggle('active', t.dataset.filter === type);
@@ -1060,7 +1123,7 @@ function updateLastUpdated() {
     renderFullNotifications();
 };
 
- window.authReady.then(() => {
+window.authReady.then(() => {
     initDriverDashboard();
     document.querySelectorAll('.sidebar-item[data-page]').forEach(i => {
         i.addEventListener('click', function() { navigateTo(this.dataset.page); });
