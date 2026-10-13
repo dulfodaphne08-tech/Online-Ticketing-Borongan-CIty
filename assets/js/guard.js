@@ -1,11 +1,4 @@
-/* ============================================================
-   assets/js/guard.js — bulletproof session guard + API helper.
-   Loaded on every dashboard. Handles:
-     1. window.api(path, {method, body, query})
-     2. Role-based redirect before the page renders
-     3. window.authReady promise (fires ONCE per page load)
-   ============================================================ */
-(function () {
+ (function () {
     "use strict";
 
      if (window.__guardLoaded === true) {

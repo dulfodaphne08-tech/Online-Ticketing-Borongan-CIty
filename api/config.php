@@ -55,12 +55,12 @@ function method(): string {
 
  try {
     [$dsn, $dbUser, $dbPass] = databaseSettings();
-    $pdo = new PDO($dsn, $dbUser, $dbPass, [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => true,   
-        PDO::ATTR_TIMEOUT            => 10,
-    ]);
+$pdo = new PDO($dsn, $dbUser, $dbPass, [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES   => true,
+    PDO::ATTR_TIMEOUT            => 10,
+]);
 } catch (PDOException $e) {             
     $why = $e->getMessage();
     error_log('DB connection failed: ' . $why);
@@ -172,19 +172,19 @@ function endAuthenticatedSession(): void {
     d.license_expiration, d.registration_date, d.photo, d.status, COALESCE(d.balance, 0) AS balance,
     d.created_at, COALESCE(u.username, d.username) AS username, u.email';
 
- function findDriver(PDO $pdo, string $identifier, bool $lock = false): ?array {
+function findDriver(PDO $pdo, string $identifier, bool $lock = false): ?array {
     $id = trim($identifier);
     if ($id === '') return null;
     $sql = 'SELECT ' . DRIVER_COLUMNS . '
             FROM drivers d LEFT JOIN users u ON u.id = d.user_id
-            WHERE upper(d.driver_id) = upper(:id)
-               OR upper(d.plate_number) = upper(:id)
-               OR upper(d.body_number) = upper(:id)
-            ORDER BY (upper(d.driver_id) = upper(:id)) DESC
+            WHERE upper(d.driver_id) = upper(?)
+               OR upper(d.plate_number) = upper(?)
+               OR upper(d.body_number) = upper(?)
+            ORDER BY (upper(d.driver_id) = upper(?)) DESC
             LIMIT 1';
     if ($lock) $sql .= ' FOR UPDATE OF d';
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([':id' => $id]);
+    $stmt->execute([$id, $id, $id, $id]);
     $row = $stmt->fetch();
     return $row ?: null;
 }

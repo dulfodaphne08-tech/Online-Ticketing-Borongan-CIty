@@ -1,8 +1,3 @@
-/* ============================================================
-   Inner pages — shared script
-   - Mobile nav toggle
-   - Auto-highlight the active nav item
-   ============================================================ */
 (function () {
     "use strict";
 

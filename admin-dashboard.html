@@ -1,1 +1,2171 @@
-<h1>hello borongan city!!!</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel · Borongan Transport</title>
+
+  <script src="assets/js/guard.js?v=20261004" data-role="admin"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <link rel="stylesheet" href="assets/css/confirm-modal.css?v=20261004" />
+  <link rel="stylesheet" href="assets/css/admin-dashboard.css?v=20261008" />
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+<nav class="sidebar" id="sidebar" aria-label="Admin navigation">
+  <div class="sidebar-brand">
+    <div class="logo-circle">
+      <img src="images/borongan-logo.jpg" alt="Borongan Transport"
+           onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2250%22 fill=%22%236B1520%22/%3E%3Ctext x=%2250%22 y=%2255%22 font-size=%2240%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22sans-serif%22 font-weight=%22bold%22%3EB%3C/text%3E%3C/svg%3E'">
+    </div>
+    <div class="brand-text">
+      <div class="brand-title">ADMIN PANEL</div>
+      <div class="brand-subtitle">Transportation Management</div>
+    </div>
+  </div>
+
+  <div class="sidebar-scroll">
+    <button class="sidebar-item active" data-page="dashboard">
+      <i class="fa-solid fa-gauge-high"></i><span>Dashboard</span>
+    </button>
+
+    <div class="sidebar-section-title">Management</div>
+    <button class="sidebar-item" data-page="users"><i class="fa-solid fa-users-gear"></i><span>User Management</span></button>
+    <button class="sidebar-item" data-page="drivers"><i class="fa-solid fa-id-card"></i><span>Driver Management</span></button>
+    <button class="sidebar-item" data-page="vehicles"><i class="fa-solid fa-car"></i><span>Vehicle Management</span></button>
+
+    <div class="sidebar-section-title">Financial / Transactions</div>
+    <button class="sidebar-item" data-page="wallet"><i class="fa-solid fa-wallet"></i><span>Wallet Loads</span></button>
+    <button class="sidebar-item" data-page="transactions"><i class="fa-solid fa-receipt"></i><span>Transactions</span></button>
+    <button class="sidebar-item" data-page="references"><i class="fa-solid fa-file-invoice"></i><span>Payment References</span></button>
+
+    <div class="sidebar-section-title">Reports</div>
+    <button class="sidebar-item" data-page="report-transactions"><i class="fa-solid fa-list-check"></i><span>Transaction Reports</span></button>
+    <button class="sidebar-item" data-page="report-terminal"><i class="fa-solid fa-terminal"></i><span>Terminal Reports</span></button>
+    <button class="sidebar-item" data-page="report-daily"><i class="fa-solid fa-calendar-day"></i><span>Daily / Monthly Reports</span></button>
+    <button class="sidebar-item" data-page="report-attendance"><i class="fa-solid fa-file-lines"></i><span>Attendance Reports</span></button>
+
+    <div class="sidebar-section-title">GIS &amp; Operations</div>
+    <button class="sidebar-item" data-page="terminals-map"><i class="fa-solid fa-map-location-dot"></i><span>Terminal GIS Map</span></button>
+    <button class="sidebar-item" data-page="staff-assignments"><i class="fa-solid fa-user-shield"></i><span>Staff Assignments</span></button>
+
+    <div class="sidebar-section-title">Monitoring</div>
+    <button class="sidebar-item" data-page="attendance"><i class="fa-solid fa-user-clock"></i><span>Attendance</span></button>
+    <button class="sidebar-item" data-page="notifications"><i class="fa-solid fa-bell"></i><span>Notifications</span></button>
+    <button class="sidebar-item" data-page="audit"><i class="fa-solid fa-clipboard-list"></i><span>Audit Logs</span></button>
+
+    <div class="sidebar-section-title">System</div>
+    <button class="sidebar-item" data-page="fees"><i class="fa-solid fa-money-bill-wave"></i><span>Fee Configuration</span></button>
+    <button class="sidebar-item" data-page="fee-history"><i class="fa-solid fa-clock-rotate-left"></i><span>Fee History</span></button>
+
+    <button class="sidebar-item" data-page="inquiries">
+      <i class="fa-solid fa-envelope"></i>
+      <span>Inquiries</span>
+      <span class="sidebar-badge" id="inquirySidebarBadge" hidden>0</span>
+    </button>
+
+    <button class="sidebar-item" data-page="settings"><i class="fa-solid fa-user-circle"></i><span>Profile</span></button>
+    <button class="sidebar-item" data-page="change-password"><i class="fa-solid fa-key"></i><span>Change Password</span></button>
+    <button class="sidebar-item" data-page="system-settings"><i class="fa-solid fa-sliders"></i><span>Settings</span></button>
+
+    <button class="sidebar-item sidebar-item-logout" onclick="logout()">
+      <i class="fa-solid fa-right-from-bracket"></i><span>Logout</span>
+    </button>
+  </div>
+
+  <div class="sidebar-foot">
+    <div class="sidebar-foot-label">Signed in as</div>
+    <div class="sidebar-foot-name" id="sidebarUser">—</div>
+    <div class="sidebar-foot-shift">Role: <span id="sidebarRole">Administrator</span></div>
+  </div>
+</nav>
+
+<main class="main-content">
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="breadcrumb">
+        <i class="fa-solid fa-house"></i>
+        <span>Home</span>
+        <i class="fa-solid fa-chevron-right"></i>
+        <span>Admin</span>
+        <i class="fa-solid fa-chevron-right"></i>
+        <strong id="topbarCurrentPage">Dashboard</strong>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-datetime">
+        <i class="fa-regular fa-calendar"></i>
+        <span id="topbarDateTime">—</span>
+      </div>
+      <span id="syncIndicator" class="sync-indicator"><span class="dot"></span> Live</span>
+
+      <div style="position:relative;">
+        <button type="button" class="notification-bell" id="notificationBell" aria-label="Notifications">
+          <i class="fas fa-bell"></i>
+          <span class="notification-badge" id="notificationBadge" hidden>0</span>
+        </button>
+        <section class="notification-panel" id="notificationPanel" hidden>
+          <div class="notification-panel__header">
+            <h2>Notifications</h2>
+            <button type="button" class="notification-panel__mark" id="markNotificationsRead">Mark all read</button>
+          </div>
+          <div class="notification-list" id="notificationList" role="list">
+            <div class="notification-empty">No notifications yet.</div>
+          </div>
+        </section>
+      </div>
+
+      <div class="user-chip">
+        <div class="user-avatar" id="userAvatarChip">A</div>
+        <div class="user-info">
+          <div class="user-name" id="userNameChip">Admin</div>
+          <div class="user-role">Administrator</div>
+        </div>
+        <i class="fa-solid fa-chevron-down user-caret"></i>
+      </div>
+    </div>
+  </header>
+
+  <section id="page-dashboard" class="page-section active">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">
+          Welcome back, <strong style="color:var(--maroon)" id="adminGreetingName">Admin</strong>
+          · Last updated: <span id="lastUpdatedTime">--</span>
+        </p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-outline btn-sm" onclick="printSummaryReport('daily')">
+          <i class="fas fa-print"></i> Print Today
+        </button>
+        <div class="unified-search" style="min-width:280px;">
+          <i class="fas fa-search unified-search__icon"></i>
+          <input type="search" class="unified-search__input" id="globalSearch"
+                 placeholder="Search drivers…"
+                 onkeydown="if(event.key==='Enter') globalSearch()">
+          <button class="btn-primary btn-sm" onclick="globalSearch()">
+            <i class="fas fa-search"></i> Search
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-row kpi-row-4">
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Total Drivers</div>
+          <div class="kpi-value" id="statDrivers">0</div>
+          <div class="kpi-delta">
+            <span class="text-green">●</span> <span id="statActiveDrivers">0</span> Active ·
+            <span class="text-red">●</span> <span id="statInactiveDrivers">0</span> Inactive
+          </div>
+        </div>
+        <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-id-card"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Total Vehicles</div>
+          <div class="kpi-value" id="statVehicles">0</div>
+          <div class="kpi-delta"><span class="text-green">●</span> <span id="statActiveVehicles">0</span> Active</div>
+        </div>
+        <div class="kpi-icon kpi-icon-blue"><i class="fas fa-car"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Active Stations</div>
+          <div class="kpi-value" id="statActiveStations">0</div>
+          <div class="kpi-delta"><span id="statTotalStations">0</span> total registered</div>
+        </div>
+        <div class="kpi-icon kpi-icon-teal"><i class="fas fa-map-location-dot"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Today's Fees</div>
+          <div class="kpi-value" id="statTodayFees">₱0</div>
+          <div class="kpi-delta"><span id="todayFeesTransCount">0</span> transactions</div>
+        </div>
+        <div class="kpi-icon kpi-icon-green"><i class="fas fa-coins"></i></div>
+      </div>
+    </div>
+
+    <div class="kpi-row kpi-row-4">
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Today's Loads</div>
+          <div class="kpi-value" id="statTodayLoads">₱0</div>
+          <div class="kpi-delta"><span id="todayLoadsCount">0</span> load transactions</div>
+        </div>
+        <div class="kpi-icon kpi-icon-yellow"><i class="fas fa-money-bill-wave"></i></div>
+      </div>
+      <div class="kpi-tile" onclick="openLowBalanceModal()" style="cursor:pointer;">
+        <div class="kpi-body">
+          <div class="kpi-label">Low Balance Drivers</div>
+          <div class="kpi-value text-red" id="statLowBalance">0</div>
+          <div class="kpi-delta">Below threshold</div>
+        </div>
+        <div class="kpi-icon kpi-icon-red"><i class="fas fa-triangle-exclamation"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Active Cashiers</div>
+          <div class="kpi-value" id="statActiveCashiers">0</div>
+          <div class="kpi-delta">Online accounts</div>
+        </div>
+        <div class="kpi-icon kpi-icon-teal"><i class="fas fa-cash-register"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Active Staff</div>
+          <div class="kpi-value" id="statActiveStaff">0</div>
+          <div class="kpi-delta">Terminal staff</div>
+        </div>
+        <div class="kpi-icon kpi-icon-orange"><i class="fas fa-user-tie"></i></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head">
+          <h3 class="card-title"><i class="fas fa-chart-bar"></i> Daily Fee Transactions — Last 7 Days</h3>
+          <div class="flex gap-2">
+            <button class="btn-outline btn-sm" onclick="updateChart('bar')"><i class="fas fa-chart-bar"></i></button>
+            <button class="btn-outline btn-sm" onclick="updateChart('line')"><i class="fas fa-chart-line"></i></button>
+          </div>
+        </div>
+        <div style="position:relative;height:220px;width:100%;">
+          <canvas id="collectionChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3 class="card-title"><i class="fas fa-clock-rotate-left"></i> Recent Activities</h3>
+        </div>
+        <div id="recentActivities" style="max-height:240px;overflow-y:auto;">
+          <div class="empty-inline">No recent activities</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title">
+            <i class="fas fa-map-location-dot"></i> Live Terminal GIS Overview
+            <span style="background:var(--green-soft);color:var(--green);font-size:.65rem;padding:.15rem .55rem;border-radius:999px;font-weight:700;">
+              <i class="fas fa-satellite-dish"></i> QGIS Synced
+            </span>
+          </h3>
+          <p class="card-sub" style="margin-top:.35rem;">Live monitoring of Borongan City terminal stations</p>
+        </div>
+        <button class="btn-primary btn-sm" onclick="navigateTo('terminals-map')">
+          <i class="fas fa-expand"></i> Full GIS Map
+        </button>
+      </div>
+      <div class="gis-map-container" style="height:320px;">
+        <div id="dashboardMiniMap"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title"><i class="fas fa-list"></i> Recent Transactions</h3>
+        <div class="flex gap-2">
+          <button class="btn-outline btn-sm" onclick="printTransactionReport(transactions.slice(-50).reverse(), 'Recent Transactions', transactions.slice(-50).reduce((s,t)=>s+Number(t.amount||0),0))">
+            <i class="fas fa-print"></i> Print
+          </button>
+          <button class="btn-outline btn-sm" onclick="navigateTo('transactions')">
+            <i class="fas fa-arrow-right"></i> View All
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Driver</th>
+              <th>Vehicle</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="recentTable">
+            <tr><td colspan="6"><div class="empty-inline">No transactions yet</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-users" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">User Management</h1>
+        <p class="page-subtitle">Manage accounts that can access the system and their roles.</p>
+      </div>
+      <div class="page-header-actions">
+        <select id="userRoleFilter" class="input-field input-field-sm" style="width:10rem;" onchange="renderUsers()">
+          <option value="">All Roles</option>
+          <option value="driver">Driver</option>
+          <option value="cashier">Cashier</option>
+          <option value="staff">Terminal Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+        <input type="text" id="userSearch" class="input-field input-field-sm" style="width:12rem;" placeholder="Search name / username…" oninput="renderUsers()">
+        <button class="btn-primary" onclick="openAddUser()"><i class="fas fa-user-plus"></i> Create Account</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Name</th>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Station</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="userTable"></tbody>
+        </table>
+      </div>
+    </div>
+    <p style="font-size:.75rem;color:var(--text-soft);margin-top:.75rem;">
+      <i class="fas fa-info-circle"></i> User Management controls <strong>who can log in and what role they have</strong>.
+      Driver info is managed in <strong>Driver Management</strong>.
+    </p>
+  </section>
+
+  <section id="page-drivers" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Driver Management</h1>
+        <p class="page-subtitle">Review, approve, correct, or deactivate driver records.</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-primary" onclick="openAddDriver()"><i class="fas fa-plus"></i> Add Driver</button>
+        <input type="text" id="driverSearch" class="input-field input-field-sm" style="width:12rem;" placeholder="Name / ID / Plate…" oninput="filterDrivers()">
+        <select id="driverSort" class="input-field input-field-sm" style="width:8rem;" onchange="filterDrivers()">
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="name">Name</option>
+        </select>
+        <select id="driverApprovalFilter" class="input-field input-field-sm" style="width:11rem;" onchange="filterDrivers()">
+          <option value="">All Approvals</option>
+          <option value="Pending">Pending</option>
+          <option value="Active">Active</option>
+          <option value="Needs Correction">Needs Correction</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Photo</th>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Vehicle</th>
+              <th>Contact</th>
+              <th>License</th>
+              <th>Balance</th>
+              <th>Approval</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="driverTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-vehicles" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Vehicle Management</h1>
+        <p class="page-subtitle">Registered vehicles and their statuses.</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-outline btn-sm" onclick="syncVehiclesFromDrivers()"><i class="fas fa-sync"></i> Refresh</button>
+        <input type="text" id="vehicleSearch" class="input-field input-field-sm" style="width:12rem;" placeholder="Search…" oninput="renderVehicles()">
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-sub">
+          Total: <strong id="vehicleCount">0</strong> ·
+          <span class="text-green">●</span> Active: <strong id="activeVehicleCount">0</strong> ·
+          <span class="text-red">●</span> Inactive: <strong id="inactiveVehicleCount">0</strong>
+        </span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Plate</th>
+              <th>Type</th>
+              <th>Driver</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="vehicleTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-wallet" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Wallet Loads</h1>
+        <p class="page-subtitle">Prepaid balance loads processed by cashiers.</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-outline btn-sm" onclick="printTransactionReport(transactions.filter(t=>t.type==='LOAD'), 'Prepaid Loads Report', transactions.filter(t=>t.type==='LOAD').reduce((s,t)=>s+Number(t.amount||0),0))">
+          <i class="fas fa-print"></i> Print Loads
+        </button>
+      </div>
+    </div>
+
+    <div class="kpi-row kpi-row-4">
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Total Loaded Today</div>
+          <div class="kpi-value" id="walletTotalToday">₱0</div>
+        </div>
+        <div class="kpi-icon kpi-icon-green"><i class="fas fa-coins"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Total Loaded This Month</div>
+          <div class="kpi-value" id="walletTotalMonth">₱0</div>
+        </div>
+        <div class="kpi-icon kpi-icon-purple"><i class="fas fa-chart-line"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Load Transactions</div>
+          <div class="kpi-value" id="walletLoadCount">0</div>
+          <div class="kpi-delta">Today</div>
+        </div>
+        <div class="kpi-icon kpi-icon-blue"><i class="fas fa-receipt"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Active Cashiers</div>
+          <div class="kpi-value" id="walletActiveCashiers">0</div>
+          <div class="kpi-delta">With load activity</div>
+        </div>
+        <div class="kpi-icon kpi-icon-teal"><i class="fas fa-user-tie"></i></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title"><i class="fas fa-wallet"></i> Load Transactions</h3>
+        <input type="text" id="walletSearch" class="input-field input-field-sm" style="width:14rem;" placeholder="Search driver / cashier..." oninput="renderWalletLoads()">
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Driver</th>
+              <th>Amount</th>
+              <th>Cashier</th>
+              <th>Reference</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="walletTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-transactions" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Transactions</h1>
+        <p class="page-subtitle">All terminal transactions recorded by staff.</p>
+      </div>
+      <div class="page-header-actions">
+        <input type="text" id="transSearch" class="input-field input-field-sm" style="width:10rem;" placeholder="Search..." oninput="renderTransactions()">
+        <input type="date" id="transDate" class="input-field input-field-sm" style="width:9rem;" onchange="renderTransactions()">
+        <select id="transType" class="input-field input-field-sm" style="width:8rem;" onchange="renderTransactions()">
+          <option value="">All Types</option>
+          <option value="LOAD">Load</option>
+          <option value="FEE">Fee</option>
+        </select>
+        <button class="btn-outline btn-sm" onclick="printTransactionReport(window.__currentTransactionList || transactions, 'Filtered Transactions', (window.__currentTransactionList || transactions).reduce((s,t)=>s+Number(t.amount||0),0))">
+          <i class="fas fa-print"></i> Print
+        </button>
+        <button class="btn-outline btn-sm" onclick="exportTransactionsExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Driver</th>
+              <th>Vehicle</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Balance</th>
+              <th>Recorded By</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="transTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-references" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Payment References</h1>
+        <p class="page-subtitle">Official Receipt / reference numbers recorded by Cashiers.</p>
+      </div>
+      <div class="page-header-actions">
+        <input type="text" id="refSearch" class="input-field input-field-sm" style="width:14rem;" placeholder="Search reference / driver…">
+        <button class="btn-outline btn-sm" onclick="printTransactionReport(transactions.filter(t=>t.type==='LOAD'), 'Payment References', transactions.filter(t=>t.type==='LOAD').reduce((s,t)=>s+Number(t.amount||0),0))">
+          <i class="fas fa-print"></i> Print
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>OR / Reference</th>
+              <th>System Ref</th>
+              <th>Driver</th>
+              <th>Amount</th>
+              <th>Cashier</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="refTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-report-transactions" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Transaction Reports</h1>
+        <p class="page-subtitle">Generate filtered transaction reports.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title"><i class="fas fa-list-check"></i> Generate Transaction Report</h3>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label>From</label>
+          <input type="date" id="rptTransFrom" class="input-field input-field-sm">
+        </div>
+        <div class="filter-group">
+          <label>To</label>
+          <input type="date" id="rptTransTo" class="input-field input-field-sm">
+        </div>
+        <div class="filter-group">
+          <label>Type</label>
+          <select id="rptTransType" class="input-field input-field-sm">
+            <option value="">All Types</option>
+            <option value="LOAD">Loads</option>
+            <option value="FEE">Fees</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>&nbsp;</label>
+          <button class="btn-primary" onclick="generateTransactionReport()">
+            <i class="fas fa-play"></i> Generate
+          </button>
+        </div>
+        <div class="filter-group">
+          <label>&nbsp;</label>
+          <button class="btn-outline" onclick="if(window.currentReportData) printTransactionReport(window.currentReportData.list, window.currentReportData.label, window.currentReportData.total); else showToast('Generate a report first.', 'warning');">
+            <i class="fas fa-print"></i> Print
+          </button>
+        </div>
+      </div>
+      <div id="rptTransData">
+        <p class="empty-inline">Select a date range and click Generate</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-report-terminal" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Terminal Reports</h1>
+        <p class="page-subtitle">Vehicle breakdown and fees.</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-outline btn-sm" onclick="printTransactionReport(transactions.filter(t=>t.type==='FEE'), 'Terminal Fees Report', transactions.filter(t=>t.type==='FEE').reduce((s,t)=>s+Number(t.amount||0),0))">
+          <i class="fas fa-print"></i> Print Fees
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title"><i class="fas fa-terminal"></i> Vehicle Breakdown</h3>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Vehicle Type</th>
+              <th>Transactions</th>
+              <th>Total Fees</th>
+            </tr>
+          </thead>
+          <tbody id="terminalReportTable">
+            <tr><td colspan="3"><div class="empty-inline">Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-report-daily" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Daily / Monthly Reports</h1>
+        <p class="page-subtitle">Aggregated fee collections.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title"><i class="fas fa-calendar-day"></i> Generate Report</h3>
+      </div>
+      <div class="page-header-actions" style="margin-bottom:1rem;">
+        <button class="btn-primary" onclick="generateReport('daily')"><i class="fas fa-calendar-day"></i> Daily</button>
+        <button class="btn-primary" onclick="generateReport('weekly')"><i class="fas fa-calendar-week"></i> Weekly</button>
+        <button class="btn-primary" onclick="generateReport('monthly')"><i class="fas fa-calendar-alt"></i> Monthly</button>
+        <button class="btn-primary" onclick="generateReport('yearly')"><i class="fas fa-calendar"></i> Yearly</button>
+        <button class="btn-outline" onclick="printSummaryReport(window.currentSummaryType || 'daily')">
+          <i class="fas fa-print"></i> Print Last Generated
+        </button>
+      </div>
+      <div id="reportData"><p class="empty-inline">Select a report type</p></div>
+    </div>
+  </section>
+
+  <section id="page-report-attendance" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Attendance Reports</h1>
+        <p class="page-subtitle">View daily attendance from the Attendance page.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="empty-state">
+        <i class="fas fa-file-lines"></i>
+        <h3>Attendance Reports</h3>
+        <p>View daily attendance from the Attendance page.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-attendance" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Attendance</h1>
+        <p class="page-subtitle">Employee time in / out records.</p>
+      </div>
+      <div class="page-header-actions">
+        <input type="date" id="attendanceDate" class="input-field input-field-sm" style="width:10rem;">
+        <button class="btn-outline btn-sm" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Role</th>
+              <th>Time In</th>
+              <th>Time Out</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="attendanceTable">
+            <tr><td colspan="5"><div class="empty-inline">Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-notifications" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Notifications</h1>
+        <p class="page-subtitle">All system notifications.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div id="notificationsFullList" style="display:flex;flex-direction:column;gap:.5rem;">
+        <div class="empty-state"><i class="fas fa-bell"></i><p>No notifications yet.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-audit" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Audit Logs</h1>
+        <p class="page-subtitle">All recorded user actions.</p>
+      </div>
+      <div class="page-header-actions">
+        <input type="text" id="auditSearch" class="input-field input-field-sm" style="width:12rem;" placeholder="Search user / action..." oninput="renderAuditLogs()">
+        <input type="date" id="auditDate" class="input-field input-field-sm" style="width:10rem;" onchange="renderAuditLogs()">
+        <button class="btn-outline btn-sm" onclick="printAuditLogs()">
+          <i class="fas fa-print"></i> Print
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date/Time</th>
+              <th>User</th>
+              <th>Role</th>
+              <th>Action</th>
+              <th>Record</th>
+            </tr>
+          </thead>
+          <tbody id="auditTable">
+            <tr><td colspan="5"><div class="empty-inline">Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-fees" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Fee Configuration</h1>
+        <p class="page-subtitle">Approved terminal fees per vehicle type.</p>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head">
+          <h3 class="card-title"><i class="fas fa-money-bill-wave"></i> Approved Fee Rates</h3>
+        </div>
+        <div class="info-list">
+          <div class="info-row">
+            <span class="info-k">Tricycle</span>
+            <input type="number" id="feeTricycle" class="input-field input-field-sm" style="width:6rem;" min="0.01" step="0.01" value="5">
+          </div>
+          <div class="info-row">
+            <span class="info-k">Jeepney</span>
+            <input type="number" id="feeJeepney" class="input-field input-field-sm" style="width:6rem;" min="0.01" step="0.01" value="60">
+          </div>
+          <div class="info-row">
+            <span class="info-k">Multicab</span>
+            <input type="number" id="feeMulticab" class="input-field input-field-sm" style="width:6rem;" min="0.01" step="0.01" value="60">
+          </div>
+          <div class="info-row">
+            <span class="info-k">Bus</span>
+            <input type="number" id="feeBus" class="input-field input-field-sm" style="width:6rem;" min="0.01" step="0.01" value="100">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:1rem;">
+          <label class="form-label">Reason for change (optional)</label>
+          <input type="text" id="feeReason" class="input-field input-field-sm" placeholder="e.g. Ordinance No. 2026-04">
+        </div>
+        <button class="btn-primary" style="width:100%;margin-top:.5rem;" onclick="saveFees()">
+          <i class="fas fa-save"></i> Save Fee Rates
+        </button>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3 class="card-title"><i class="fas fa-info-circle"></i> How it works</h3>
+        </div>
+        <p style="font-size:.85rem;color:var(--text-mid);line-height:1.6;">
+          When Staff scans a driver's QR, the system automatically retrieves the approved fee.
+        </p>
+        <div style="margin-top:1rem;padding:.75rem;background:var(--yellow-soft);border-left:4px solid var(--yellow);border-radius:.5rem;font-size:.78rem;color:#a16207;">
+          <strong>Important:</strong> Past transactions keep their original recorded fee.
+          All changes are logged in <strong>Fee History</strong>.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-fee-history" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Fee History</h1>
+        <p class="page-subtitle">Complete audit trail of all fee schedule changes.</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-outline btn-sm" onclick="loadFeeHistory()"><i class="fas fa-sync"></i> Refresh</button>
+        <button class="btn-outline btn-sm" onclick="printFeeHistory()"><i class="fas fa-print"></i> Print</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date/Time</th>
+              <th>Vehicle Type</th>
+              <th>Old Fee</th>
+              <th>New Fee</th>
+              <th>Change</th>
+              <th>Changed By</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody id="feeHistoryTable">
+            <tr><td colspan="7"><div class="empty-inline">Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-inquiries" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Inquiries</h1>
+        <p class="page-subtitle">Messages submitted through the "Send an Inquiry" form on the homepage.</p>
+      </div>
+      <div class="page-header-actions">
+        <select id="inquiryStatusFilter" class="input-field input-field-sm" style="width:10rem;" onchange="renderInquiries()">
+          <option value="">All Statuses</option>
+          <option value="new">New</option>
+          <option value="in_progress">In Progress</option>
+          <option value="replied">Replied</option>
+          <option value="resolved">Resolved</option>
+        </select>
+        <input type="text" id="inquirySearch" class="input-field input-field-sm" style="width:14rem;" placeholder="Search name / email / subject…" oninput="renderInquiries()">
+        <button class="btn-outline btn-sm" onclick="refreshInquiries()"><i class="fas fa-sync"></i> Refresh</button>
+      </div>
+    </div>
+
+    <div class="kpi-row kpi-row-4">
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Total Inquiries</div>
+          <div class="kpi-value" id="inqStatTotal">0</div>
+        </div>
+        <div class="kpi-icon kpi-icon-blue"><i class="fas fa-envelope"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">New</div>
+          <div class="kpi-value text-red" id="inqStatNew">0</div>
+        </div>
+        <div class="kpi-icon kpi-icon-red"><i class="fas fa-bell"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Replied</div>
+          <div class="kpi-value" id="inqStatReplied">0</div>
+        </div>
+        <div class="kpi-icon kpi-icon-yellow"><i class="fas fa-reply"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Resolved</div>
+          <div class="kpi-value text-green" id="inqStatResolved">0</div>
+        </div>
+        <div class="kpi-icon kpi-icon-green"><i class="fas fa-check-double"></i></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title"><i class="fas fa-envelope"></i> Inquiry Messages</h3>
+        <span class="card-sub">Showing <strong id="inquiryCount">0</strong> inquiries</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date Received</th>
+              <th>From</th>
+              <th>Subject</th>
+              <th>Message</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="inquiryTable">
+            <tr><td colspan="6"><div class="empty-inline">Loading inquiries…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-system-settings" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">System configuration and preferences.</p>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head">
+          <h3 class="card-title"><i class="fas fa-sliders"></i> System Information</h3>
+        </div>
+        <div class="form-group">
+          <label class="form-label">System Name</label>
+          <input type="text" id="sysName" class="input-field">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Terminal Name</label>
+          <input type="text" id="sysTerminal" class="input-field">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Office Information</label>
+          <input type="text" id="sysOffice" class="input-field">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Low Balance Threshold</label>
+          <input type="number" id="sysLowBalance" class="input-field">
+        </div>
+        <button class="btn-primary" style="width:100%;" onclick="saveSystemSettings()"><i class="fas fa-save"></i> Save</button>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3 class="card-title"><i class="fas fa-bell"></i> Preferences</h3>
+        </div>
+        <div class="info-list">
+          <div class="info-row">
+            <span class="info-k">Email notifications</span>
+            <input type="checkbox" id="prefEmailToggle" checked>
+          </div>
+          <div class="info-row">
+            <span class="info-k">Push notifications</span>
+            <input type="checkbox" id="prefPushToggle" checked>
+          </div>
+          <div class="info-row">
+            <span class="info-k">Sound alerts</span>
+            <input type="checkbox" id="prefSoundToggle" checked>
+          </div>
+        </div>
+        <button class="btn-primary" style="width:100%;margin-top:1rem;" onclick="savePreferences()"><i class="fas fa-save"></i> Save</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-settings" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Profile</h1>
+        <p class="page-subtitle">Your account information.</p>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head">
+          <h3 class="card-title"><i class="fas fa-user-circle"></i> Account Information</h3>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" id="adminName" class="input-field" value="Administrator">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="adminEmail" class="input-field">
+        </div>
+        <button class="btn-primary" style="width:100%;" onclick="updateAdmin()"><i class="fas fa-save"></i> Update Profile</button>
+        <p style="font-size:.72rem;color:var(--text-soft);margin-top:.75rem;">
+          <i class="fas fa-lock"></i> Role: <strong>ADMINISTRATOR</strong>
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3 class="card-title"><i class="fas fa-shield"></i> Session</h3>
+        </div>
+        <div class="info-list">
+          <div class="info-row"><span class="info-k">Admin ID</span><span class="info-v">ADMIN-001</span></div>
+          <div class="info-row"><span class="info-k">Last Login</span><span class="info-v" id="profileLastLogin">—</span></div>
+          <div class="info-row"><span class="info-k">Status</span><span class="info-v"><span class="status-badge active">ACTIVE</span></span></div>
+        </div>
+        <button class="btn-outline" style="width:100%;margin-top:1rem;" onclick="logout()"><i class="fas fa-right-from-bracket"></i> Logout</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-change-password" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Change Password</h1>
+        <p class="page-subtitle">Update your account password.</p>
+      </div>
+    </div>
+    <div class="card" style="max-width:28rem;">
+      <div class="form-group">
+        <label class="form-label">Current Password</label>
+        <input type="password" id="cpCurrent" class="input-field" placeholder="Enter current password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input type="password" id="cpNew" class="input-field" placeholder="Min. 8 characters">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <input type="password" id="cpConfirm" class="input-field" placeholder="Re-enter new password">
+      </div>
+      <button class="btn-primary" style="width:100%;" onclick="changeOwnPassword()"><i class="fas fa-key"></i> Update Password</button>
+    </div>
+  </section>
+
+  <section id="page-terminals-map" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Terminal GIS Map &amp; Operations</h1>
+        <p class="page-subtitle">
+          <span style="background:var(--maroon-soft);color:var(--maroon);font-size:.68rem;padding:.15rem .55rem;border-radius:999px;font-weight:700;">
+            <i class="fas fa-layer-group"></i> QGIS Integration
+          </span>
+          Geographic monitoring of Borongan City transport terminals
+        </p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-outline btn-sm" onclick="recenterAdminMap()"><i class="fas fa-crosshairs"></i> Recenter</button>
+        <button class="btn-outline btn-sm" onclick="openQgisModal()"><i class="fas fa-file-export"></i> QGIS Hub</button>
+        <button class="btn-primary btn-sm" onclick="openAddTerminalModal()"><i class="fas fa-plus-circle"></i> Add Terminal</button>
+      </div>
+    </div>
+
+    <div class="kpi-row kpi-row-4">
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Total Terminals</div>
+          <div class="kpi-value" id="gisTotalTerminals">0</div>
+          <div class="kpi-delta"><span class="text-green">●</span> <span id="gisActiveTerminals">0</span> Active</div>
+        </div>
+        <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-bus"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Active Ticketing Booths</div>
+          <div class="kpi-value" id="gisActiveBooths">0</div>
+          <div class="kpi-delta">Cashiers on duty</div>
+        </div>
+        <div class="kpi-icon kpi-icon-green"><i class="fas fa-ticket"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Today's Fees</div>
+          <div class="kpi-value" id="gisTodayCollections">₱0</div>
+          <div class="kpi-delta"><span id="gisTodayTickets">0</span> tickets</div>
+        </div>
+        <div class="kpi-icon kpi-icon-purple"><i class="fas fa-coins"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">City TODA Routes</div>
+          <div class="kpi-value" id="gisTotalRoutes">12+</div>
+          <div class="kpi-delta">Borongan City</div>
+        </div>
+        <div class="kpi-icon kpi-icon-orange"><i class="fas fa-route"></i></div>
+      </div>
+    </div>
+
+    <div class="two-col" style="grid-template-columns:1.8fr 1fr;">
+      <div class="card card-flush">
+        <div class="card-head card-head-bordered">
+          <div>
+            <h3 class="card-title"><i class="fas fa-map"></i> Interactive Borongan GIS Layer</h3>
+            <span class="card-sub" style="font-family:monospace;" id="gisCursorCoords">11.6080° N, 125.4316° E</span>
+          </div>
+          <div class="flex gap-2 items-center">
+            <select id="gisLayerSelect" class="input-field input-field-sm" onchange="switchMapTileLayer(this.value)">
+              <option value="osm">Standard Map (OSM)</option>
+              <option value="esri">Street Map (Esri)</option>
+              <option value="satellite">Satellite Imagery (Esri)</option>
+            </select>
+            <button class="btn-outline btn-sm" onclick="loadTerminalsData(true)"><i class="fas fa-sync-alt"></i> Refresh</button>
+          </div>
+        </div>
+        <div class="gis-map-container" style="height:600px;border-radius:0;border:none;">
+          <div id="adminGisMap"></div>
+        </div>
+      </div>
+
+      <div class="flex" style="flex-direction:column;gap:1rem;">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <span style="font-size:.68rem;font-weight:800;color:var(--maroon);text-transform:uppercase;letter-spacing:.05em;" id="inspectCode">—</span>
+              <h3 class="card-title" id="inspectName" style="display:block;margin-top:.2rem;">Terminal</h3>
+              <p class="card-sub" id="inspectAddress">—</p>
+            </div>
+            <span class="inq-status resolved" id="inspectStatus">—</span>
+          </div>
+          <div class="info-list">
+            <div class="info-row"><span class="info-k">Ticketer</span><span class="info-v" id="inspectStaff">—</span></div>
+            <div class="info-row"><span class="info-k">Collections</span><span class="info-v" style="color:var(--green);" id="inspectCollection">—</span></div>
+            <div class="info-row"><span class="info-k">Hours</span><span class="info-v" id="inspectHours">—</span></div>
+            <div class="info-row"><span class="info-k">GPS</span><span class="info-v info-v-mono" id="inspectCoords">—</span></div>
+          </div>
+          <div class="flex gap-2" style="margin-top:.75rem;flex-wrap:wrap;">
+            <button class="btn-outline btn-sm flex-1" onclick="editSelectedTerminal()"><i class="fas fa-edit"></i> Edit</button>
+            <button class="btn-primary btn-sm flex-1" onclick="zoomToSelectedTerminal()"><i class="fas fa-crosshairs"></i> Focus</button>
+            <button class="btn-blue btn-sm" style="flex:1 1 100%;" onclick="viewStationTransactions()">
+              <i class="fas fa-receipt"></i> View Transactions at this Station
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="flex:1;">
+          <div class="card-head">
+            <h3 class="card-title"><i class="fas fa-list-ul"></i> All Terminals (<span id="terminalsCountBadge">0</span>)</h3>
+          </div>
+          <div style="max-height:300px;overflow-y:auto;" id="terminalsQuickList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-staff-assignments" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Staff Assignments</h1>
+        <p class="page-subtitle">Assign staff/cashier to their authorized station.</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-primary" onclick="openAssignModal()">
+          <i class="fas fa-user-plus"></i> Assign Staff
+        </button>
+        <button class="btn-outline btn-sm" onclick="loadStaffAssignments()">
+          <i class="fas fa-sync"></i> Refresh
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title"><i class="fas fa-list"></i> Current Assignments</h3>
+        <span class="card-sub">Showing <strong id="assignCount">0</strong> assignments</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Staff</th>
+              <th>Role</th>
+              <th>Station Code</th>
+              <th>Station Name</th>
+              <th>Assigned At</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="assignTable">
+            <tr><td colspan="6"><div class="empty-inline">Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-station-transactions" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Station Transactions</h1>
+        <p class="page-subtitle" id="stationTxnTitle">—</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-outline btn-sm" onclick="navigateTo('terminals-map')">
+          <i class="fas fa-arrow-left"></i> Back to Map
+        </button>
+        <button class="btn-outline btn-sm" onclick="viewStationTransactions()">
+          <i class="fas fa-sync"></i> Refresh
+        </button>
+        <button class="btn-outline btn-sm" onclick="printStationTransactions()">
+          <i class="fas fa-print"></i> Print
+        </button>
+      </div>
+    </div>
+    <div class="kpi-row kpi-row-4">
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Total</div>
+          <div class="kpi-value" id="stTxnTotalCount">0</div>
+        </div>
+        <div class="kpi-icon kpi-icon-blue"><i class="fas fa-receipt"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Successful</div>
+          <div class="kpi-value text-green" id="stTxnSuccessCount">0</div>
+        </div>
+        <div class="kpi-icon kpi-icon-green"><i class="fas fa-circle-check"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Failed</div>
+          <div class="kpi-value text-red" id="stTxnFailedCount">0</div>
+        </div>
+        <div class="kpi-icon kpi-icon-red"><i class="fas fa-circle-xmark"></i></div>
+      </div>
+      <div class="kpi-tile">
+        <div class="kpi-body">
+          <div class="kpi-label">Total Fees</div>
+          <div class="kpi-value" id="stTxnTotalFees">₱0.00</div>
+        </div>
+        <div class="kpi-icon kpi-icon-purple"><i class="fas fa-money-bill-wave"></i></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3 class="card-title"><i class="fas fa-list"></i> Transaction Records</h3>
+        <span class="card-sub">Total Loads: <strong id="stTxnTotalLoads">₱0.00</strong></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date &amp; Time</th>
+              <th>Reference</th>
+              <th>Driver</th>
+              <th>Vehicle</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Processed By</th>
+            </tr>
+          </thead>
+          <tbody id="stationTxnTable">
+            <tr><td colspan="8"><div class="empty-inline">Select a station and click "View Transactions".</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal-overlay" id="terminalModal">
+  <div class="modal-box" style="max-width:650px;">
+    <h2 class="modal-title" id="terminalModalTitle">Add Terminal Station</h2>
+    <p class="modal-sub">Set coordinates, assigned ticketer/cashier, and TODA coverage.</p>
+    <form id="terminalForm" onsubmit="saveTerminalForm(event)">
+      <input type="hidden" id="termId">
+      <div class="form-group">
+        <label class="form-label">Terminal Station Name *</label>
+        <input type="text" id="termName" class="input-field" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Terminal Code *</label>
+        <input type="text" id="termCode" class="input-field" required>
+      </div>
+      <div class="flex gap-2">
+        <div class="form-group flex-1">
+          <label class="form-label">Latitude *</label>
+          <input type="number" step="0.000001" id="termLat" class="input-field" required>
+        </div>
+        <div class="form-group flex-1">
+          <label class="form-label">Longitude *</label>
+          <input type="number" step="0.000001" id="termLng" class="input-field" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Address</label>
+        <input type="text" id="termAddress" class="input-field">
+      </div>
+      <div class="flex gap-2">
+        <div class="form-group flex-1">
+          <label class="form-label">Hours</label>
+          <input type="text" id="termHours" class="input-field">
+        </div>
+        <div class="form-group flex-1">
+          <label class="form-label">Capacity</label>
+          <input type="number" id="termCapacity" class="input-field" value="50">
+        </div>
+        <div class="form-group flex-1">
+          <label class="form-label">Status</label>
+          <select id="termStatus" class="input-field">
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+            <option value="Maintenance">Maintenance</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Assigned Staff / Ticketer</label>
+        <div style="position:relative;" id="staffPickerWrap">
+          <div class="input-field flex items-center gap-2" id="staffPickerDisplay"
+               onclick="toggleStaffDropdown()" style="cursor:pointer;min-height:38px;">
+            <i class="fas fa-user" style="color:var(--text-soft);font-size:.75rem;"></i>
+            <span id="staffPickerLabel" class="flex-1" style="font-size:.85rem;color:var(--text-soft);">— Select staff —</span>
+            <i class="fas fa-chevron-down" style="color:var(--text-soft);font-size:.7rem;" id="staffPickerCaret"></i>
+          </div>
+          <div id="staffPickerPanel" class="hidden" style="position:absolute;top:100%;left:0;right:0;margin-top:.25rem;background:#fff;border-radius:.5rem;box-shadow:0 10px 30px rgba(0,0,0,.15);border:1px solid var(--border);z-index:50;">
+            <div style="padding:.5rem;border-bottom:1px solid var(--border-soft);">
+              <input type="text" id="staffSearchInput" class="input-field input-field-sm" placeholder="Search..." oninput="filterStaffList(this.value)" onclick="event.stopPropagation()">
+            </div>
+            <ul id="staffPickerList" style="max-height:200px;overflow-y:auto;padding:.25rem 0;list-style:none;"></ul>
+            <div style="padding:.5rem;border-top:1px solid var(--border-soft);">
+              <button type="button" style="font-size:.72rem;color:var(--maroon);font-weight:700;background:none;border:none;cursor:pointer;" onclick="clearStaffPicker()">Clear</button>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="termStaffName">
+        <input type="hidden" id="termStaffUserId">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Staff Role</label>
+        <input type="text" id="termStaffRole" class="input-field">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Routes Covered</label>
+        <input type="text" id="termRoutes" class="input-field">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-outline" onclick="closeModal('terminalModal')">Cancel</button>
+        <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="qgisModal">
+  <div class="modal-box" style="max-width:600px;">
+    <h2 class="modal-title">QGIS Data Integration Hub</h2>
+    <p class="modal-sub">Sync spatial data between QGIS Desktop and BCTT.</p>
+    <div class="card" style="background:var(--bg-light);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <h4 style="font-weight:700;font-size:.85rem;">Export Terminals</h4>
+          <p style="font-size:.72rem;color:var(--text-mid);">Download GeoJSON</p>
+        </div>
+        <button class="btn-outline btn-sm" onclick="exportQgisGeoJson()"><i class="fas fa-download"></i> Download</button>
+      </div>
+    </div>
+    <div class="card">
+      <h4 style="font-weight:700;font-size:.85rem;">Import QGIS GeoJSON</h4>
+      <div style="border:2px dashed var(--border);border-radius:.5rem;padding:1rem;text-align:center;cursor:pointer;margin-top:.5rem;"
+           onclick="document.getElementById('qgisFileInput').click()">
+        <i class="fas fa-cloud-arrow-up" style="font-size:1.5rem;color:var(--text-soft);display:block;margin-bottom:.5rem;"></i>
+        <p style="font-size:.78rem;font-weight:600;" id="qgisFileLabel">Click to select file</p>
+        <input type="file" id="qgisFileInput" accept=".geojson,.json" style="display:none;" onchange="handleQgisFileSelect(event)">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-outline" onclick="closeModal('qgisModal')">Close</button>
+      <button type="button" class="btn-primary" id="qgisUploadBtn" disabled onclick="uploadQgisGeoJson()">Apply &amp; Sync</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="driverModal">
+  <div class="modal-box">
+    <h2 class="modal-title" id="driverModalTitle">Add Driver</h2>
+    <form id="driverForm">
+      <input type="hidden" id="editDriverId">
+      <div class="flex gap-2">
+        <div class="form-group flex-1"><label class="form-label">Full Name *</label><input type="text" id="dFullName" class="input-field" required></div>
+        <div class="form-group flex-1"><label class="form-label">Address</label><input type="text" id="dAddress" class="input-field"></div>
+      </div>
+      <div class="flex gap-2">
+        <div class="form-group flex-1"><label class="form-label">Contact</label><input type="text" id="dContact" class="input-field"></div>
+        <div class="form-group flex-1"><label class="form-label">Birthdate</label><input type="date" id="dBirthdate" class="input-field"></div>
+      </div>
+      <div class="flex gap-2">
+        <div class="form-group flex-1">
+          <label class="form-label">Gender</label>
+          <select id="dGender" class="input-field"><option value="">Select</option><option>Male</option><option>Female</option></select>
+        </div>
+        <div class="form-group flex-1"><label class="form-label">License No.</label><input type="text" id="dLicenseNo" class="input-field"></div>
+      </div>
+      <div class="flex gap-2">
+        <div class="form-group flex-1">
+          <label class="form-label">Vehicle Type *</label>
+          <select id="dVehicleType" class="input-field" required>
+            <option value="">Select</option>
+            <option>Tricycle</option><option>Jeepney</option><option>Multicab</option><option>Bus</option>
+          </select>
+        </div>
+        <div class="form-group flex-1"><label class="form-label">Body No.</label><input type="text" id="dBodyNumber" class="input-field"></div>
+      </div>
+      <div class="flex gap-2">
+        <div class="form-group flex-1"><label class="form-label">Plate No.</label><input type="text" id="dPlateNumber" class="input-field"></div>
+        <div class="form-group flex-1"><label class="form-label">Username *</label><input type="text" id="dUsername" class="input-field" required></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="dPassword" class="input-field" placeholder="Min. 8 chars">
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btnDeleteDriverInModal" class="btn-danger" style="display:none;" onclick="deleteDriverFromModal()">
+          <i class="fas fa-trash"></i> Delete Driver
+        </button>
+        <button type="submit" class="btn-primary"><i class="fas fa-save"></i> <span id="driverSubmitText">Save</span></button>
+        <button type="button" class="btn-outline" onclick="closeModal('driverModal')">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="userModal">
+  <div class="modal-box" style="max-width:560px;">
+    <h2 class="modal-title" id="userModalTitle">Create Account</h2>
+    <p class="modal-sub">Basic information, credentials, and station assignment.</p>
+    <form id="userForm" novalidate>
+      <input type="hidden" id="userId">
+
+      <div class="form-group">
+        <label class="form-label" for="uFullName">Full Name *</label>
+        <input type="text" id="uFullName" class="input-field" required autocomplete="name">
+      </div>
+
+      <div class="flex gap-2" style="flex-wrap:wrap;">
+        <div class="form-group flex-1" style="min-width:200px;">
+          <label class="form-label" for="uUsername">Username *</label>
+          <input type="text" id="uUsername" class="input-field" required autocomplete="username">
+        </div>
+        <div class="form-group flex-1" style="min-width:200px;">
+          <label class="form-label" for="uEmail">Email Address</label>
+          <input type="email" id="uEmail" class="input-field" autocomplete="email">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="uContact">Contact Number</label>
+        <input type="tel" id="uContact" class="input-field" autocomplete="tel">
+      </div>
+
+      <div class="flex gap-2" style="flex-wrap:wrap;">
+        <div class="form-group flex-1" style="min-width:200px;">
+          <label class="form-label" for="uPassword">Password *</label>
+          <div style="position:relative;">
+            <input type="password" id="uPassword" class="input-field" required
+                   autocomplete="new-password" style="padding-right:2.5rem;">
+            <button type="button" id="toggleUserPass"
+                    style="position:absolute;right:.75rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-soft);cursor:pointer;">
+              <i class="fas fa-eye" id="toggleUserPassIcon"></i>
+            </button>
+          </div>
+        </div>
+        <div class="form-group flex-1" style="min-width:200px;">
+          <label class="form-label" for="uConfirmPassword">Confirm Password *</label>
+          <div style="position:relative;">
+            <input type="password" id="uConfirmPassword" class="input-field" required
+                   autocomplete="new-password" style="padding-right:2.5rem;">
+            <button type="button" id="toggleUserPassConfirm"
+                    style="position:absolute;right:.75rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-soft);cursor:pointer;">
+              <i class="fas fa-eye" id="toggleUserPassConfirmIcon"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2" style="flex-wrap:wrap;">
+        <div class="form-group flex-1" style="min-width:200px;">
+          <label class="form-label" for="uRole">User Role *</label>
+          <select id="uRole" class="input-field" required onchange="onUserRoleChange()">
+            <option value="">— Select role —</option>
+            <option value="staff">Terminal Staff</option>
+            <option value="cashier">Cashier</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+        <div class="form-group flex-1" style="min-width:200px;">
+          <label class="form-label" for="uStatus">Account Status *</label>
+          <select id="uStatus" class="input-field" required>
+            <option value="Active" selected>Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" id="stationAssignWrap" style="display:none;">
+        <label class="form-label" for="uStationId">
+          <span id="stationAssignLabel">Assign Terminal Station</span>
+          <span id="stationAssignRequired" style="color:var(--red);">*</span>
+        </label>
+        <select id="uStationId" class="input-field">
+          <option value="">— Select station —</option>
+        </select>
+        <p class="form-hint" id="stationAssignHint" style="margin-top:.35rem;">
+          The staff will be restricted to processing transactions at this station.
+        </p>
+      </div>
+
+      <div class="form-group" id="adminRoleNotice" style="display:none;">
+        <div style="padding:.75rem 1rem;background:var(--yellow-soft);border-left:4px solid var(--yellow);border-radius:.5rem;font-size:.78rem;color:#92400e;">
+          <i class="fas fa-shield-halved"></i>
+          <strong>Administrator accounts</strong> manage the entire system and are not restricted to a single station.
+        </div>
+      </div>
+
+      <p style="font-size:.72rem;color:var(--text-soft);margin-bottom:.5rem;">
+        <i class="fas fa-info-circle"></i> Driver accounts are created via <strong>Driver Management</strong>.
+      </p>
+
+      <div class="modal-actions">
+        <button type="button" id="btnDeleteUserInModal" class="btn-danger" style="display:none;" onclick="deleteUserFromModal()">
+          <i class="fas fa-trash"></i> Delete Account
+        </button>
+        <button type="button" class="btn-outline" onclick="closeModal('userModal')">Cancel</button>
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-save"></i> <span id="userSubmitText">Save Account</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="lowBalanceModal">
+  <div class="modal-box">
+    <h2 class="modal-title">Low Balance Drivers</h2>
+    <div id="lowBalanceList" style="max-height:24rem;overflow-y:auto;"></div>
+    <button class="btn-outline" style="width:100%;margin-top:1rem;" onclick="closeModal('lowBalanceModal')">Close</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="inquiryModal">
+  <div class="modal-box" style="max-width:640px;">
+    <h2 class="modal-title">Inquiry Details</h2>
+    <div class="inq-detail">
+      <div class="inq-detail__header">
+        <div>
+          <div class="inq-detail__name" id="inqModalName">—</div>
+          <div class="inq-detail__email" id="inqModalEmail">—</div>
+          <div class="inq-detail__subject" id="inqModalSubject">—</div>
+        </div>
+        <span class="inq-status new" id="inqModalStatus">NEW</span>
+      </div>
+      <div class="inq-detail__meta">
+        <span><i class="far fa-clock"></i> Received: <strong id="inqModalDate">—</strong></span>
+        <span><i class="fas fa-tag"></i> Type: <strong id="inqModalType">—</strong></span>
+      </div>
+      <div class="inq-detail__body" id="inqModalBody">—</div>
+      <div class="inq-reply-form">
+        <label style="font-size:.72rem;font-weight:700;color:var(--text-mid);text-transform:uppercase;">Admin Response</label>
+        <textarea id="inqReplyText" class="input-field" placeholder="Type your response…"></textarea>
+        <div class="inq-actions">
+          <button type="button" class="btn-outline" onclick="closeInquiryModalSafe()">Close</button>
+          <button type="button" class="btn-primary" onclick="saveInquiryReply()"><i class="fas fa-paper-plane"></i> Save Response</button>
+          <button type="button" class="btn-primary" onclick="resolveInquiry()"><i class="fas fa-check-double"></i> Mark Resolved</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="assignModal">
+  <div class="modal-box" style="max-width:520px;">
+    <h2 class="modal-title">Assign Staff to Station</h2>
+    <p class="modal-sub">The staff will only be able to process transactions at their assigned station.</p>
+    <form id="assignForm" onsubmit="saveAssignment(event)">
+      <div class="form-group">
+        <label class="form-label">Staff / Cashier *</label>
+        <select id="assignStaffId" class="input-field" required>
+          <option value="">— Select staff —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Station *</label>
+        <select id="assignStationId" class="input-field" required>
+          <option value="">— Select station —</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-outline" onclick="closeModal('assignModal')">Cancel</button>
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-save"></i> Assign
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="assets/js/confirm-modal.js?v=20261004"></script>
+<script src="assets/js/admin-dashboard.js?v=20261008"></script>
+
+<script>
+const ADMIN_PAGE_LABELS = {
+  dashboard: 'Dashboard', users: 'User Management', drivers: 'Driver Management',
+  vehicles: 'Vehicle Management', wallet: 'Wallet Loads', transactions: 'Transactions',
+  references: 'Payment References', 'report-transactions': 'Transaction Reports',
+  'report-terminal': 'Terminal Reports', 'report-daily': 'Daily / Monthly Reports',
+  'report-attendance': 'Attendance Reports', 'terminals-map': 'Terminal GIS Map',
+  'staff-assignments': 'Staff Assignments',
+  'station-transactions': 'Station Transactions',
+  attendance: 'Attendance', notifications: 'Notifications', audit: 'Audit Logs',
+  fees: 'Fee Configuration', 'fee-history': 'Fee History', inquiries: 'Inquiries',
+  settings: 'Profile', 'change-password': 'Change Password', 'system-settings': 'System Settings'
+};
+
+(function () {
+  const orig = window.navigateTo;
+  if (typeof orig === "function") {
+    window.navigateTo = function (page) {
+      const el = document.getElementById('topbarCurrentPage');
+      if (el) el.textContent = ADMIN_PAGE_LABELS[page] || 'Dashboard';
+      return orig.call(this, page);
+    };
+  }
+})();
+
+function updateAdminTopbarClock() {
+  const el = document.getElementById('topbarDateTime');
+  if (!el) return;
+  const now = new Date();
+  const datePart = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  const timePart = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  el.textContent = `${datePart}, ${timePart}`;
+}
+document.addEventListener('DOMContentLoaded', function () {
+  updateAdminTopbarClock();
+  setInterval(updateAdminTopbarClock, 30000);
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.CURRENT_USER) {
+    const name = document.getElementById('sidebarUser');
+    const role = document.getElementById('sidebarRole');
+    const avatar = document.getElementById('userAvatarChip');
+    const chip = document.getElementById('userNameChip');
+    if (name) name.textContent = window.CURRENT_USER.fullName || window.CURRENT_USER.username || 'Admin';
+    if (role) role.textContent = 'Administrator';
+    if (avatar) avatar.textContent = (window.CURRENT_USER.fullName || 'A').charAt(0).toUpperCase();
+    if (chip) chip.textContent = window.CURRENT_USER.fullName || window.CURRENT_USER.username || 'Admin';
+  }
+});
+
+let __inqCurrentId = null;
+let __inqList = [];
+let __inqOriginalReply = "";
+let __inqLoading = false;
+let __inqError = null;
+let __inqBusy = false;
+
+const __INQ_STATUS = {
+  new:      { dbValue: 'new',      wire: 'new',      display: 'new',         filter: 'new',         label: 'New' },
+  read:     { dbValue: 'read',     wire: 'read',     display: 'in_progress', filter: 'in_progress', label: 'In Progress' },
+  replied:  { dbValue: 'replied',  wire: 'replied',  display: 'replied',     filter: 'replied',     label: 'Replied' },
+  resolved: { dbValue: 'resolved', wire: 'resolved', display: 'resolved',    filter: 'resolved',    label: 'Resolved' }
+};
+
+function __inqStatusKey(raw) {
+  const s = String(raw || 'new').toLowerCase().trim();
+  if (__INQ_STATUS[s]) return s;
+  for (const k of Object.keys(__INQ_STATUS)) {
+    if (__INQ_STATUS[k].display === s || __INQ_STATUS[k].filter === s) return k;
+  }
+  return 'new';
+}
+function __inqStatusInfo(raw) { return __INQ_STATUS[__inqStatusKey(raw)]; }
+
+function __inqEscape(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function __inqFormatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString('en-PH', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit'
+  });
+}
+
+function __inqUpdateSidebarBadge() {
+  const newCount = __inqList.filter(i => __inqStatusKey(i.status) === 'new').length;
+  const badge = document.getElementById('inquirySidebarBadge');
+  if (!badge) return;
+  badge.textContent = newCount;
+  badge.hidden = newCount === 0;
+}
+
+function renderInquiryStats(list) {
+  const counts = { new: 0, read: 0, replied: 0, resolved: 0 };
+  list.forEach(i => { counts[__inqStatusKey(i.status)]++; });
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('inqStatTotal',    list.length);
+  set('inqStatNew',      counts.new);
+  set('inqStatReplied',  counts.replied);
+  set('inqStatResolved', counts.resolved);
+}
+
+function renderInquiries() {
+  const table   = document.getElementById('inquiryTable');
+  const counter = document.getElementById('inquiryCount');
+  if (!table) return;
+
+  if (__inqLoading) {
+    table.innerHTML = '<tr><td colspan="6"><div class="empty-inline">' +
+      '<i class="fas fa-spinner fa-spin" style="margin-right:.4rem;"></i> Loading inquiries…' +
+      '</div></td></tr>';
+    if (counter) counter.textContent = '…';
+    return;
+  }
+
+  if (__inqError) {
+    table.innerHTML = '<tr><td colspan="6"><div class="empty-state py-6">' +
+      '<i class="fas fa-triangle-exclamation" style="color:var(--red);"></i>' +
+      '<h3>Could not load inquiries</h3>' +
+      '<p class="text-sm">' + __inqEscape(__inqError) + '</p>' +
+      '<button class="btn-outline btn-sm" style="margin-top:.75rem;" ' +
+        'onclick="refreshInquiries()"><i class="fas fa-sync"></i> Retry</button>' +
+      '</div></td></tr>';
+    if (counter) counter.textContent = '0';
+    return;
+  }
+
+  const filterValue = document.getElementById('inquiryStatusFilter')?.value || '';
+  const search      = (document.getElementById('inquirySearch')?.value || '').toLowerCase().trim();
+
+  renderInquiryStats(__inqList);
+  __inqUpdateSidebarBadge();
+
+  let list = __inqList.slice();
+  list.sort((a, b) => new Date(b.receivedAt || 0) - new Date(a.receivedAt || 0));
+
+  if (filterValue) list = list.filter(i => __inqStatusInfo(i.status).filter === filterValue);
+  if (search) {
+    list = list.filter(i =>
+      (i.name    || '').toLowerCase().includes(search) ||
+      (i.email   || '').toLowerCase().includes(search) ||
+      (i.subject || '').toLowerCase().includes(search) ||
+      (i.message || '').toLowerCase().includes(search));
+  }
+
+  if (counter) counter.textContent = list.length;
+
+  if (!list.length) {
+    const filtered = !!(filterValue || search);
+    table.innerHTML = '<tr><td colspan="6"><div class="empty-state py-6">' +
+      '<i class="fas fa-inbox"></i>' +
+      '<h3>' + (filtered ? 'No matching inquiries' : 'No inquiries yet') + '</h3>' +
+      '<p class="text-sm">' +
+        (filtered ? 'Try clearing filters or search.' : 'Public and driver messages will appear here.') +
+      '</p></div></td></tr>';
+    return;
+  }
+
+  table.innerHTML = list.map(inq => {
+    const info    = __inqStatusInfo(inq.status);
+    const preview = (inq.message || '').length > 70 ? inq.message.slice(0, 70) + '…' : (inq.message || '');
+    return '<tr>' +
+      '<td>' + __inqEscape(__inqFormatDate(inq.receivedAt)) + '</td>' +
+      '<td><div class="inq-subject">' + __inqEscape(inq.name || 'Anonymous') + '</div>' +
+        '<div class="inq-email">' + __inqEscape(inq.email || '—') + '</div></td>' +
+      '<td><strong>' + __inqEscape(inq.subject || '—') + '</strong></td>' +
+      '<td><div class="inq-preview">' + __inqEscape(preview) + '</div></td>' +
+      '<td><span class="inq-status ' + info.display + '">' + __inqEscape(info.label) + '</span></td>' +
+      '<td><button class="btn-primary btn-sm" onclick="openInquiry(\'' + __inqEscape(inq.id) + '\')">' +
+        '<i class="fas fa-eye"></i> View</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+async function __refreshInquiries(showSuccess = false) {
+  __inqLoading = true; __inqError = null; renderInquiries();
+  try {
+    const result = await window.api('inquiries.php');
+    if (!result || !result.success || !result.data || !Array.isArray(result.data.inquiries)) {
+      __inqLoading = false;
+      __inqError = (result && result.message) || 'Inquiries could not be loaded.';
+      renderInquiries();
+      if (typeof showToast === 'function') showToast(__inqError, 'error');
+      return false;
+    }
+    __inqList = result.data.inquiries;
+    __inqLoading = false; __inqError = null;
+    renderInquiries();
+    if (showSuccess && typeof showToast === 'function') showToast('Inquiries refreshed.', 'success');
+    if (typeof window.loadNotifications === 'function') window.loadNotifications();
+    return true;
+  } catch (err) {
+    console.error('Inquiry load failed:', err);
+    __inqLoading = false;
+    __inqError = 'Network error. Please check your connection.';
+    renderInquiries();
+    if (typeof showToast === 'function') showToast(__inqError, 'error');
+    return false;
+  }
+}
+
+async function openInquiry(id) {
+  let inq = __inqList.find(i => i.id === id);
+  if (!inq) return;
+  __inqCurrentId = id;
+  const dbStatus = __inqStatusKey(inq.status);
+  if (dbStatus === 'new') {
+    try {
+      const res = await window.api('inquiries.php', { method: 'PATCH', body: { id, status: __INQ_STATUS.read.wire } });
+      if (res && res.success && res.data && res.data.inquiry) {
+        inq = res.data.inquiry;
+        __inqList = __inqList.map(item => item.id === id ? inq : item);
+        renderInquiries();
+      }
+    } catch (err) { console.warn('Auto-bump network error:', err); }
+  }
+  document.getElementById('inqModalName').textContent    = inq.name || 'Anonymous';
+  document.getElementById('inqModalEmail').textContent   = inq.email || '—';
+  document.getElementById('inqModalSubject').textContent = inq.subject || '—';
+  document.getElementById('inqModalBody').textContent    = inq.message || '—';
+  document.getElementById('inqModalDate').textContent    = __inqFormatDate(inq.receivedAt);
+  document.getElementById('inqModalType').textContent    = inq.topic || inq.subject || 'General';
+  const info = __inqStatusInfo(inq.status);
+  const statusEl = document.getElementById('inqModalStatus');
+  statusEl.className = 'inq-status ' + info.display;
+  statusEl.textContent = info.label.toUpperCase();
+  const replyEl = document.getElementById('inqReplyText');
+  replyEl.value = inq.reply || '';
+  __inqOriginalReply = replyEl.value;
+  __renderPreviousResponse(inq);
+  openModal('inquiryModal');
+}
+
+function __renderPreviousResponse(inq) {
+  let wrap = document.getElementById('inqResponseHistory');
+  const form = document.querySelector('.inq-reply-form');
+  if (!form) return;
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'inqResponseHistory';
+    wrap.style.cssText = 'margin:.75rem 0;';
+    form.parentNode.insertBefore(wrap, form);
+  }
+  if (!inq.reply || !inq.repliedAt) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML =
+    '<div class="section-mini-title"><i class="fas fa-comments"></i> Previous Response</div>' +
+    '<div style="background:var(--maroon-tint);border-left:3px solid var(--maroon);' +
+         'padding:.6rem .75rem;border-radius:.5rem;margin-bottom:.5rem;">' +
+      '<div style="font-size:.7rem;color:var(--text-mid);margin-bottom:.2rem;">' +
+        '<strong>Admin</strong> · ' + __inqEscape(__inqFormatDate(inq.repliedAt)) + '</div>' +
+      '<div style="font-size:.82rem;white-space:pre-wrap;">' + __inqEscape(inq.reply) + '</div>' +
+    '</div>';
+}
+
+async function __inqPatch(body, successMessage) {
+  if (!__inqCurrentId) return false;
+  if (__inqBusy) { if (typeof showToast === 'function') showToast('Please wait…', 'warning'); return false; }
+  __inqBusy = true;
+  try {
+    const res = await window.api('inquiries.php', { method: 'PATCH', body: { id: __inqCurrentId, ...body } });
+    if (!res || !res.success || !res.data || !res.data.inquiry) {
+      const msg = (res && res.message) || 'Inquiry could not be saved.';
+      if (typeof showToast === 'function') showToast(msg, 'error');
+      return false;
+    }
+    const updated = res.data.inquiry;
+    __inqList = __inqList.map(item => item.id === updated.id ? updated : item);
+    renderInquiries();
+    if (typeof showToast === 'function') showToast(successMessage, 'success');
+    if (typeof window.loadNotifications === 'function') window.loadNotifications();
+    closeModal('inquiryModal');
+    return true;
+  } catch (err) {
+    console.error('Inquiry update failed:', err);
+    if (typeof showToast === 'function') showToast('Network error saving inquiry.', 'error');
+    return false;
+  } finally { __inqBusy = false; }
+}
+
+function saveInquiryReply() {
+  const reply = document.getElementById('inqReplyText').value.trim();
+  if (!reply) { if (typeof showToast === 'function') showToast('Enter a response before saving.', 'error'); return; }
+  return __inqPatch({ reply }, 'Response saved.');
+}
+
+function resolveInquiry() {
+  const replyEl = document.getElementById('inqReplyText');
+  const typed   = replyEl.value.trim();
+  const hasUnsaved = typed && typed !== __inqOriginalReply;
+  if (hasUnsaved) {
+    if (window.ConfirmModal) {
+      window.ConfirmModal.show({
+        title: 'Unsaved response',
+        message: 'You have unsaved response text. Resolving without saving will discard the typed text.',
+        confirmText: 'Resolve without saving',
+        cancelText: 'Cancel',
+        onConfirm: () => __inqPatch({ status: __INQ_STATUS.resolved.wire }, 'Inquiry marked as resolved.')
+      });
+      return;
+    }
+  }
+  return __inqPatch({ status: __INQ_STATUS.resolved.wire }, 'Inquiry marked as resolved.');
+}
+
+function closeInquiryModalSafe() {
+  const current = document.getElementById('inqReplyText')?.value.trim() || '';
+  if (current && current !== __inqOriginalReply) {
+    if (window.ConfirmModal) {
+      window.ConfirmModal.show({
+        title: 'Discard unsaved changes?',
+        message: 'Your response text has not been saved. Close anyway?',
+        confirmText: 'Discard', cancelText: 'Keep editing',
+        onConfirm: () => closeModal('inquiryModal')
+      });
+      return;
+    }
+    if (!confirm('Discard unsaved response?')) return;
+  }
+  closeModal('inquiryModal');
+}
+
+function __wireInqStatCard(cardId, filterKey) {
+  const el = document.getElementById(cardId)?.closest('.kpi-tile');
+  if (!el) return;
+  el.style.cursor = 'pointer';
+  el.addEventListener('click', () => {
+    const sf = document.getElementById('inquiryStatusFilter');
+    if (sf) sf.value = filterKey;
+    renderInquiries();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.sidebar-item[data-page="inquiries"]').forEach(btn => {
+    btn.addEventListener('click', function () { __refreshInquiries(); });
+  });
+  __wireInqStatCard('inqStatTotal',    '');
+  __wireInqStatCard('inqStatNew',      __INQ_STATUS.new.filter);
+  __wireInqStatCard('inqStatReplied',  __INQ_STATUS.replied.filter);
+  __wireInqStatCard('inqStatResolved', __INQ_STATUS.resolved.filter);
+  __refreshInquiries();
+});
+
+window.renderInquiries       = renderInquiries;
+window.openInquiry           = openInquiry;
+window.saveInquiryReply      = saveInquiryReply;
+window.resolveInquiry        = resolveInquiry;
+window.closeInquiryModalSafe = closeInquiryModalSafe;
+window.refreshInquiries      = function () { return __refreshInquiries(true); };
+
+let __assignStaff = [];
+let __assignStations = [];
+let __assignList = [];
+
+async function loadStaffAssignments() {
+  const tb = document.getElementById('assignTable');
+  if (tb) tb.innerHTML = '<tr><td colspan="6"><div class="empty-inline">Loading…</div></td></tr>';
+  try {
+    const res = await window.api('station_assignments.php');
+    if (!res || !res.success) {
+      if (tb) tb.innerHTML = '<tr><td colspan="6"><div class="empty-inline">Could not load assignments.</div></td></tr>';
+      return;
+    }
+    __assignStaff    = res.data.staff       || [];
+    __assignStations = res.data.stations    || [];
+    __assignList     = res.data.assignments || [];
+    renderAssignTable();
+    populateAssignDropdowns();
+  } catch (e) {
+    console.error('loadStaffAssignments:', e);
+    if (tb) tb.innerHTML = '<tr><td colspan="6"><div class="empty-inline">Network error.</div></td></tr>';
+  }
+}
+window.loadStaffAssignments = loadStaffAssignments;
+
+function renderAssignTable() {
+  const tb = document.getElementById('assignTable');
+  const counter = document.getElementById('assignCount');
+  if (counter) counter.textContent = __assignList.length;
+  if (!tb) return;
+  if (!__assignList.length) {
+    tb.innerHTML = '<tr><td colspan="6"><div class="empty-state py-6"><i class="fas fa-user-shield"></i><h3>No assignments yet</h3><p class="text-sm">Click "Assign Staff" to create the first one.</p></div></td></tr>';
+    return;
+  }
+  tb.innerHTML = __assignList.map(a => `
+    <tr>
+      <td><div class="font-medium">${escapeHtml(a.staffName)}</div>
+          <div class="text-xs text-gray-500">@${escapeHtml(a.username)}</div></td>
+      <td><span class="status-badge successful">${escapeHtml(a.role)}</span></td>
+      <td><span class="font-mono font-bold">${escapeHtml(a.stationCode)}</span></td>
+      <td>${escapeHtml(a.stationName)}</td>
+      <td class="text-sm">${formatAssignDate(a.assignedAt)}</td>
+      <td><button class="btn-danger btn-sm" onclick="removeAssignment(${a.id})" title="Remove"><i class="fas fa-trash"></i></button></td>
+    </tr>
+  `).join('');
+}
+window.renderAssignTable = renderAssignTable;
+
+function populateAssignDropdowns() {
+  const staffSel = document.getElementById('assignStaffId');
+  const stSel    = document.getElementById('assignStationId');
+  if (staffSel) {
+    staffSel.innerHTML = '<option value="">— Select staff —</option>' +
+      __assignStaff.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.fullName)} (${escapeHtml(s.role)})</option>`).join('');
+  }
+  if (stSel) {
+    stSel.innerHTML = '<option value="">— Select station —</option>' +
+      __assignStations.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.code)} · ${escapeHtml(s.name)}</option>`).join('');
+  }
+}
+window.populateAssignDropdowns = populateAssignDropdowns;
+
+function formatAssignDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function openAssignModal() {
+  const form = document.getElementById('assignForm');
+  if (form) form.reset();
+  populateAssignDropdowns();
+  openModal('assignModal');
+}
+window.openAssignModal = openAssignModal;
+
+async function saveAssignment(e) {
+  e.preventDefault();
+  const staffId   = document.getElementById('assignStaffId').value;
+  const stationId = document.getElementById('assignStationId').value;
+  if (!staffId || !stationId) {
+    if (typeof showToast === 'function') showToast('Select both staff and station.', 'error');
+    return;
+  }
+  try {
+    const res = await window.api('station_assignments.php', {
+      method: 'POST', body: { staffId, stationId }
+    });
+    if (res && res.success) {
+      if (typeof showToast === 'function') showToast(res.message || 'Assigned.', 'success');
+      closeModal('assignModal');
+      loadStaffAssignments();
+    } else {
+      if (typeof showToast === 'function') showToast(res?.message || 'Assignment failed.', 'error');
+    }
+  } catch (err) {
+    console.error('saveAssignment:', err);
+    if (typeof showToast === 'function') showToast('Network error.', 'error');
+  }
+}
+window.saveAssignment = saveAssignment;
+
+async function removeAssignment(id) {
+  if (!id) return;
+  const proceed = async () => {
+    try {
+      const res = await window.api('station_assignments.php', { method: 'DELETE', query: { id } });
+      if (res && res.success) {
+        if (typeof showToast === 'function') showToast('Assignment removed.', 'success');
+        loadStaffAssignments();
+      } else {
+        if (typeof showToast === 'function') showToast(res?.message || 'Remove failed.', 'error');
+      }
+    } catch (err) { console.error(err); }
+  };
+  if (window.ConfirmModal) {
+    window.ConfirmModal.show({
+      title: 'Remove Assignment?',
+      message: 'The staff member will no longer be able to process transactions at this station.',
+      confirmText: 'Remove', cancelText: 'Cancel', onConfirm: proceed
+    });
+  } else if (confirm('Remove this assignment?')) proceed();
+}
+window.removeAssignment = removeAssignment;
+
+async function viewStationTransactions() {
+  if (!selectedTerminal) {
+    if (typeof showToast === 'function') showToast('Select a station first.', 'warning');
+    return;
+  }
+  const stationId = selectedTerminal.id;
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById('page-station-transactions');
+  if (target) target.classList.add('active');
+  const topbar = document.getElementById('topbarCurrentPage');
+  if (topbar) topbar.textContent = 'Station Transactions';
+  const title = document.getElementById('stationTxnTitle');
+  if (title) title.textContent = selectedTerminal.code + ' · ' + selectedTerminal.name;
+  const tbody = document.getElementById('stationTxnTable');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="8"><div class="empty-inline">Loading…</div></td></tr>';
+  try {
+    const res = await window.api('station_transactions.php', { query: { stationId, limit: 500 } });
+    if (!res || !res.success) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8"><div class="empty-inline">Could not load.</div></td></tr>';
+      return;
+    }
+    const list = res.data.transactions || [];
+    const summary = res.data.summary || {};
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('stTxnTotalCount',   summary.totalCount   ?? 0);
+    set('stTxnSuccessCount', summary.successCount ?? 0);
+    set('stTxnFailedCount',  summary.failedCount  ?? 0);
+    set('stTxnTotalFees',    '₱' + Number(summary.totalFees  || 0).toFixed(2));
+    set('stTxnTotalLoads',   '₱' + Number(summary.totalLoads || 0).toFixed(2));
+    if (!list.length) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state py-6"><i class="fas fa-receipt"></i><h3>No transactions yet</h3><p class="text-sm">No activity recorded at this station.</p></div></td></tr>';
+      return;
+    }
+    if (tbody) tbody.innerHTML = list.map(t => `
+      <tr>
+        <td class="text-sm">${escapeHtml(t.date)} ${escapeHtml(t.time)}</td>
+        <td class="font-mono text-xs">${escapeHtml(t.referenceNumber)}</td>
+        <td>${escapeHtml(t.driverName || '—')}</td>
+        <td>${escapeHtml(t.vehicleType || '—')}</td>
+        <td><span class="type-badge ${t.type === 'LOAD' ? 'load' : 'fee'}">${escapeHtml(t.type)}</span></td>
+        <td class="font-bold ${t.type === 'LOAD' ? 'text-green' : 'text-primary'}">
+          ${t.type === 'LOAD' ? '+' : '-'}₱${Number(t.amount).toFixed(2)}
+        </td>
+        <td><span class="status-badge ${t.status === 'SUCCESSFUL' ? 'successful' : 'failed'}">${escapeHtml(t.status)}</span></td>
+        <td>${escapeHtml(t.processedBy || '—')}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error('viewStationTransactions:', err);
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8"><div class="empty-inline">Network error.</div></td></tr>';
+  }
+}
+window.viewStationTransactions = viewStationTransactions;
+
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('.sidebar-item[data-page="staff-assignments"]');
+  if (btn && typeof loadStaffAssignments === 'function') {
+    setTimeout(loadStaffAssignments, 100);
+  }
+});
+</script>
+
+</body>
+</html>

@@ -1,8 +1,3 @@
-/* ============================================================
-   BORONGAN TRANSPORT — Unified Login (admin · cashier · staff · driver)
-   The server decides the role; we just follow data.redirect.
-   Needs assets/js/guard.js (for window.api) loaded first.
-   ============================================================ */
 (function () {
     "use strict";
 

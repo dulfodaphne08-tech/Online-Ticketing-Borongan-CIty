@@ -10,23 +10,19 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <link rel="stylesheet" href="assets/css/confirm-modal.css?v=20260930b" />
-    <link rel="stylesheet" href="assets/css/driver-dashboard.css?v=20261004" />
+    <link rel="stylesheet" href="assets/css/driver-dashboard.css?v=20261025" />
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
-
-<button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
-    <i class="fas fa-bars"></i>
-</button>
 
 <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
@@ -34,31 +30,35 @@
     <div class="sidebar-brand">
         <div class="logo-circle">
             <img src="images/borongan-logo.jpg" alt="Borongan Transport"
-                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%23b22234%22/%3E%3Ctext x=%2250%22 y=%2255%22 font-size=%2240%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22sans-serif%22 font-weight=%22bold%22%3EB%3C/text%3E%3C/svg%3E'">
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2250%22 fill=%22%23b22234%22/%3E%3Ctext x=%2250%22 y=%2255%22 font-size=%2240%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22sans-serif%22 font-weight=%22bold%22%3EB%3C/text%3E%3C/svg%3E'">
         </div>
-        <div>
-            <div class="brand-title">DRIVER DASHBOARD</div>
+        <div class="brand-text">
+            <div class="brand-title">DRIVER PANEL</div>
             <div class="brand-subtitle">Borongan Transport</div>
         </div>
     </div>
 
     <div class="sidebar-scroll">
+        <div class="sidebar-section-title">Main</div>
         <button class="sidebar-item active" data-page="dashboard">
             <i class="fa-solid fa-gauge-high"></i><span>Dashboard</span>
         </button>
 
         <div class="sidebar-section-title">My Information</div>
-        <button class="sidebar-item" data-page="qr">
-            <i class="fa-solid fa-id-card"></i><span>Driver ID</span>
+        <button class="sidebar-item" data-page="profile">
+            <i class="fa-solid fa-user"></i><span>My Profile</span>
         </button>
         <button class="sidebar-item" data-page="vehicle">
-            <i class="fa-solid fa-car"></i><span>Vehicle Information</span>
+            <i class="fa-solid fa-car"></i><span>My Vehicle</span>
         </button>
-        <button class="sidebar-item" data-page="stations">
-            <i class="fa-solid fa-map-location-dot"></i><span>Stations &amp; Checkpoints</span>
+        <button class="sidebar-item" data-page="emergency">
+            <i class="fa-solid fa-kit-medical"></i><span>Emergency Contact</span>
         </button>
 
-        <div class="sidebar-section-title">My QR</div>
+        <div class="sidebar-section-title">Identification</div>
+        <button class="sidebar-item" data-page="qr">
+            <i class="fa-solid fa-id-card"></i><span>My Driver ID</span>
+        </button>
         <button class="sidebar-item" data-page="myqr">
             <i class="fa-solid fa-qrcode"></i><span>My QR Code</span>
         </button>
@@ -73,152 +73,213 @@
 
         <div class="sidebar-section-title">Transactions</div>
         <button class="sidebar-item" data-page="payments">
-            <i class="fa-solid fa-receipt"></i><span>Transaction History</span>
+            <i class="fa-solid fa-receipt"></i><span>Transactions</span>
+        </button>
+
+        <div class="sidebar-section-title">Stations</div>
+        <button class="sidebar-item" data-page="stations">
+            <i class="fa-solid fa-map-location-dot"></i><span>Stations &amp; Checkpoints</span>
         </button>
 
         <div class="sidebar-section-title">Account</div>
+        <button class="sidebar-item" data-page="myinquiries">
+            <i class="fa-solid fa-envelope-open-text"></i><span>My Requests</span>
+            <span class="sidebar-badge" id="driverInquiryBadge" hidden>0</span>
+        </button>
         <button class="sidebar-item" data-page="notifications">
             <i class="fa-solid fa-bell"></i><span>Notifications</span>
             <span class="sidebar-badge" id="driverNotificationBadge" hidden>0</span>
         </button>
-        <button class="sidebar-item" data-page="profile">
-            <i class="fa-solid fa-user"></i><span>My Profile</span>
+        <button class="sidebar-item" data-page="account">
+            <i class="fa-solid fa-gear"></i><span>Account</span>
         </button>
 
+        <div class="sidebar-section-title">Session</div>
         <button class="sidebar-item sidebar-item-logout" onclick="logout()">
             <i class="fa-solid fa-right-from-bracket"></i><span>Logout</span>
         </button>
     </div>
+
+<div class="sidebar-foot">
+    <div class="sidebar-foot-label">Signed in as</div>
+    <div class="sidebar-foot-name" id="sidebarDriverName">—</div>
+</div>
 </nav>
 
 <main class="main-content">
 
-    <div class="admin-notification" id="driverNotification">
-        <button type="button" class="notification-bell" id="driverNotificationBell"
-                aria-label="Open notifications" aria-expanded="false" aria-controls="driverNotificationPanel">
-            <i class="fas fa-bell" aria-hidden="true"></i>
-            <span class="notification-badge" id="driverNotificationBadgeBell" hidden>0</span>
-        </button>
-        <section class="notification-panel" id="driverNotificationPanel" aria-label="Notifications" hidden>
-            <div class="notification-panel__header">
-                <h2>Notifications</h2>
-                <button type="button" class="notification-panel__mark" id="markDriverNotificationsRead">Mark all read</button>
+    <header class="topbar">
+        <div class="topbar-left">
+            <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="breadcrumb">
+                <i class="fa-solid fa-house"></i>
+                <span>Home</span>
+                <i class="fa-solid fa-chevron-right"></i>
+                <span>Driver</span>
+                <i class="fa-solid fa-chevron-right"></i>
+                <strong id="topbarCurrentPage">Dashboard</strong>
             </div>
-            <div class="notification-list" id="driverNotificationList" role="list">
-                <div class="notification-empty">No notifications yet.</div>
+        </div>
+        <div class="topbar-right">
+            <div class="topbar-datetime">
+                <i class="fa-regular fa-calendar"></i>
+                <span id="topbarDateTime">—</span>
             </div>
-        </section>
-    </div>
+            <span id="syncIndicator" class="sync-indicator">
+                <span class="dot"></span> Live
+            </span>
+            <div class="notif-wrapper" id="driverNotification">
+                <button type="button" class="topbar-icon-btn" id="driverNotificationBell"
+                        aria-label="Open notifications" aria-expanded="false">
+                    <i class="fas fa-bell"></i>
+                    <span class="notif-dot" id="driverNotificationBadgeBell" hidden>0</span>
+                </button>
+                <section class="notification-panel" id="driverNotificationPanel" hidden>
+                    <div class="notification-panel__header">
+                        <h2>Notifications</h2>
+                        <button type="button" class="notification-panel__mark" id="markDriverNotificationsRead">
+                            Mark all read
+                        </button>
+                    </div>
+                    <div class="notification-list" id="driverNotificationList" role="list">
+                        <div class="notification-empty">No notifications yet.</div>
+                    </div>
+                </section>
+            </div>
+            <div class="user-chip">
+                <div class="user-avatar" id="userAvatarChip">D</div>
+                <div class="user-info">
+                    <div class="user-name" id="userNameChip">Driver</div>
+                    <div class="user-role">Driver Account</div>
+                </div>
+                <i class="fa-solid fa-chevron-down user-caret"></i>
+            </div>
+        </div>
+    </header>
 
-     <section id="page-dashboard" class="page-section active">
-        <div class="dashboard-header">
-            <div class="greeting">
-                <h1>Dashboard</h1>
-                <p>Welcome back, <span class="font-semibold text-primary" id="driverName">Driver</span>
-                   · Last updated: <span id="lastUpdatedTime">--</span></p>
+    <section id="page-dashboard" class="page-section active">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title" id="welcomeHeading">Welcome, Driver</h1>
+                <p class="page-subtitle">Here's your prepaid wallet summary and recent activity.</p>
             </div>
-            <div class="header-right">
-                <span id="syncIndicator" class="sync-indicator"></span>
+            <div class="page-header-actions">
                 <button class="btn-outline btn-sm" id="refreshBalanceBtn">
                     <i class="fas fa-rotate"></i> Refresh
+                </button>
+                <button class="btn-primary btn-sm" onclick="navigateTo('myqr')">
+                    <i class="fas fa-qrcode"></i> Show My QR
                 </button>
             </div>
         </div>
 
-        <div class="balance-hero">
-            <div class="bh-left">
-                <div class="bh-avatar" id="profilePhoto">D</div>
-                <div>
-                    <div class="bh-label">Current Balance</div>
-                    <div class="bh-amount" id="heroBalance">₱0.00</div>
-                    <div class="bh-meta">
-                        <span id="heroVehicle">—</span> ·
-                        Status: <strong id="heroStatus">Active</strong> ·
-                        Fee: <strong id="heroFee">₱0.00</strong>
-                    </div>
+        <div class="kpi-row kpi-row-5">
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Current Balance</div>
+                    <div class="kpi-value" id="kpiBalance">₱0.00</div>
+                    <div class="kpi-delta" id="kpiBalanceDelta">Prepaid wallet</div>
                 </div>
+                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-wallet"></i></div>
             </div>
-            <button class="btn-hero" onclick="navigateTo('myqr')">
-                <i class="fas fa-qrcode"></i> Show My QR
-            </button>
-        </div>
-
-        <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-            <span id="paymentStatusBadge" class="status-badge neutral">No activity today</span>
-            <span style="font-size:.85rem;color:#64748b;">
-                Fee per trip: <strong id="feePerTripValue">₱0.00</strong>
-            </span>
-        </div>
-
-        <div id="notificationBanner" class="mb-4"></div>
-
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-card-row">
-                    <div>
-                        <div class="label">Current Balance</div>
-                        <div class="value" id="statBalance">₱0.00</div>
-                    </div>
-                    <div class="stat-icon stat-icon-green"><i class="fas fa-wallet"></i></div>
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Today's Transactions</div>
+                    <div class="kpi-value" id="kpiTodayTrips">0</div>
+                    <div class="kpi-delta" id="kpiTodayTripsDelta">Terminal visits today</div>
                 </div>
+                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-receipt"></i></div>
             </div>
-            <div class="stat-card">
-                <div class="stat-card-row">
-                    <div>
-                        <div class="label">Today's Trips</div>
-                        <div class="value" id="todayTrips">0</div>
-                        <div class="sub">Terminal visits</div>
-                    </div>
-                    <div class="stat-icon stat-icon-blue"><i class="fas fa-receipt"></i></div>
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Today's Fees</div>
+                    <div class="kpi-value" id="kpiTodayFees">₱0.00</div>
+                    <div class="kpi-delta" id="kpiTodayFeesDelta">Total fees today</div>
                 </div>
+                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-money-bill-wave"></i></div>
             </div>
-            <div class="stat-card">
-                <div class="stat-card-row">
-                    <div>
-                        <div class="label">Today's Fees</div>
-                        <div class="value" id="todayFees">₱0.00</div>
-                    </div>
-                    <div class="stat-icon stat-icon-purple"><i class="fas fa-money-bill-wave"></i></div>
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Vehicle Status</div>
+                    <div class="kpi-value" id="kpiVehicleStatus">ACTIVE</div>
+                    <div class="kpi-delta" id="kpiVehiclePlate">—</div>
                 </div>
+                <div class="kpi-icon kpi-icon-green"><i class="fas fa-car"></i></div>
             </div>
-            <div class="stat-card">
-                <div class="stat-card-row">
-                    <div>
-                        <div class="label">Vehicle Status</div>
-                        <div class="value" style="font-size:1.25rem;" id="statVehicleStatus">ACTIVE</div>
-                        <div class="sub" id="statPlate">—</div>
-                    </div>
-                    <div class="stat-icon stat-icon-red"><i class="fas fa-car"></i></div>
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Account Status</div>
+                    <div class="kpi-value" id="kpiAccountStatus">—</div>
+                    <div class="kpi-delta">Driver account</div>
                 </div>
+                <div class="kpi-icon kpi-icon-teal"><i class="fas fa-circle-check"></i></div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-            <div class="table-card">
-                <h3 class="font-bold text-gray-800 text-sm mb-3">
-                    <i class="fas fa-chart-simple text-primary"></i> Last 7 Days — Fees Paid
-                </h3>
-                <div id="miniChart" class="mini-chart"></div>
-            </div>
+        <div id="notificationBanner"></div>
 
-             <div class="table-card">
-                <h3 class="font-bold text-gray-800 text-sm mb-3">
-                    <i class="fas fa-clock-rotate-left text-primary"></i> Recent Activities
-                </h3>
-                <div id="recentActivities" class="space-y-2 max-h-[240px] overflow-y-auto pr-1">
-                    <div class="text-center py-4 text-gray-400 text-sm">No recent activities</div>
+        <div class="chart-grid">
+            <div class="card">
+                <div class="card-head">
+                    <h3 class="card-title"><i class="fas fa-chart-simple"></i> Fees Paid — Last 7 Days</h3>
+                    <span class="card-sub" id="chartRangeLabel">—</span>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="feesChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <h3 class="card-title"><i class="fas fa-chart-pie"></i> Wallet Composition</h3>
+                    <span class="card-sub">Where your money has gone</span>
+                </div>
+                <div class="chart-wrap chart-wrap-donut">
+                    <canvas id="walletDonut"></canvas>
+                    <div class="donut-legend" id="donutLegend"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="two-col">
+            <div class="card">
+                <div class="card-head">
+                    <h3 class="card-title"><i class="fas fa-bolt"></i> Quick Actions</h3>
+                </div>
+                <div class="quick-actions">
+                    <button class="qa-btn" onclick="navigateTo('qr')">
+                        <i class="fa-solid fa-id-card"></i><span>Driver ID</span>
+                    </button>
+                    <button class="qa-btn" onclick="navigateTo('myqr')">
+                        <i class="fa-solid fa-qrcode"></i><span>QR Code</span>
+                    </button>
+                    <button class="qa-btn" onclick="navigateTo('balance')">
+                        <i class="fa-solid fa-wallet"></i><span>Balance</span>
+                    </button>
+                    <button class="qa-btn" onclick="navigateTo('payments')">
+                        <i class="fa-solid fa-receipt"></i><span>Transactions</span>
+                    </button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <h3 class="card-title"><i class="fas fa-clock-rotate-left"></i> Recent Activity</h3>
+                </div>
+                <div id="recentActivities" class="activity-list">
+                    <div class="empty-inline">No recent activity</div>
                 </div>
             </div>
         </div>
     </section>
 
-     <section id="page-qr" class="page-section">
-        <div class="dashboard-header">
-            <div class="greeting">
-                <h1>Driver ID</h1>
-                <p>Your digital identification card</p>
+    <section id="page-qr" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">My Driver ID</h1>
+                <p class="page-subtitle">Your digital identification card</p>
             </div>
-            <div class="header-right">
+            <div class="page-header-actions">
                 <button class="btn-outline btn-sm" onclick="downloadQRFull()">
                     <i class="fas fa-download"></i> Download
                 </button>
@@ -228,45 +289,52 @@
             </div>
         </div>
 
-        <div class="digital-id-card">
-            <div class="id-header">
-                <div class="id-logo">
-                    <img src="images/borongan-logo.jpg" alt="" onerror="this.style.display='none'">
+        <div class="id-card-wrap">
+            <div class="digital-id-card">
+                <div class="id-header">
+                    <div class="id-logo">
+                        <img src="images/borongan-logo.jpg" alt="" onerror="this.style.display='none'">
+                    </div>
+                    <div class="id-org">Borongan City Transport Terminal</div>
+                    <div class="id-kind">Driver ID</div>
                 </div>
-                <div class="id-org">Borongan City Transport Terminal</div>
-                <div class="id-kind">Driver ID</div>
-            </div>
-            <div class="id-body">
-                <div class="id-avatar" id="photoDisplayLarge">D</div>
-                <div class="id-name" id="displayName">—</div>
-                <div class="id-regno" id="displayRegNumber">—</div>
-                <span class="id-badge" id="displayIdBadge">—</span>
+                <div class="id-body">
+                    <div class="id-avatar" id="photoDisplayLarge">D</div>
+                    <div class="id-name" id="displayName">—</div>
+                    <div class="id-regno" id="displayRegNumber">—</div>
+                    <span class="id-badge" id="displayIdBadge">—</span>
 
-                <div class="id-grid">
-                    <div><span class="k">Birthdate</span><span class="v" id="displayBirthdate">—</span></div>
-                    <div><span class="k">Gender</span><span class="v" id="displayGender">—</span></div>
-                    <div><span class="k">Contact</span><span class="v" id="displayContact">—</span></div>
-                    <div><span class="k">Vehicle</span><span class="v" id="displayVehicle">—</span></div>
-                    <div><span class="k">Plate</span><span class="v" id="displayPlate">—</span></div>
-                    <div><span class="k">Body No.</span><span class="v" id="displayBodyNumber">—</span></div>
-                </div>
+                    <div class="id-grid">
+                        <div><span class="k">Birthdate</span><span class="v" id="displayBirthdate">—</span></div>
+                        <div><span class="k">Gender</span><span class="v" id="displayGender">—</span></div>
+                        <div><span class="k">Contact</span><span class="v" id="displayContact">—</span></div>
+                        <div><span class="k">Vehicle</span><span class="v" id="displayVehicle">—</span></div>
+                        <div><span class="k">Plate</span><span class="v" id="displayPlate">—</span></div>
+                        <div><span class="k">Body No.</span><span class="v" id="displayBodyNumber">—</span></div>
+                        <div><span class="k">Classification</span><span class="v" id="displayClassification">—</span></div>
+                        <div><span class="k">Account Status</span><span class="v" id="displayAccountStatus">—</span></div>
+                    </div>
 
-                <div class="id-qr-wrap">
-                    <div id="qrCodeFull"></div>
+                    <div class="id-qr-wrap">
+                        <div id="qrCodeFull"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-     <section id="page-myqr" class="page-section">
-        <div class="dashboard-header">
-            <div class="greeting">
-                <h1>My QR Code</h1>
-                <p>Present this QR code to the terminal Staff when processing a transportation transaction.</p>
+    <section id="page-myqr" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">My QR Code</h1>
+                <p class="page-subtitle">Present this QR code to the terminal Staff when processing a transportation transaction.</p>
             </div>
-            <div class="header-right">
+            <div class="page-header-actions">
                 <button class="btn-outline btn-sm" onclick="downloadQRPage()">
                     <i class="fas fa-download"></i> Download
+                </button>
+                <button class="btn-outline btn-sm" onclick="printQRPage()">
+                    <i class="fas fa-print"></i> Print
                 </button>
                 <button class="btn-outline btn-sm" onclick="shareQRPage()">
                     <i class="fas fa-share-alt"></i> Share
@@ -285,199 +353,206 @@
                 <span id="qrPageBodyNumber">—</span> ·
                 <span id="qrPagePlate">—</span>
             </div>
-            <div class="qr-sub" style="margin-top:.75rem;">
+            <div class="qr-sub">
                 Fee per trip: <strong id="qrFee">₱0.00</strong>
             </div>
 
-            <div class="notification-banner low-balance" style="margin-top:1.25rem;text-align:left;">
-                <i class="fas fa-info-circle" style="font-size:1.25rem;color:#ca8a04;"></i>
+            <div class="inline-note inline-note-warn">
+                <i class="fas fa-info-circle"></i>
                 <div>
-                    <div class="nb-title">Note</div>
-                    <div class="nb-message">
-                        The Driver does not process the transaction themselves.
-                        The Staff scans this QR and confirms the terminal fee.
-                    </div>
+                    <strong>Note:</strong> The Driver does not process the transaction themselves.
+                    The Staff scans this QR and confirms the terminal fee.
                 </div>
             </div>
 
-            <p style="margin-top:1rem;color:#94a3b8;font-size:.8rem;">
+            <p class="muted-small">
                 <i class="fas fa-shield-halved"></i>
                 This QR contains only your Driver ID. No other personal or financial information is embedded.
             </p>
         </div>
     </section>
 
-     <section id="page-vehicle" class="page-section">
-        <div class="dashboard-header">
-            <div class="greeting">
-                <h1>Vehicle Information</h1>
-                <p>Your registered vehicle. Read-only.</p>
+    <section id="page-vehicle" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">My Vehicle</h1>
+                <p class="page-subtitle">Your registered vehicle. Read-only.</p>
             </div>
         </div>
 
-        <div class="table-card">
-            <div class="profile-details">
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Vehicle Type</span>
-                    <span class="profile-detail-value" id="vehicleType">—</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Body Number</span>
-                    <span class="profile-detail-value profile-detail-value-mono" id="vehicleBodyNumber">—</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Plate Number</span>
-                    <span class="profile-detail-value profile-detail-value-mono" id="vehiclePlateNumber">—</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Fee per Trip</span>
-                    <span class="profile-detail-value" id="vehicleFee">—</span>
-                </div>
-                <div class="profile-detail-row profile-detail-row-last">
-                    <span class="profile-detail-label">Registration Status</span>
-                    <span class="profile-detail-value" id="vehicleStatus">ACTIVE</span>
-                </div>
+        <div class="card">
+            <div class="info-list">
+                <div class="info-row"><span class="info-k">Vehicle Type</span><span class="info-v" id="vehicleType">—</span></div>
+                <div class="info-row"><span class="info-k">Body Number</span><span class="info-v info-v-mono" id="vehicleBodyNumber">—</span></div>
+                <div class="info-row"><span class="info-k">Plate Number</span><span class="info-v info-v-mono" id="vehiclePlateNumber">—</span></div>
+                <div class="info-row"><span class="info-k">Plate Type</span><span class="info-v" id="vehiclePlateType">—</span></div>
+                <div class="info-row"><span class="info-k">Fee per Trip</span><span class="info-v" id="vehicleFee">—</span></div>
+                <div class="info-row"><span class="info-k">Vehicle Status</span><span class="info-v" id="vehicleStatus">ACTIVE</span></div>
             </div>
 
-            <p style="margin-top:1rem;color:#94a3b8;font-size:.8rem;">
+            <div class="card-footer-note">
                 <i class="fas fa-lock"></i>
-                If there is an error, contact the authorized administrator.
-                The Driver cannot edit official vehicle records.
-            </p>
+                If any information is incorrect, submit a request and the Admin will review it.
+                <button class="btn-outline btn-sm" onclick="openNewInquiryModal('vehicle')">
+                    <i class="fas fa-pen-to-square"></i> Request Vehicle Update
+                </button>
+            </div>
         </div>
     </section>
 
-     <section id="page-balance" class="page-section">
-        <div class="dashboard-header">
-            <div class="greeting">
-                <h1>My Wallet</h1>
-                <p>Your prepaid balance</p>
+    <section id="page-emergency" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Emergency Contact</h1>
+                <p class="page-subtitle">Person the terminal will contact in case of an emergency</p>
             </div>
-            <div class="header-right">
+        </div>
+
+        <div class="card">
+            <div class="emergency-header">
+                <div class="emergency-icon"><i class="fas fa-shield-heart"></i></div>
+                <div>
+                    <div class="emergency-title">Emergency Contact Details</div>
+                    <p class="emergency-note">
+                        This information is only used by authorized terminal staff in case of an emergency.
+                        It is not shared with other drivers or the public.
+                    </p>
+                </div>
+            </div>
+            <div class="info-list">
+                <div class="info-row"><span class="info-k">Emergency Contact Name</span><span class="info-v" id="emergencyName">—</span></div>
+                <div class="info-row"><span class="info-k">Relationship</span><span class="info-v" id="emergencyRelation">—</span></div>
+                <div class="info-row"><span class="info-k">Contact Number</span><span class="info-v info-v-mono" id="emergencyNumber">—</span></div>
+            </div>
+            <div class="card-footer-note">
+                <button class="btn-outline btn-sm" onclick="openNewInquiryModal('personal')">
+                    <i class="fas fa-pen-to-square"></i> Request Emergency Contact Update
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section id="page-balance" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">My Balance</h1>
+                <p class="page-subtitle">Your prepaid wallet</p>
+            </div>
+            <div class="page-header-actions">
                 <button class="btn-outline btn-sm" onclick="refreshDriverPayments(true)">
                     <i class="fas fa-rotate"></i> Refresh
                 </button>
             </div>
         </div>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-card-row">
-                    <div>
-                        <div class="label">Current Balance</div>
-                        <div class="value" id="balanceAmount">₱0.00</div>
-                    </div>
-                    <div class="stat-icon stat-icon-green"><i class="fas fa-wallet"></i></div>
+        <div class="kpi-row kpi-row-4">
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Current Balance</div>
+                    <div class="kpi-value" id="balanceAmount">₱0.00</div>
                 </div>
+                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-wallet"></i></div>
             </div>
-            <div class="stat-card">
-                <div class="stat-card-row">
-                    <div>
-                        <div class="label">Wallet Status</div>
-                        <div class="value" style="font-size:1.25rem;" id="balanceAccountStatus">ACTIVE</div>
-                    </div>
-                    <div class="stat-icon stat-icon-blue"><i class="fas fa-circle-check"></i></div>
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Wallet Status</div>
+                    <div class="kpi-value" id="balanceAccountStatus">ACTIVE</div>
                 </div>
+                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-circle-check"></i></div>
             </div>
-            <div class="stat-card">
-                <div class="stat-card-row">
-                    <div>
-                        <div class="label">Fee per Trip</div>
-                        <div class="value" id="balanceFeePerTrip">₱0.00</div>
-                    </div>
-                    <div class="stat-icon stat-icon-red"><i class="fas fa-ticket"></i></div>
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Fee per Trip</div>
+                    <div class="kpi-value" id="balanceFeePerTrip">₱0.00</div>
                 </div>
+                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-ticket"></i></div>
             </div>
-            <div class="stat-card">
-                <div class="stat-card-row">
-                    <div>
-                        <div class="label">Last Load</div>
-                        <div class="value" id="balanceLastLoad">—</div>
-                        <div class="sub" id="balanceLastUpdated">—</div>
-                    </div>
-                    <div class="stat-icon stat-icon-purple"><i class="fas fa-money-bill-wave"></i></div>
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Last Load</div>
+                    <div class="kpi-value" id="balanceLastLoad">—</div>
+                    <div class="kpi-delta" id="balanceLastUpdated">—</div>
                 </div>
+                <div class="kpi-icon kpi-icon-green"><i class="fas fa-money-bill-wave"></i></div>
             </div>
         </div>
 
-        <div class="notification-banner low-balance">
-            <i class="fas fa-info-circle" style="font-size:1.25rem;color:#ca8a04;"></i>
-            <div>
-                <div class="nb-title">To add balance:</div>
-                <div class="nb-message">
-                    Proceed to the authorized Cashier/payment process.
-                    The Driver cannot load the wallet directly from this dashboard.
-                </div>
+        <div class="card">
+            <div class="card-head">
+                <h3 class="card-title"><i class="fas fa-clock-rotate-left"></i> Wallet Details</h3>
             </div>
-        </div>
-    </section>
-
-     <section id="page-loadhistory" class="page-section">
-        <div class="dashboard-header">
-            <div class="greeting">
-                <h1>Load History</h1>
-                <p>Money loaded to your wallet</p>
+            <div class="info-list">
+                <div class="info-row"><span class="info-k">Current Balance</span><span class="info-v" id="balanceDetailCurrent">₱0.00</span></div>
+                <div class="info-row"><span class="info-k">Last Fee Deduction</span><span class="info-v" id="balanceDetailLastFee">—</span></div>
+                <div class="info-row"><span class="info-k">Previous Balance</span><span class="info-v" id="balanceDetailPrevious">—</span></div>
+                <div class="info-row"><span class="info-k">Last Updated</span><span class="info-v" id="balanceDetailUpdated">—</span></div>
             </div>
         </div>
 
-        <div class="table-card">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Type</th>
-                        <th>Amount</th>
-                        <th>Previous</th>
-                        <th>Balance After</th>
-                    </tr>
-                </thead>
-                <tbody id="loadHistoryTable">
-                    <tr><td colspan="5">
-                        <div class="empty-state">
-                            <i class="fas fa-history"></i>
-                            <p>Loading…</p>
-                        </div>
-                    </td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <p style="margin-top:1rem;color:#94a3b8;font-size:.8rem;">
+        <div class="inline-note inline-note-warn">
             <i class="fas fa-info-circle"></i>
-            The reference number is the authorized payment/reference information recorded by the Cashier.
-        </p>
+            <div>
+                <strong>To add balance:</strong> Proceed to the authorized Cashier.
+                The Driver cannot load the wallet directly from this dashboard.
+            </div>
+        </div>
     </section>
 
-     <section id="page-payments" class="page-section">
-        <div class="dashboard-header">
-            <div class="greeting">
-                <h1>Transaction History</h1>
-                <p>Your own terminal transactions</p>
+    <section id="page-loadhistory" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Load History</h1>
+                <p class="page-subtitle">Money loaded to your wallet</p>
             </div>
         </div>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-card-row">
-                    <div>
-                        <div class="label">Total Fees Paid (All Time)</div>
-                        <div class="value" id="totalPaidAmount">₱0.00</div>
-                    </div>
-                    <div class="stat-icon stat-icon-red"><i class="fas fa-money-bill-wave"></i></div>
-                </div>
+        <div class="card">
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Reference</th>
+                            <th>Amount</th>
+                            <th>Previous</th>
+                            <th>New Balance</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="loadHistoryTable">
+                        <tr><td colspan="6"><div class="empty-inline">Loading…</div></td></tr>
+                    </tbody>
+                </table>
             </div>
-            <div class="stat-card">
-                <div class="stat-card-row">
-                    <div>
-                        <div class="label">This Month</div>
-                        <div class="value" id="monthPaidAmount">₱0.00</div>
-                    </div>
-                    <div class="stat-icon stat-icon-purple"><i class="fas fa-calendar"></i></div>
-                </div>
+        </div>
+    </section>
+
+    <section id="page-payments" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Transactions</h1>
+                <p class="page-subtitle">Your own terminal transactions</p>
             </div>
         </div>
 
-        <div class="table-card">
+        <div class="kpi-row kpi-row-2">
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Total Fees Paid (All Time)</div>
+                    <div class="kpi-value" id="totalPaidAmount">₱0.00</div>
+                </div>
+                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-money-bill-wave"></i></div>
+            </div>
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">This Month</div>
+                    <div class="kpi-value" id="monthPaidAmount">₱0.00</div>
+                </div>
+                <div class="kpi-icon kpi-icon-purple"><i class="fas fa-calendar"></i></div>
+            </div>
+        </div>
+
+        <div class="card">
             <div class="filter-bar">
                 <div class="filter-group filter-group-search">
                     <label for="paymentSearch">Search</label>
@@ -494,187 +569,401 @@
                 </div>
                 <div class="filter-group">
                     <label>&nbsp;</label>
-                    <span style="font-size:.8rem;color:#64748b;">
-                        Showing <strong id="paymentCount">0</strong> transactions
-                    </span>
+                    <span class="filter-count">Showing <strong id="paymentCount">0</strong> transactions</span>
                 </div>
             </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Vehicle</th>
-                        <th>Fee</th>
-                        <th>Previous</th>
-                        <th>Balance After</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="paymentHistoryTable">
-                    <tr><td colspan="6">
-                        <div class="empty-state">
-                            <i class="fas fa-receipt"></i>
-                            <p>Loading…</p>
-                        </div>
-                    </td></tr>
-                </tbody>
-            </table>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Vehicle</th>
+                            <th>Fee</th>
+                            <th>Previous</th>
+                            <th>Balance After</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentHistoryTable">
+                        <tr><td colspan="7"><div class="empty-inline">Loading…</div></td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-
-        <p style="margin-top:1rem;color:#94a3b8;font-size:.8rem;">
-            <i class="fas fa-eye"></i>
-            You only see your own records. Other drivers' transactions are not visible.
-        </p>
     </section>
 
-     <section id="page-notifications" class="page-section">
-        <div class="dashboard-header">
-            <div class="greeting">
-                <h1>Notifications</h1>
-                <p>System alerts and updates</p>
+    <section id="page-myinquiries" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">My Requests</h1>
+                <p class="page-subtitle">Track requests you've sent to the terminal office.</p>
             </div>
-            <div class="header-right">
-                <button class="btn-outline btn-sm" onclick="markNotificationsRead(null)">
-                    <i class="fas fa-check-double"></i> Mark all read
+            <div class="page-header-actions">
+                <button class="btn-outline btn-sm" id="refreshInquiriesBtn">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+                <button class="btn-primary btn-sm" onclick="openNewInquiryModal()">
+                    <i class="fas fa-plus"></i> New Request
                 </button>
             </div>
         </div>
 
-        <div class="table-card" style="margin-bottom:1rem;">
-            <div class="filter-bar" style="margin-bottom:0;">
-                <button class="notif-tab active" data-filter="all" onclick="setNotifFilter('all')">All</button>
-                <button class="notif-tab" data-filter="load" onclick="setNotifFilter('load')">Wallet Loads</button>
-                <button class="notif-tab" data-filter="payment" onclick="setNotifFilter('payment')">Transactions</button>
-                <button class="notif-tab" data-filter="low" onclick="setNotifFilter('low')">Alerts</button>
+        <div class="kpi-row kpi-row-4 inq-summary-row" id="inqSummaryRow">
+            <div class="kpi-tile inq-summary-tile" data-filter="">
+                <div class="kpi-body">
+                    <div class="kpi-label">Total Requests</div>
+                    <div class="kpi-value" id="inqCountTotal">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-inbox"></i></div>
+            </div>
+            <div class="kpi-tile inq-summary-tile" data-filter="pending">
+                <div class="kpi-body">
+                    <div class="kpi-label">Awaiting Response</div>
+                    <div class="kpi-value" id="inqCountPending">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-hourglass-half"></i></div>
+            </div>
+            <div class="kpi-tile inq-summary-tile" data-filter="replied">
+                <div class="kpi-body">
+                    <div class="kpi-label">Replied</div>
+                    <div class="kpi-value" id="inqCountReplied">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-reply"></i></div>
+            </div>
+            <div class="kpi-tile inq-summary-tile" data-filter="resolved">
+                <div class="kpi-body">
+                    <div class="kpi-label">Resolved</div>
+                    <div class="kpi-value" id="inqCountResolved">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-green"><i class="fas fa-circle-check"></i></div>
             </div>
         </div>
 
-        <div class="table-card">
-            <div id="notificationsFullList" class="space-y-2">
-                <div class="empty-state"><i class="fas fa-bell"></i><p>Loading…</p></div>
+        <div class="card inq-toolbar">
+            <div class="inq-toolbar__filters">
+                <div class="inq-search">
+                    <i class="fas fa-search"></i>
+                    <input type="search" id="inquirySearchInput" placeholder="Search by subject or message…">
+                </div>
+                <select id="inquiryStatusFilter" class="input-field input-field-sm">
+                    <option value="">All Statuses</option>
+                    <option value="pending">Awaiting Response</option>
+                    <option value="replied">Replied</option>
+                    <option value="resolved">Resolved</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="driverInquiryList" class="inq-driver-list">
+            <div class="inq-skeleton-list">
+                <div class="inq-skeleton"></div>
+                <div class="inq-skeleton"></div>
             </div>
         </div>
     </section>
 
-     <section id="page-profile" class="page-section">
-        <div class="dashboard-header">
-            <div class="greeting">
-                <h1>My Profile</h1>
-                <p>Your account</p>
+    <section id="page-notifications" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Notifications</h1>
+                <p class="page-subtitle">System alerts and updates</p>
+            </div>
+            <div class="page-header-actions">
+                <button class="btn-outline btn-sm" id="markAllReadBtn">
+                    <i class="fas fa-check-double"></i> Mark all as read
+                </button>
             </div>
         </div>
 
-        <div class="table-card">
+        <div class="kpi-row kpi-row-4">
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">All Notifications</div>
+                    <div class="kpi-value" id="notifCountAll">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-inbox"></i></div>
+            </div>
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Unread</div>
+                    <div class="kpi-value" id="notifCountUnread">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-bell"></i></div>
+            </div>
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Wallet Loads</div>
+                    <div class="kpi-value" id="notifCountLoads">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-green"><i class="fas fa-wallet"></i></div>
+            </div>
+            <div class="kpi-tile">
+                <div class="kpi-body">
+                    <div class="kpi-label">Transaction Alerts</div>
+                    <div class="kpi-value" id="notifCountAlerts">0</div>
+                </div>
+                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-triangle-exclamation"></i></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="notif-tabs-bar">
+                <button class="notif-tab active" data-filter="all" type="button">
+                    <i class="fas fa-inbox"></i> All
+                </button>
+                <button class="notif-tab" data-filter="load" type="button">
+                    <i class="fas fa-wallet"></i> Wallet Loads
+                </button>
+                <button class="notif-tab" data-filter="payment" type="button">
+                    <i class="fas fa-receipt"></i> Transactions
+                </button>
+                <button class="notif-tab" data-filter="low" type="button">
+                    <i class="fas fa-triangle-exclamation"></i> Alerts
+                </button>
+            </div>
+        </div>
+
+        <div id="notificationsFullList" class="notif-list">
+            <div class="empty-inline">Loading…</div>
+        </div>
+    </section>
+
+    <section id="page-profile" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">My Profile</h1>
+                <p class="page-subtitle">Your personal and driver information</p>
+            </div>
+        </div>
+
+        <div class="card">
             <div class="profile-header">
                 <div class="profile-avatar"><i class="fas fa-user"></i></div>
                 <div>
                     <div class="profile-name" id="profileName">—</div>
                     <div class="profile-username" id="profileId">—</div>
-                    <span class="status-badge active" style="margin-top:.35rem;display:inline-block;">DRIVER</span>
+                    <div class="profile-tags">
+                        <span class="tag tag-driver">DRIVER</span>
+                        <span class="tag tag-class" id="profileClassBadge" hidden></span>
+                    </div>
                 </div>
             </div>
 
-            <div class="profile-details">
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Full Name</span>
-                    <span class="profile-detail-value" id="profileFullName">—</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Driver ID</span>
-                    <span class="profile-detail-value profile-detail-value-mono" id="profileDriverId">—</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Address</span>
-                    <span class="profile-detail-value" id="profileAddress">—</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Contact</span>
-                    <span class="profile-detail-value" id="profileContact">—</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Birthdate</span>
-                    <span class="profile-detail-value" id="profileBirthdate">—</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Gender</span>
-                    <span class="profile-detail-value" id="profileGender">—</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Account Status</span>
-                    <span class="profile-detail-value" id="profileStatus">Active</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Vehicle Type</span>
-                    <span class="profile-detail-value" id="profileVehicleType">—</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Body Number</span>
-                    <span class="profile-detail-value profile-detail-value-mono" id="profileBodyNumber">—</span>
-                </div>
-                <div class="profile-detail-row">
-                    <span class="profile-detail-label">Plate Number</span>
-                    <span class="profile-detail-value profile-detail-value-mono" id="profilePlateNumber">—</span>
-                </div>
-                <div class="profile-detail-row profile-detail-row-last">
-                    <span class="profile-detail-label">Vehicle Status</span>
-                    <span class="profile-detail-value" id="profileVehicleStatus">Active</span>
-                </div>
+            <h3 class="section-mini-title"><i class="fas fa-user"></i> Personal Information</h3>
+            <div class="info-list">
+                <div class="info-row"><span class="info-k">Full Name</span><span class="info-v" id="profileFullName">—</span></div>
+                <div class="info-row"><span class="info-k">Address</span><span class="info-v" id="profileAddress">—</span></div>
+                <div class="info-row"><span class="info-k">Contact</span><span class="info-v" id="profileContact">—</span></div>
+                <div class="info-row"><span class="info-k">Birthdate</span><span class="info-v" id="profileBirthdate">—</span></div>
+                <div class="info-row"><span class="info-k">Gender</span><span class="info-v" id="profileGender">—</span></div>
             </div>
 
-            <p style="margin-top:1rem;color:#94a3b8;font-size:.8rem;">
+            <h3 class="section-mini-title"><i class="fas fa-id-badge"></i> Driver Information</h3>
+            <div class="info-list">
+                <div class="info-row"><span class="info-k">Driver ID</span><span class="info-v info-v-mono" id="profileDriverId">—</span></div>
+                <div class="info-row"><span class="info-k">License Number</span><span class="info-v info-v-mono" id="profileLicenseNo">—</span></div>
+                <div class="info-row"><span class="info-k">License Type</span><span class="info-v" id="profileLicenseType">—</span></div>
+                <div class="info-row"><span class="info-k">Driver Classification</span><span class="info-v" id="profileClassification">—</span></div>
+                <div class="info-row"><span class="info-k">Account Status</span><span class="info-v" id="profileStatus">Active</span></div>
+            </div>
+
+            <h3 class="section-mini-title"><i class="fas fa-car"></i> Vehicle Information</h3>
+            <div class="info-list">
+                <div class="info-row"><span class="info-k">Vehicle Type</span><span class="info-v" id="profileVehicleType">—</span></div>
+                <div class="info-row"><span class="info-k">Body Number</span><span class="info-v info-v-mono" id="profileBodyNumber">—</span></div>
+                <div class="info-row"><span class="info-k">Plate Number</span><span class="info-v info-v-mono" id="profilePlateNumber">—</span></div>
+                <div class="info-row"><span class="info-k">Vehicle Status</span><span class="info-v" id="profileVehicleStatus">Active</span></div>
+            </div>
+
+            <div class="card-footer-note">
                 <i class="fas fa-lock"></i>
                 Official registration information is managed by the authorized administrator.
-                Contact the office to update your records.
-            </p>
+                <button class="btn-outline btn-sm" onclick="openNewInquiryModal('personal')">
+                    <i class="fas fa-pen-to-square"></i> Request Information Update
+                </button>
+            </div>
         </div>
     </section>
 
-     <section id="page-stations" class="page-section">
-        <div class="dashboard-header">
-            <div class="greeting">
-                <h1>Stations &amp; Checkpoints</h1>
-                <p>Locate official BCTT ticketing stations and receiving checkpoints across Borongan City</p>
+    <section id="page-account" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Account</h1>
+                <p class="page-subtitle">Manage your account settings</p>
             </div>
-            <div class="header-right flex items-center gap-2">
+        </div>
+
+        <div class="card">
+            <h3 class="section-mini-title"><i class="fas fa-user-shield"></i> Account Information</h3>
+            <div class="info-list">
+                <div class="info-row"><span class="info-k">Username</span><span class="info-v info-v-mono" id="acctUsername">—</span></div>
+                <div class="info-row"><span class="info-k">Account Status</span><span class="info-v" id="acctStatus">—</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="section-mini-title"><i class="fas fa-key"></i> Change Password</h3>
+            <form id="changePasswordForm" class="account-form" novalidate>
+                <div class="field">
+                    <label class="label-sm" for="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" class="input-field" required autocomplete="current-password">
+                </div>
+                <div class="field">
+                    <label class="label-sm" for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" class="input-field" required autocomplete="new-password">
+                </div>
+                <div class="field">
+                    <label class="label-sm" for="confirmNewPassword">Confirm New Password</label>
+                    <input type="password" id="confirmNewPassword" class="input-field" required autocomplete="new-password">
+                </div>
+                <div id="changePwMsg" class="account-msg"></div>
+                <button type="submit" class="btn-primary" style="align-self:flex-start;">
+                    <i class="fas fa-check"></i> Update Password
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <section id="page-stations" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Stations &amp; Checkpoints</h1>
+                <p class="page-subtitle">Official BCTT ticketing stations and receiving checkpoints</p>
+            </div>
+            <div class="page-header-actions">
                 <button class="btn-outline btn-sm" onclick="initDriverStationsMap(true)">
                     <i class="fas fa-sync-alt"></i> Refresh
                 </button>
             </div>
         </div>
 
-        <div class="table-card p-0 overflow-hidden mb-4" style="border-radius:16px;">
-            <div class="p-3.5 bg-gray-50 border-b border-gray-200 flex justify-between items-center flex-wrap gap-2">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        <i class="fas fa-map text-primary mr-1"></i> Interactive Borongan Station Locator
-                    </span>
-                    <span class="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold">7 Active Stations</span>
-                </div>
-                <div class="flex items-center gap-2 text-xs text-gray-600">
-                    <span class="flex items-center gap-1.5"><span style="width:10px;height:10px;border-radius:50%;background:#b22234;display:inline-block;"></span> Ticketing Station</span>
-                    <span class="flex items-center gap-1.5 ml-2"><span style="width:10px;height:10px;border-radius:50%;background:#059669;display:inline-block;"></span> Checkpoint</span>
+        <div class="card card-flush">
+            <div class="card-head card-head-bordered">
+                <h3 class="card-title"><i class="fas fa-map"></i> Interactive Borongan Station Locator</h3>
+                <div class="map-legend">
+                    <span><i class="dot dot-maroon"></i> Ticketing Station</span>
+                    <span><i class="dot dot-green"></i> Checkpoint</span>
                 </div>
             </div>
-            <div id="driverStationsMap" style="height: 440px; width: 100%; background: #f8fafc; z-index: 10;"></div>
+            <div id="driverStationsMap" class="station-map"></div>
         </div>
 
-        <div class="table-card">
-            <h3 class="font-bold text-gray-800 text-sm mb-3">
-                <i class="fas fa-list-check text-primary mr-1"></i> Designated Stations &amp; Checkpoints
-            </h3>
-            <div id="driverStationsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-             </div>
+        <div class="card">
+            <h3 class="card-title" style="margin-bottom:.75rem;"><i class="fas fa-list-check"></i> Designated Stations &amp; Checkpoints</h3>
+            <div id="driverStationsList" class="station-grid"></div>
         </div>
     </section>
 
 </main>
 
+<div class="notif-modal" id="newInquiryModal" hidden>
+    <div class="notif-modal-backdrop" data-inquiry-close="1"></div>
+    <div class="notif-modal-box inq-compose-box" role="dialog" aria-modal="true" aria-labelledby="newInquiryTitle">
+        <div class="notif-modal-header">
+            <div class="notif-modal-icon" style="background:var(--maroon-soft);color:var(--maroon);">
+                <i class="fas fa-pen-to-square"></i>
+            </div>
+            <div>
+                <h2 id="newInquiryTitle">New Request</h2>
+                <p class="notif-modal-time">Send an update request to the terminal office</p>
+            </div>
+            <button class="notif-modal-close" type="button" data-inquiry-close="1" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="notif-modal-body">
+            <form id="newInquiryForm" novalidate>
+                <div class="inq-field">
+                    <label class="inq-label" for="inqKind">Request Type <span class="inq-req">*</span></label>
+                    <div class="inq-kind-grid" id="inqKindGrid">
+                        <button type="button" class="inq-kind-btn" data-kind="personal">
+                            <i class="fas fa-user-pen"></i>
+                            <span class="inq-kind-title">Personal Info</span>
+                            <span class="inq-kind-desc">Name, address, emergency contact</span>
+                        </button>
+                        <button type="button" class="inq-kind-btn" data-kind="vehicle">
+                            <i class="fas fa-car-side"></i>
+                            <span class="inq-kind-title">Vehicle Info</span>
+                            <span class="inq-kind-desc">Plate, body number, vehicle type</span>
+                        </button>
+                        <button type="button" class="inq-kind-btn" data-kind="general">
+                            <i class="fas fa-circle-question"></i>
+                            <span class="inq-kind-title">General</span>
+                            <span class="inq-kind-desc">Other concerns or questions</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="inqKind" required>
+                </div>
+
+                <div class="inq-field">
+                    <label class="inq-label" for="inqSubject">Subject <span class="inq-req">*</span></label>
+                    <input type="text" id="inqSubject" class="input-field"
+                           maxlength="120" required placeholder="e.g. Update my emergency contact">
+                    <div class="inq-hint">Short summary of what needs updating</div>
+                </div>
+
+                <div class="inq-field">
+                    <label class="inq-label" for="inqMessage">Details <span class="inq-req">*</span></label>
+                    <textarea id="inqMessage" class="input-field" rows="5"
+                              maxlength="1000" required
+                              placeholder="Describe exactly what should be corrected or updated…"></textarea>
+                    <div class="inq-hint">
+                        <span id="inqCharCount">0 / 1000</span> characters
+                    </div>
+                </div>
+
+                <div class="inq-info-note">
+                    <i class="fas fa-info-circle"></i>
+                    <div>
+                        Your request will be reviewed by the office.
+                        You'll see the response here once it's ready.
+                    </div>
+                </div>
+
+                <div id="newInquiryMsg" class="account-msg"></div>
+            </form>
+        </div>
+        <div class="notif-modal-footer">
+            <button type="button" class="btn-outline btn-sm" data-inquiry-close="1">Cancel</button>
+            <button type="button" class="btn-primary btn-sm" id="submitInquiryBtn" disabled>
+                <i class="fas fa-paper-plane"></i> Submit Request
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="notif-modal" id="notifModal" hidden>
+    <div class="notif-modal-backdrop" data-close="1"></div>
+    <div class="notif-modal-box" role="dialog" aria-modal="true" aria-labelledby="notifModalTitle">
+        <div class="notif-modal-header">
+            <div class="notif-modal-icon" id="notifModalIcon">
+                <i class="fas fa-bell"></i>
+            </div>
+            <div>
+                <h2 id="notifModalTitle">Notification</h2>
+                <p class="notif-modal-time" id="notifModalTime">—</p>
+            </div>
+            <button class="notif-modal-close" type="button" data-close="1" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="notif-modal-body" id="notifModalBody"></div>
+        <div class="notif-modal-footer">
+            <button class="btn-outline btn-sm" id="notifModalMarkRead">
+                <i class="fas fa-check"></i> Mark as read
+            </button>
+            <button class="btn-primary btn-sm" data-close="1">Close</button>
+        </div>
+    </div>
+</div>
+
 <div id="receiptPrintArea" style="display:none;">
-    <div class="receipt" style="max-width:340px;margin:0 auto;padding:1rem;border:2px dashed #333;border-radius:8px;font-family:'Courier New',monospace;">
+    <div style="max-width:340px;margin:0 auto;padding:1rem;border:2px dashed #333;border-radius:8px;font-family:'Courier New',monospace;">
         <div style="text-align:center;border-bottom:2px solid #333;padding-bottom:.5rem;margin-bottom:.75rem;">
             <div style="font-weight:800;font-size:.8rem;">BORONGAN CITY TRANSPORT TERMINAL</div>
-            <div style="font-size:.7rem;font-weight:700;color:#b22234;">TRANSACTION RECORD</div>
+            <div style="font-size:.7rem;font-weight:700;color:#8B1D2C;">TRANSACTION RECORD</div>
         </div>
         <div style="font-size:.8rem;">
             <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Ref:</span><strong id="rReceiptNo">—</strong></div>
@@ -684,6 +973,7 @@
             <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Plate:</span><strong id="rPlate">—</strong></div>
             <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Vehicle:</span><strong id="rVehicle">—</strong></div>
             <div style="display:flex;justify-content:space-between;padding:.4rem 0;font-weight:800;border-top:1px dashed #333;margin-top:.3rem;"><span>Amount:</span><strong id="rAmount">—</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Balance After:</span><strong id="rBalanceAfter">—</strong></div>
             <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Status:</span><strong id="rStatus">—</strong></div>
         </div>
         <div style="text-align:center;font-size:.7rem;color:#555;margin-top:.75rem;border-top:1px dashed #ccc;padding-top:.5rem;">
@@ -692,8 +982,22 @@
     </div>
 </div>
 
+<div id="qrPrintArea" style="display:none;">
+    <div style="max-width:400px;margin:0 auto;padding:24px;border:2px solid #8B1D2C;border-radius:12px;text-align:center;font-family:'Inter',sans-serif;">
+        <div style="font-weight:800;font-size:.75rem;letter-spacing:.15em;color:#8B1D2C;text-transform:uppercase;margin-bottom:6px;">Borongan City Transport Terminal</div>
+        <div style="font-weight:700;font-size:1.05rem;color:#1F2937;margin-bottom:12px;">DRIVER QR CODE</div>
+        <div id="qrPrintImage" style="display:inline-block;padding:8px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;"></div>
+        <div style="font-weight:800;font-size:1rem;color:#1F2937;margin-top:12px;" id="qrPrintName">—</div>
+        <div style="font-family:'Courier New',monospace;color:#6B7280;font-size:.85rem;" id="qrPrintId">—</div>
+        <div style="color:#6B7280;font-size:.8rem;margin-top:4px;" id="qrPrintVehicle">—</div>
+        <div style="margin-top:16px;padding-top:12px;border-top:1px dashed #cbd5e1;font-size:.75rem;color:#6B7280;">
+            Present this QR code to the terminal Staff.
+        </div>
+    </div>
+</div>
+
 <script src="assets/js/confirm-modal.js?v=20261005"></script>
-<script src="assets/js/driver-dashboard.js?v=20261008-2"></script>
+<script src="assets/js/driver-dashboard.js?v=20261025"></script>
 
 </body>
 </html>

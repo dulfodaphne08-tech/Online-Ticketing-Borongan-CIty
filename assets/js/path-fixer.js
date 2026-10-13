@@ -1,10 +1,3 @@
-/* ============================================================
-   PATH FIXER
-   ------------------------------------------------------------
-   Automatically fixes asset paths for every HTML page inside
-   the bctt/index/ folder (including highlights/ and notices/).
-
-   ============================================================ */
 (function () {
     "use strict";
 

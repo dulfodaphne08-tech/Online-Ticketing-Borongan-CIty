@@ -1,7 +1,3 @@
-/* ============================================================
-   DRIVER LOAD PAGE — JS
-   ============================================================ */
-
 let driverSession = null;
 
 document.addEventListener("DOMContentLoaded", async function () {

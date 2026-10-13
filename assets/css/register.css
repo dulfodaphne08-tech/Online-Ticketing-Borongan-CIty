@@ -1,9 +1,3 @@
-/* ============================================================
-   BORONGAN TRANSPORT — TERMINAL MANAGEMENT SYSTEM
-   Register page — full-width card, no left info panel
-   VERSO-inspired split card · Borongan red identity
-   ============================================================ */
-
 :root {
     --red:        #C8102E;
     --red-dark:   #A00D24;
@@ -34,7 +28,7 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
- .bg-image {
+.bg-image {
     position: fixed;
     inset: 0;
     z-index: 0;
@@ -98,7 +92,7 @@ body {
     100% { transform: translateY(-110vh) translateX(20px); opacity: 0; }
 }
 
- .page {
+.page {
     position: relative;
     z-index: 5;
     min-height: 100vh;
@@ -110,7 +104,7 @@ body {
     width: 100%;
 }
 
- .page-header {
+.page-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -156,7 +150,7 @@ body {
 .gov-line-1 { font-size: 0.7rem; color: rgba(255, 255, 255, 0.92); font-weight: 400; letter-spacing: 0.3px; }
 .gov-line-2 { font-size: 0.92rem; font-weight: 700; color: var(--white); letter-spacing: 0.2px; }
 
- .page-main {
+.page-main {
     flex: 1;
     display: flex;
     align-items: center;
@@ -164,11 +158,10 @@ body {
     padding: 0.8rem 0 1rem;
 }
 
- .register-side {
+.register-side {
     display: flex;
     justify-content: center;
     width: 100%;
-
     opacity: 0;
     transform: translateY(28px);
     animation: slideInRight 1s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
@@ -178,9 +171,9 @@ body {
 .register-card {
     position: relative;
     width: 100%;
-    max-width: 1200px;              
+    max-width: 1200px;
     display: grid;
-    grid-template-columns: 0.55fr 1.9fr;    
+    grid-template-columns: 0.55fr 1.9fr;
     background: var(--white);
     border-radius: 20px;
     box-shadow:
@@ -191,7 +184,7 @@ body {
     min-height: 560px;
 }
 
- .card-brand {
+.card-brand {
     position: relative;
     padding: 2.2rem 1.6rem 1.8rem;
     background: linear-gradient(155deg, #C8102E 0%, #A00D24 45%, #6E0617 100%);
@@ -201,7 +194,6 @@ body {
     justify-content: center;
     overflow: hidden;
 }
-
 .card-brand::before {
     content: "";
     position: absolute;
@@ -221,7 +213,6 @@ body {
     0%, 100% { background-position: 0% 0%, 0% 0%, 0% 0%; }
     50%      { background-position: 0% 0%, 0% 0%, 100% 100%; }
 }
-
 .card-brand::after {
     content: "";
     position: absolute;
@@ -237,10 +228,7 @@ body {
     animation: shimmer 3.5s ease-in-out infinite;
     z-index: 2;
 }
-@keyframes shimmer {
-    0%, 100% { opacity: 0.55; }
-    50%      { opacity: 1; }
-}
+@keyframes shimmer { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 
 .card-brand > * { position: relative; z-index: 1; }
 
@@ -257,7 +245,6 @@ body {
     border-bottom: 1px solid rgba(255, 255, 255, 0.25);
     width: fit-content;
 }
-
 .brand-title {
     font-family: 'Poppins', sans-serif;
     font-size: 1.6rem;
@@ -277,7 +264,6 @@ body {
     margin-top: 0.15rem;
     letter-spacing: 0.5px;
 }
-
 .brand-sub {
     font-family: 'Inter', sans-serif;
     font-size: 0.76rem;
@@ -289,12 +275,7 @@ body {
     margin-bottom: 1.5rem;
 }
 
- .step-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    margin-top: 0.5rem;
-}
+.step-list { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.5rem; }
 .step-item {
     display: flex;
     align-items: center;
@@ -319,13 +300,8 @@ body {
     transition: all 0.3s;
     flex-shrink: 0;
 }
-.step-item .step-label {
-    font-weight: 500;
-    letter-spacing: 0.2px;
-}
-.step-item.active {
-    color: #FFD580;
-}
+.step-item .step-label { font-weight: 500; letter-spacing: 0.2px; }
+.step-item.active { color: #FFD580; }
 .step-item.active .step-dot {
     background: #FFD580;
     border-color: #FFD580;
@@ -333,7 +309,7 @@ body {
     box-shadow: 0 0 12px rgba(255, 213, 128, 0.5);
 }
 
- .brand-bus {
+.brand-bus {
     position: absolute;
     bottom: 14px;
     left: -30px;
@@ -350,17 +326,14 @@ body {
     100% { left: 110%; opacity: 0; }
 }
 
- .card-form {
+.card-form {
     padding: 1.8rem 1.8rem 1.4rem;
     background: var(--cream);
     display: flex;
     flex-direction: column;
 }
 
-.card-head {
-    text-align: left;
-    margin-bottom: 0.9rem;
-}
+.card-head { text-align: left; margin-bottom: 0.9rem; }
 .card-head h2 {
     font-family: 'Playfair Display', serif;
     font-style: italic;
@@ -392,7 +365,7 @@ body {
     line-height: 1.5;
 }
 
- .progress-track {
+.progress-track {
     width: 100%;
     height: 4px;
     background: rgba(200, 16, 46, 0.12);
@@ -414,7 +387,8 @@ body {
     margin-bottom: 0.7rem;
     font-weight: 500;
 }
- .helper-line {
+
+.helper-line {
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -425,16 +399,10 @@ body {
     padding-bottom: 0.7rem;
     border-bottom: 1px dashed rgba(200, 16, 46, 0.18);
 }
-.helper-line i {
-    color: var(--red);
-    font-size: 0.7rem;
-}
-.helper-line strong {
-    color: var(--red);
-    font-weight: 800;
-}
+.helper-line i { color: var(--red); font-size: 0.7rem; }
+.helper-line strong { color: var(--red); font-weight: 800; }
 
- .sections-grid {
+.sections-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.9rem 1rem;
@@ -478,7 +446,7 @@ body {
     justify-content: center;
 }
 
- .form-grid-2 {
+.form-grid-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.55rem 0.8rem;
@@ -505,7 +473,7 @@ body {
     font-style: italic;
 }
 
- .input-field {
+.input-field {
     width: 100%;
     background: transparent;
     border: none;
@@ -543,7 +511,7 @@ select.input-field {
     cursor: pointer;
 }
 
- .upload-dropzone {
+.upload-dropzone {
     display: flex;
     align-items: center;
     gap: 0.65rem;
@@ -554,10 +522,7 @@ select.input-field {
     cursor: pointer;
     transition: border-color 0.2s, background 0.2s;
 }
-.upload-dropzone:hover {
-    border-color: var(--red);
-    background: rgba(200, 16, 46, 0.04);
-}
+.upload-dropzone:hover { border-color: var(--red); background: rgba(200, 16, 46, 0.04); }
 .upload-dropzone i {
     font-size: 0.92rem;
     color: var(--red);
@@ -575,7 +540,7 @@ select.input-field {
 .upload-text span { font-size: 0.64rem; color: var(--text-gray); }
 .upload-input { display: none; }
 
- .pw-wrapper { position: relative; }
+.pw-wrapper { position: relative; }
 .pw-wrapper .input-field { padding-right: 2.2rem; }
 
 .toggle-pw {
@@ -630,21 +595,19 @@ select.input-field {
 .pw-requirements .req .icon.valid   { color: #22c55e; }
 .pw-requirements .req .icon.invalid { color: #B8B2A8; }
 
- .pill-group {
+.pill-group {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.45rem;
     margin-top: 0.3rem;
     width: 100%;
 }
-
 .pill {
     position: relative;
     display: block;
     cursor: pointer;
     user-select: none;
 }
-
 .pill input[type="radio"] {
     position: absolute;
     opacity: 0;
@@ -652,7 +615,6 @@ select.input-field {
     height: 0;
     pointer-events: none;
 }
-
 .pill span {
     display: flex;
     align-items: center;
@@ -670,25 +632,19 @@ select.input-field {
     white-space: nowrap;
     width: 100%;
 }
-
-.pill:hover span {
-    border-color: #B0ABA0;
-    color: var(--text-dark);
-}
-
+.pill:hover span { border-color: #B0ABA0; color: var(--text-dark); }
 .pill input[type="radio"]:checked + span {
     background: var(--red);
     border-color: var(--red);
     color: var(--white);
     box-shadow: 0 4px 12px rgba(200, 16, 46, 0.28);
 }
-
 .pill input[type="radio"]:focus-visible + span {
     outline: 2px solid rgba(200, 16, 46, 0.35);
     outline-offset: 2px;
 }
 
- .format-hint,
+.format-hint,
 .date-hint {
     font-size: 0.62rem;
     color: var(--text-gray);
@@ -707,7 +663,7 @@ select.input-field {
 }
 .error-message.show { display: block; }
 
- .btn-register {
+.btn-register {
     position: relative;
     width: 100%;
     background: linear-gradient(180deg, #A80C26 0%, #8B0B1F 100%);
@@ -745,7 +701,6 @@ select.input-field {
     pointer-events: none;
 }
 .btn-register:hover:not(:disabled)::before { left: 150%; }
-
 .btn-register:hover:not(:disabled) {
     background: linear-gradient(180deg, #8B0B1F 0%, #6E0617 100%);
     transform: translateY(-2px);
@@ -764,7 +719,7 @@ select.input-field {
 }
 .btn-register:hover:not(:disabled) .btn-arrow { transform: translateX(4px); }
 
- .register-msg {
+.register-msg {
     text-align: center;
     font-size: 0.74rem;
     min-height: 1rem;
@@ -800,7 +755,7 @@ select.input-field {
     to   { opacity: 1; transform: translateY(0); }
 }
 
- .register-footer {
+.register-footer {
     text-align: center;
     margin-top: 0.9rem;
     font-family: 'Inter', sans-serif;
@@ -819,7 +774,7 @@ select.input-field {
 }
 .link-accent-red:hover { color: var(--red-dark); }
 
- .spinner {
+.spinner {
     display: inline-block;
     width: 0.9rem;
     height: 0.9rem;
@@ -832,7 +787,7 @@ select.input-field {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
- input:-webkit-autofill {
+input:-webkit-autofill {
     -webkit-box-shadow: 0 0 0 1000px var(--cream) inset !important;
     -webkit-text-fill-color: var(--text-dark) !important;
 }
@@ -840,7 +795,7 @@ input[type="password"]::-ms-reveal { display: none !important; }
 input[type="password"]::-webkit-clear-button { display: none !important; }
 input[type="password"]::-webkit-password-toggle { display: none !important; }
 
- .btn-register:focus-visible,
+.btn-register:focus-visible,
 .input-field:focus-visible,
 .toggle-pw:focus-visible,
 .link-accent-red:focus-visible,
@@ -850,7 +805,7 @@ input[type="password"]::-webkit-password-toggle { display: none !important; }
     border-radius: 6px;
 }
 
- @media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
@@ -860,15 +815,13 @@ input[type="password"]::-webkit-password-toggle { display: none !important; }
     .brand-bus { display: none; }
 }
 
- @media (max-width: 1200px) {
+@media (max-width: 1200px) {
     .page { padding: 1rem 1.4rem 1.2rem; }
     .register-card { max-width: 100%; }
 }
 
 @media (max-width: 1000px) {
-    .sections-grid {
-        grid-template-columns: 1fr;
-    }
+    .sections-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 900px) {
@@ -900,4 +853,14 @@ input[type="password"]::-webkit-password-toggle { display: none !important; }
     .btn-register { padding: 0.82rem; font-size: 0.84rem; }
     .card-head h2 { font-size: 1.35rem; }
     .pill-group { grid-template-columns: 1fr 1fr; }
+}
+
+#reviewBox {
+    font-family: 'Inter', monospace, sans-serif;
+    font-variant-numeric: tabular-nums;
+    overflow-x: auto;
+}
+@media (max-width: 700px) {
+    #reviewBox { font-size: 0.72rem !important; }
+    .pill-group[style*="repeat(3"] { grid-template-columns: 1fr 1fr 1fr !important; }
 }

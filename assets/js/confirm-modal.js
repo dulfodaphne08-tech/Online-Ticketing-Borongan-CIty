@@ -1,12 +1,3 @@
-/* ============================================================
-   assets/js/confirm-modal.js — confirm pop-up built on the native
-   HTML5 <dialog> element (replaces the browser's confirm() box).
-   Styles: assets/css/confirm-modal.css
-
-   ConfirmModal.show({ title, message, confirmText, cancelText, onConfirm, onCancel })
-   Also returns a Promise<boolean> (true = confirmed).
-   Esc or clicking outside the box = Cancel.
-   ============================================================ */
 (function () {
     "use strict";
 

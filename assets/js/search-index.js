@@ -1,7 +1,3 @@
-/* ============================================================
-   SITE SEARCH INDEX
-   List of every page that can be searched.
-   ============================================================ */
 window.SITE_INDEX = [
     {
         title: "Home",

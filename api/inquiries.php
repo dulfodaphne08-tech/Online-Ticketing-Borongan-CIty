@@ -1,5 +1,5 @@
 <?php
- declare(strict_types=1);
+declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 
 function inquiryResponse(array $row): array {
@@ -29,15 +29,79 @@ function inquiryById(PDO $pdo, string $id): array {
     return $row;
 }
 
-if (method() === 'POST') {
+ if (method() === 'POST') {
     $input = body();
-    foreach (['name', 'email', 'subject', 'message'] as $field) {
+
+ $loggedUser = currentUser();
+$isDriverRequest = $loggedUser
+    && $loggedUser['role'] === 'driver'
+    && isset($input['kind']);
+
+if ($isDriverRequest) {
+    $kind    = trim((string)($input['kind'] ?? ''));
+    $subjectLine = trim((string)($input['subject'] ?? ''));
+    $message = trim((string)($input['message'] ?? ''));
+
+    if (!in_array($kind, ['personal', 'vehicle', 'general'], true)) {
+        fail('Select a valid request type.', 422);
+    }
+    if ($message === '' || mb_strlen($message) > 1000) {
+        fail('Please describe your request (up to 1000 characters).', 422);
+    }
+    if (mb_strlen($subjectLine) > 120) {
+        fail('Subject is too long (max 120 characters).', 422);
+    }
+
+    $driverId = sessionDriverId($pdo, $loggedUser);
+
+    $stmt = $pdo->prepare('SELECT full_name, plate_number, body_number, vehicle_type
+                           FROM drivers WHERE driver_id = ? LIMIT 1');
+    $stmt->execute([$driverId]);
+    $driver = $stmt->fetch();
+    if (!$driver) fail('Driver profile not found.', 404);
+
+     $defaultSubjects = [
+        'vehicle'  => 'Vehicle Information Update',
+        'personal' => 'Personal Information Update',
+        'general'  => 'General Request'
+    ];
+    $subject = $subjectLine !== '' ? $subjectLine : $defaultSubjects[$kind];
+
+     $context = $kind === 'vehicle'
+        ? "Vehicle: {$driver['vehicle_type']} · Plate {$driver['plate_number']} · Body {$driver['body_number']}"
+        : "Driver ID: {$driverId}";
+
+    $fullMessage = $message . "\n\n─────\n" . $context . "\nSubmitted from Driver Dashboard";
+
+    try {
+        $ins = $pdo->prepare('INSERT INTO public.inquiries (name, email, subject, message)
+                              VALUES (?, ?, ?, ?)
+                              RETURNING id, name, email, subject, message, status, reply,
+                                        created_at, read_at, replied_at, resolved_at');
+        $ins->execute([
+            (string)$driver['full_name'],
+            'driver+' . $driverId . '@bctt.local',
+            $subject,
+            $fullMessage,
+        ]);
+        $row = $ins->fetch();
+
+        auditLog('Driver Requested Update', 'INQUIRY', (string)$row['id'], $subject);
+
+        ok(['inquiry' => inquiryResponse($row)], 'Your request was submitted. The office will review it.', 201);
+    } catch (Throwable $e) {
+        error_log('Driver request submission failed: ' . $e->getMessage());
+        fail('Your request could not be submitted. Please try again.', 500);
+    }
+}
+
+     foreach (['name', 'email', 'subject', 'message'] as $field) {
         if (isset($input[$field]) && !is_string($input[$field])) {
             fail('Inquiry details must be submitted as text.', 422);
         }
     }
-    $name = trim((string)($input['name'] ?? ''));
-    $email = trim((string)($input['email'] ?? ''));
+    $name    = trim((string)($input['name'] ?? ''));
+    $email   = trim((string)($input['email'] ?? ''));
     $subject = trim((string)($input['subject'] ?? ''));
     $message = trim((string)($input['message'] ?? ''));
 
@@ -64,8 +128,31 @@ if (method() === 'POST') {
     ok(['inquiry' => inquiryResponse($row)], 'Your inquiry was sent.', 201);
 }
 
-if (method() === 'GET') {
-    requireRole('admin');
+ if (method() === 'GET') {
+
+     $me = currentUser();
+    if ($me && $me['role'] === 'driver') {
+        try {
+            $driverId = sessionDriverId($pdo, $me);
+            $pattern  = 'driver+' . $driverId . '@bctt.local';
+
+            $stmt = $pdo->prepare(
+                'SELECT id, name, email, subject, message, status, reply,
+                        created_at, read_at, replied_at, resolved_at
+                 FROM public.inquiries
+                 WHERE email = ?
+                 ORDER BY created_at DESC'
+            );
+            $stmt->execute([$pattern]);
+            $rows = $stmt->fetchAll();
+            ok(['inquiries' => array_map('inquiryResponse', $rows)]);
+        } catch (Throwable $e) {
+            error_log('Driver inquiries listing failed: ' . $e->getMessage());
+            fail('Your inquiries could not be loaded.', 500);
+        }
+    }
+
+     requireRole('admin');
     try {
         $stmt = $pdo->query('SELECT id, name, email, subject, message, status, reply,
                                     created_at, read_at, replied_at, resolved_at
@@ -78,7 +165,7 @@ if (method() === 'GET') {
     ok(['inquiries' => $inquiries]);
 }
 
-if (method() === 'PATCH') {
+ if (method() === 'PATCH') {
     requireRole('admin');
     $input = body();
     foreach (['id', 'status', 'reply'] as $field) {
@@ -90,8 +177,9 @@ if (method() === 'PATCH') {
     if ($id === '' || !preg_match('/^[0-9a-f-]{36}$/i', $id)) fail('Select a valid inquiry.', 422);
 
     $replyProvided = array_key_exists('reply', $input);
-    $reply = trim((string)($input['reply'] ?? ''));
+    $reply  = trim((string)($input['reply'] ?? ''));
     $status = strtolower(trim((string)($input['status'] ?? '')));
+
     if ($replyProvided && ($reply === '' || mb_strlen($reply) > 5000)) {
         fail('Enter a response (up to 5,000 characters).', 422);
     }

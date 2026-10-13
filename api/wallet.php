@@ -8,14 +8,14 @@ const MAX_LOAD = 50000;
 $user   = requireRole('driver', ...STAFF_ROLES);
 $action = (string)($_GET['action'] ?? body()['action'] ?? '');
 
- function targetDriverId(PDO $pdo, array $user, bool $required = true): string {
+function targetDriverId(PDO $pdo, array $user, bool $required = true): string {
     if ($user['role'] === 'driver') return sessionDriverId($pdo, $user);
     $id = trim((string)($_GET['driverId'] ?? body()['driverId'] ?? ''));
     if ($id === '' && $required) fail('Driver ID is required.', 422);
     return $id;
 }
 
- if (method() === 'GET' && $action === 'balance') {
+if (method() === 'GET' && $action === 'balance') {
     $driver = findDriver($pdo, targetDriverId($pdo, $user));
     if (!$driver) fail('Driver not found.', 404);
 
@@ -38,7 +38,7 @@ $action = (string)($_GET['action'] ?? body()['action'] ?? '');
     ]);
 }
 
- if (method() === 'GET' && $action === 'history') {
+if (method() === 'GET' && $action === 'history') {
     $driverId = targetDriverId($pdo, $user, false);
     $type     = strtoupper((string)($_GET['type'] ?? 'ALL'));
     $limit    = max(1, min(500, (int)($_GET['limit'] ?? 50)));
@@ -56,24 +56,28 @@ $action = (string)($_GET['action'] ?? body()['action'] ?? '');
     ok(['transactions' => array_map('formatTransaction', $stmt->fetchAll())]);
 }
 
- if (method() === 'GET' && $action === 'search') {
+if (method() === 'GET' && $action === 'search') {
     requireRole(...STAFF_ROLES);
     $q = trim((string)($_GET['q'] ?? ''));
     if ($q === '') fail('Type a name, Driver ID or plate number to search.', 422);
 
     $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q) . '%';
+
     $stmt = $pdo->prepare('SELECT ' . DRIVER_COLUMNS . '
         FROM drivers d LEFT JOIN users u ON u.id = d.user_id
-        WHERE d.full_name ILIKE :q OR d.driver_id ILIKE :q OR d.plate_number ILIKE :q OR d.body_number ILIKE :q
+        WHERE d.full_name ILIKE ?
+           OR d.driver_id ILIKE ?
+           OR d.plate_number ILIKE ?
+           OR d.body_number ILIKE ?
         ORDER BY d.full_name ASC
         LIMIT 15');
-    $stmt->execute([':q' => $like]);
+    $stmt->execute([$like, $like, $like, $like]);
 
     $drivers = array_map(fn($d) => formatDriver($d, getFee($pdo, (string)$d['vehicle_type'])), $stmt->fetchAll());
     ok(['drivers' => $drivers]);
 }
 
- if (method() === 'POST' && $action === 'load') {
+if (method() === 'POST' && $action === 'load') {
     $actor = requireRole(...STAFF_ROLES);
     $b     = body();
 
@@ -81,7 +85,7 @@ $action = (string)($_GET['action'] ?? body()['action'] ?? '');
     $amountRaw = $b['amount'] ?? null;
     $method    = strtoupper(trim((string)($b['paymentMethod'] ?? 'CASH'))) ?: 'CASH';
     $confirmed = !empty($b['confirmDuplicate']);
-    $orNumber  = trim((string)($b['orNumber'] ?? $b['referenceNumber'] ?? ''));
+    $orNumber  = trim((string)($b['orNumber'] ?? ''));
 
     if ($driverId === '') fail('Please select a driver first.', 422);
     if (!is_numeric($amountRaw)) fail('Please enter a valid amount.', 422);
@@ -97,7 +101,7 @@ $action = (string)($_GET['action'] ?? body()['action'] ?? '');
         if (!$driver) { $pdo->rollBack(); fail('Driver not found. Please check the Driver ID.', 404); }
         if (!isActive($driver['status'])) { $pdo->rollBack(); fail('This driver account is inactive. Loading is not allowed.', 403); }
 
-         if (!$confirmed) {
+        if (!$confirmed) {
             $dup = $pdo->prepare("SELECT reference_number FROM wallet_transactions
                 WHERE driver_id = ? AND type = 'LOAD' AND amount = ? AND processed_by_name = ?
                   AND created_at >= now() - interval '30 seconds' LIMIT 1");
@@ -108,7 +112,7 @@ $action = (string)($_GET['action'] ?? body()['action'] ?? '');
             }
         }
 
-         if ($orNumber !== '') {
+        if ($orNumber !== '') {
             $dupOr = $pdo->prepare("SELECT reference_number FROM wallet_transactions
                 WHERE or_number = ? AND type = 'LOAD' LIMIT 1");
             $dupOr->execute([$orNumber]);
@@ -138,9 +142,24 @@ $action = (string)($_GET['action'] ?? body()['action'] ?? '');
             peso($amount) . ' was loaded to your wallet. New balance: ' . peso($newBalance) . '. Ref: ' . $ref,
             'WALLET_LOAD');
 
-         auditLog('Loaded Driver Wallet', 'WALLET_LOAD', $ref,
-            'Added ' . peso($amount) . ' to ' . $driver['full_name']
-            . ($orNumber !== '' ? ' (OR: ' . $orNumber . ')' : ''));
+         try {
+            $me = currentUser();
+            $pdo->prepare("INSERT INTO audit_logs
+                (user_id, user_name, role, action, record_type, record_ref, details, ip_address)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+                ->execute([
+                    $me['id'] ?? null,
+                    $me['fullName'] ?? $me['username'] ?? 'System',
+                    $me['role'] ?? 'System',
+                    'Loaded Driver Wallet',
+                    'WALLET_LOAD',
+                    $ref,
+                    'Added ' . peso($amount) . ' to ' . $driver['full_name'] . ($orNumber !== '' ? ' (OR: ' . $orNumber . ')' : ''),
+                    $_SERVER['REMOTE_ADDR'] ?? null,
+                ]);
+        } catch (Throwable $e) {
+            error_log('auditLog: ' . $e->getMessage());
+        }
 
         $pdo->commit();
     } catch (Throwable $e) {
