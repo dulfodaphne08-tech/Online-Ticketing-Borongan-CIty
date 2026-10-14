@@ -1,4 +1,9 @@
 const LOW_BALANCE = 50;
+const LARGE_AMOUNT_THRESHOLD = 500;
+const TERMINAL_OFFLINE_MINUTES = 30;
+const NOTIFICATION_REFRESH_MS = 30000;
+const NOTIFICATION_DEDUP_HOURS = 6;
+
 let drivers = [];
 let transactions = [];
 let users = [];
@@ -8,6 +13,7 @@ let feeHistory = [];
 let fees = { Tricycle: 5, Jeepney: 60, Multicab: 60, Bus: 100 };
 let chartInstance = null;
 let currentAdminUser = null;
+let __notificationPollTimer = null;
 
 function $(id) { return document.getElementById(id); }
 function escapeHtml(v) {
@@ -47,6 +53,7 @@ function syncIndicator(state) {
 window.syncIndicator = syncIndicator;
 
 function navigateTo(page) {
+  if (!page) return;
   document.querySelectorAll(".page-section").forEach(s => s.classList.remove("active"));
   const target = $("page-" + page);
   if (target) target.classList.add("active");
@@ -60,6 +67,13 @@ function navigateTo(page) {
     if (sb) sb.classList.remove("open");
   }
   window.scrollTo({ top: 0, behavior: "instant" });
+
+  try {
+    sessionStorage.setItem("admin_active_page", page);
+    if ((location.hash || "").replace("#", "") !== page) {
+      history.replaceState(null, "", "#" + page);
+    }
+  } catch (e) {}
 
   if (page === "terminals-map") {
     setTimeout(() => {
@@ -77,6 +91,14 @@ function navigateTo(page) {
   }
 }
 window.navigateTo = navigateTo;
+
+window.addEventListener("hashchange", () => {
+  const p = (location.hash || "").replace("#", "").trim();
+  if (p && $("page-" + p)) {
+    navigateTo(p);
+    refreshCurrentPage(p);
+  }
+});
 
 function initSidebar() {
   if (window.__adminSidebarBound === true) return;
@@ -117,6 +139,7 @@ function refreshCurrentPage(page) {
     case "change-password":      break;
     case "system-settings":      loadSystemSettings(); break;
     case "staff-assignments":    loadStaffAssignments(); break;
+    case "inquiries":            if (typeof __refreshInquiries === 'function') __refreshInquiries(); break;
   }
 }
 
@@ -125,7 +148,7 @@ async function loadAllDataFromDB() {
   try {
     const [d, p, f, u] = await Promise.all([
       window.api("drivers.php"),
-      window.api("payments.php", { query: { action: "list", type: "ALL", limit: 1000 } }),
+      window.api("payments.php", { query: { action: "list", type: "ALL", limit: 2000 } }),
       window.api("fees.php"),
       window.api("users.php"),
     ]);
@@ -151,6 +174,7 @@ function normalizeTransaction(t) {
       time = d.toTimeString().slice(0, 8);
     }
   }
+  const rawType = (t.type || "FEE").toUpperCase();
   const status = String(t.status || "SUCCESSFUL");
   return {
     ...t,
@@ -160,12 +184,18 @@ function normalizeTransaction(t) {
     driverId: t.driverId || "",
     driverName: t.driverName || "Unknown driver",
     amount: Number(t.amount || 0),
-    type: (t.type || "FEE").toUpperCase(),
+    type: rawType,
     status: status.charAt(0).toUpperCase() + status.slice(1).toLowerCase(),
     balance: t.balanceAfter != null ? Number(t.balanceAfter) : null,
-    recordedBy: t.processedBy || "System",
+    balanceBefore: t.balanceBefore != null ? Number(t.balanceBefore) : null,
+    recordedBy: t.processedBy || t.staffName || "System",
     reference: t.referenceNumber || t.id || "",
     orNumber: t.orNumber || null,
+    stationId: t.stationId || null,
+    stationCode: t.stationCode || null,
+    stationName: t.stationName || null,
+    staffId: t.staffId || null,
+    staffName: t.staffName || t.processedBy || null,
     date, time,
   };
 }
@@ -193,15 +223,28 @@ function approvalBadge(approval) {
   return '<span class="approval-badge ' + cls + '">' + escapeHtml(approval || "Active") + '</span>';
 }
 
+/* ============================================================
+   SUPABASE NOTIFICATION SYSTEM
+   ============================================================ */
+
 async function loadNotifications() {
   let loaded = null;
   try {
-    const res = await window.api("notifications.php", { query: { limit: 30 } });
+    const res = await window.api("notifications.php", { query: { limit: 100, unread_only: 0 } });
     if (res && res.success && res.data && Array.isArray(res.data.notifications)) {
       loaded = res.data.notifications.map(normalizeNotification);
     }
-  } catch (err) {}
-  notifications = (loaded && loaded.length) ? loaded : buildDerivedNotifications();
+  } catch (err) {
+    console.warn("Backend notifications unavailable, using client-side fallback");
+  }
+
+  if (loaded && loaded.length) {
+    notifications = loaded;
+  } else {
+    notifications = await buildSupabaseNotifications();
+  }
+
+  notifications.sort((a, b) => new Date(b.time) - new Date(a.time));
   renderNotificationPanel();
   updateNotificationBadge();
   if (typeof renderNotificationsPage === "function") renderNotificationsPage();
@@ -211,82 +254,270 @@ window.loadNotifications = loadNotifications;
 function normalizeNotification(n) {
   return {
     id: String(n.id ?? Math.random().toString(36).slice(2)),
-    type: n.type || "info",
+    type: normalizeNotifType(n.type),
+    category: n.category || "system",
     title: n.title || "Notification",
     message: n.message || "",
-    time: n.time || n.createdAt || n.created_at || new Date().toISOString(),
-    unread: n.unread === true || n.read === false,
+    time: n.time || n.created_at || n.createdAt || new Date().toISOString(),
+    unread: n.unread === true || n.is_read === false,
+    actionUrl: n.actionUrl || n.action_url || null,
+    actionLabel: n.actionLabel || n.action_label || null,
+    referenceId: n.referenceId || n.reference_id || null,
   };
 }
 
-function buildDerivedNotifications() {
+function normalizeNotifType(t) {
+  const s = String(t || "info").toLowerCase();
+  if (["critical", "error", "danger"].includes(s)) return "critical";
+  if (["warning", "warn"].includes(s)) return "warning";
+  if (["success", "ok"].includes(s)) return "success";
+  return "info";
+}
+
+async function buildSupabaseNotifications() {
   const list = [];
-  const nowIso = new Date().toISOString();
-  const lowBal = drivers.filter(d => Number(d.balance || 0) < LOW_BALANCE);
-  if (lowBal.length) {
-    list.push({ id: "lowbal", type: "warning", title: "Low balance drivers",
-      message: `${lowBal.length} driver(s) below ₱${LOW_BALANCE}.`, time: nowIso, unread: true });
-  }
-  const pendingDrivers = drivers.filter(d => String(d.approvalStatus || "").toLowerCase() === "pending");
-  if (pendingDrivers.length) {
-    list.push({ id: "pending-drivers", type: "info", title: "Pending driver approvals",
-      message: `${pendingDrivers.length} registration(s) awaiting review.`, time: nowIso, unread: true });
-  }
-  const recent = transactions.slice(-3).reverse();
-  recent.forEach(t => {
-    list.push({
-      id: "tx-" + (t.reference || t.id), type: "success",
-      title: (t.type === "LOAD" ? "Wallet load" : "Fee payment"),
-      message: `${t.driverName || "Driver"} — ₱${Number(t.amount || 0).toFixed(2)}`,
-      time: t.date ? (t.date + "T" + (t.time || "00:00:00")) : nowIso,
-      unread: false,
-    });
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  const failedTxns = transactions.filter(t => {
+    const txDate = new Date(t.date + "T" + (t.time || "00:00:00"));
+    return txDate >= oneDayAgo && /fail|error|declined/i.test(t.status);
   });
+  if (failedTxns.length > 0) {
+    const last = failedTxns[failedTxns.length - 1];
+    list.push({
+      id: "critical-failed-txns",
+      type: "critical",
+      category: "transaction",
+      title: `${failedTxns.length} failed transaction${failedTxns.length > 1 ? "s" : ""}`,
+      message: `Most recent: ${last.driverName} — ₱${last.amount.toFixed(2)}`,
+      time: nowIso,
+      unread: true,
+      actionUrl: "transactions",
+      actionLabel: "Review Failures",
+      referenceId: last.reference || last.id,
+    });
+  }
+
+  const lowBal = drivers.filter(d => Number(d.balance || 0) < LOW_BALANCE);
+  if (lowBal.length > 0) {
+    const lowest = Math.min(...lowBal.map(d => Number(d.balance || 0)));
+    list.push({
+      id: "low-balance-drivers",
+      type: "warning",
+      category: "driver",
+      title: `${lowBal.length} driver${lowBal.length > 1 ? "s" : ""} with low balance`,
+      message: `Below ₱${LOW_BALANCE} threshold. Lowest: ₱${lowest.toFixed(2)}`,
+      time: nowIso,
+      unread: true,
+      actionUrl: "drivers",
+      actionLabel: "View Drivers",
+    });
+  }
+
+  const pendingDrivers = drivers.filter(d => String(d.approvalStatus || "").toLowerCase() === "pending");
+  if (pendingDrivers.length > 0) {
+    list.push({
+      id: "pending-drivers",
+      type: "warning",
+      category: "driver",
+      title: `${pendingDrivers.length} pending driver registration${pendingDrivers.length > 1 ? "s" : ""}`,
+      message: `Awaiting admin review and approval`,
+      time: nowIso,
+      unread: true,
+      actionUrl: "drivers",
+      actionLabel: "Review Now",
+    });
+  }
+
+  const largeTxns = transactions.filter(t => {
+    const txDate = new Date(t.date + "T" + (t.time || "00:00:00"));
+    return txDate >= oneDayAgo && t.amount >= LARGE_AMOUNT_THRESHOLD;
+  });
+  if (largeTxns.length > 0) {
+    const largest = Math.max(...largeTxns.map(t => t.amount));
+    list.push({
+      id: "large-transactions",
+      type: "info",
+      category: "transaction",
+      title: `${largeTxns.length} large transaction${largeTxns.length > 1 ? "s" : ""} (≥ ₱${LARGE_AMOUNT_THRESHOLD})`,
+      message: `Largest: ₱${largest.toFixed(2)}`,
+      time: nowIso,
+      unread: true,
+      actionUrl: "transactions",
+      actionLabel: "View Details",
+    });
+  }
+
+  const today = now.toLocaleDateString("en-CA");
+  const todayTxns = transactions.filter(t => t.date === today);
+  const todayFees = todayTxns.filter(t => t.type === "FEE");
+  const todayLoads = todayTxns.filter(t => t.type === "LOAD");
+  const todayFeesTotal = todayFees.reduce((s, t) => s + t.amount, 0);
+  const todayLoadsTotal = todayLoads.reduce((s, t) => s + t.amount, 0);
+
+  if (todayTxns.length > 0) {
+    list.push({
+      id: "daily-summary",
+      type: "info",
+      category: "system",
+      title: `Today's Activity Summary`,
+      message: `${todayTxns.length} transactions · Fees: ₱${todayFeesTotal.toFixed(2)} · Loads: ₱${todayLoadsTotal.toFixed(2)}`,
+      time: nowIso,
+      unread: false,
+      actionUrl: "dashboard",
+      actionLabel: "View Dashboard",
+    });
+  }
+
+  const recentFees = transactions.filter(t => t.type === "FEE" && /success/i.test(t.status)).slice(-1);
+  if (recentFees.length > 0) {
+    const f = recentFees[0];
+    list.push({
+      id: "recent-fee-" + (f.reference || f.id),
+      type: "success",
+      category: "transaction",
+      title: `Latest terminal fee collected`,
+      message: `${f.driverName} — ₱${f.amount.toFixed(2)}${f.stationName ? " at " + f.stationName : ""}`,
+      time: f.date ? (f.date + "T" + (f.time || "00:00:00")) : nowIso,
+      unread: false,
+      actionUrl: "transactions",
+      actionLabel: "View Transaction",
+    });
+  }
+
+  if (typeof terminals !== "undefined" && Array.isArray(terminals) && terminals.length > 0) {
+    const offlineTerminals = terminals.filter(t => {
+      if ((t.status || "").toLowerCase() !== "active") return false;
+      const lastActivity = t.last_activity_at ? new Date(t.last_activity_at) : null;
+      if (!lastActivity) return true;
+      const minutesSince = (now - lastActivity) / 1000 / 60;
+      return minutesSince > TERMINAL_OFFLINE_MINUTES;
+    });
+
+    if (offlineTerminals.length > 0) {
+      list.push({
+        id: "offline-terminals",
+        type: "warning",
+        category: "terminal",
+        title: `${offlineTerminals.length} terminal${offlineTerminals.length > 1 ? "s" : ""} may be offline`,
+        message: `No activity in the last ${TERMINAL_OFFLINE_MINUTES} minutes: ${offlineTerminals.slice(0, 3).map(t => t.code).join(", ")}${offlineTerminals.length > 3 ? "…" : ""}`,
+        time: nowIso,
+        unread: true,
+        actionUrl: "terminals-map",
+        actionLabel: "View Map",
+      });
+    }
+  }
+
+  if (typeof __inqList !== "undefined" && Array.isArray(__inqList)) {
+    const newInqs = __inqList.filter(i => String(i.status || "").toLowerCase() === "new");
+    if (newInqs.length > 0) {
+      list.push({
+        id: "new-inquiries",
+        type: "info",
+        category: "inquiry",
+        title: `${newInqs.length} new inquir${newInqs.length > 1 ? "ies" : "y"}`,
+        message: `From ${newInqs[0].name || "Anonymous"}${newInqs.length > 1 ? ` and ${newInqs.length - 1} more` : ""}`,
+        time: nowIso,
+        unread: true,
+        actionUrl: "inquiries",
+        actionLabel: "Read Messages",
+      });
+    }
+  }
+
   return list;
+}
+
+function getNotificationVisual(type) {
+  switch (type) {
+    case "critical":
+      return { icon: "fa-circle-exclamation", color: "#DC2626", bg: "#FEE2E2", ring: "rgba(220,38,38,0.15)" };
+    case "warning":
+      return { icon: "fa-triangle-exclamation", color: "#CA8A04", bg: "#FEFCE8", ring: "rgba(202,138,4,0.15)" };
+    case "success":
+      return { icon: "fa-circle-check", color: "#16A34A", bg: "#F0FDF4", ring: "rgba(22,163,74,0.15)" };
+    default:
+      return { icon: "fa-circle-info", color: "#2563EB", bg: "#EFF6FF", ring: "rgba(37,99,235,0.15)" };
+  }
 }
 
 function renderNotificationPanel() {
   const listEl = $("notificationList");
   if (!listEl) return;
+
   if (!notifications.length) {
-    listEl.innerHTML = '<div class="notification-empty">No notifications yet.</div>';
+    listEl.innerHTML = '<div class="notification-empty"><i class="fas fa-bell-slash" style="display:block;font-size:1.5rem;margin-bottom:.5rem;opacity:.4;"></i>No notifications yet.</div>';
     return;
   }
-  const iconFor = (type) => {
-    if (type === "success") return "fa-check-circle";
-    if (type === "warning") return "fa-triangle-exclamation";
-    if (type === "error")   return "fa-circle-exclamation";
-    return "fa-bell";
-  };
-  listEl.innerHTML = notifications.map(n => {
+
+  listEl.innerHTML = notifications.slice(0, 15).map(n => {
+    const v = getNotificationVisual(n.type);
     const unreadCls = n.unread ? " is-unread" : "";
-    const when = n.time ? new Date(n.time).toLocaleString("en-PH", {
-      month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
-    }) : "";
-    return '<button type="button" class="notification-item' + unreadCls + '" data-id="' + escapeHtml(n.id) + '">' +
-      '<span class="notification-item__icon"><i class="fas ' + iconFor(n.type) + '"></i></span>' +
-      '<span>' +
-        '<span class="notification-item__title">' + escapeHtml(n.title) + '</span>' +
-        '<span class="notification-item__message">' + escapeHtml(n.message) + '</span>' +
-        '<span class="notification-item__time">' + escapeHtml(when) + '</span>' +
-      '</span>' +
-    '</button>';
+    const when = n.time ? formatRelativeTime(n.time) : "";
+
+    return `<button type="button" class="notification-item${unreadCls}" data-id="${escapeHtml(n.id)}" data-action="${escapeHtml(n.actionUrl || '')}">
+      <span class="notification-item__icon" style="background:${v.bg};color:${v.color};box-shadow:0 0 0 4px ${v.ring};">
+        <i class="fas ${v.icon}"></i>
+      </span>
+      <span>
+        <span class="notification-item__title">
+          ${escapeHtml(n.title)}
+          ${n.unread ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' + v.color + ';margin-left:.4rem;vertical-align:middle;"></span>' : ''}
+        </span>
+        <span class="notification-item__message">${escapeHtml(n.message)}</span>
+        <span class="notification-item__time">
+          ${escapeHtml(when)}
+          ${n.actionLabel ? `<span style="color:${v.color};font-weight:700;margin-left:.4rem;">· ${escapeHtml(n.actionLabel)} →</span>` : ''}
+        </span>
+      </span>
+    </button>`;
   }).join("");
 
   listEl.querySelectorAll(".notification-item").forEach(item => {
-    item.addEventListener("click", () => {
-      item.classList.remove("is-unread");
+    item.addEventListener("click", async () => {
       const id = item.dataset.id;
+      const actionUrl = item.dataset.action;
       const n = notifications.find(x => String(x.id) === String(id));
-      if (n) n.unread = false;
+      if (n && n.unread) {
+        n.unread = false;
+        try {
+          await window.api("notifications.php", {
+            method: "PATCH",
+            body: { id: n.id, is_read: true }
+          });
+        } catch (e) { /* silent */ }
+      }
+      item.classList.remove("is-unread");
       updateNotificationBadge();
-      if (id === "lowbal" && typeof openLowBalanceModal === "function") openLowBalanceModal();
-      else if (id === "pending-drivers") navigateTo("drivers");
-      else if (String(id).indexOf("tx-") === 0) navigateTo("transactions");
+      if (typeof renderNotificationsPage === "function") renderNotificationsPage();
+
+      if (actionUrl && $("page-" + actionUrl)) {
+        navigateTo(actionUrl);
+        const panel = $("notificationPanel");
+        if (panel) panel.hidden = true;
+      }
     });
   });
 }
 window.renderNotificationPanel = renderNotificationPanel;
+
+function formatRelativeTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  const diffMs = Date.now() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return d.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+}
 
 function updateNotificationBadge() {
   const badge = $("notificationBadge");
@@ -311,27 +542,72 @@ window.markAllNotificationsRead = markAllNotificationsRead;
 function renderNotificationsPage() {
   const container = $("notificationsFullList");
   if (!container) return;
+
   if (!notifications.length) {
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-bell"></i><p>No notifications yet.</p></div>';
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-bell-slash"></i><h3>No notifications</h3><p>You\'re all caught up.</p></div>';
     return;
   }
-  container.innerHTML = notifications.map(n => {
-    const iconCls = n.type === "warning" ? "text-yellow"
-                  : n.type === "error"   ? "text-red"
-                  : n.type === "success" ? "text-green"
-                  : "text-primary";
-    const when = n.time ? new Date(n.time).toLocaleString("en-PH", {
-      month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
-    }) : "";
-    return '<div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">' +
-      '<div class="' + iconCls + '"><i class="fas fa-bell"></i></div>' +
-      '<div class="flex-1">' +
-        '<div class="font-medium text-sm">' + escapeHtml(n.title) + '</div>' +
-        '<div class="text-xs text-gray-500">' + escapeHtml(n.message) + '</div>' +
-        '<div class="text-xs text-gray-400 mt-0.5">' + escapeHtml(when) + '</div>' +
-      '</div>' +
-    '</div>';
-  }).join("");
+
+  const groups = {
+    critical: notifications.filter(n => n.type === "critical"),
+    warning:  notifications.filter(n => n.type === "warning"),
+    info:     notifications.filter(n => n.type === "info"),
+    success:  notifications.filter(n => n.type === "success"),
+  };
+
+  const groupLabels = {
+    critical: { label: "Critical", color: "#DC2626", icon: "fa-circle-exclamation" },
+    warning:  { label: "Warnings", color: "#CA8A04", icon: "fa-triangle-exclamation" },
+    info:     { label: "Information", color: "#2563EB", icon: "fa-circle-info" },
+    success:  { label: "Recent Activity", color: "#16A34A", icon: "fa-circle-check" },
+  };
+
+  let html = "";
+  const totalUnread = notifications.filter(n => n.unread).length;
+
+  html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;background:var(--bg-light);border-radius:.6rem;margin-bottom:1rem;">
+    <span style="font-size:.8rem;color:var(--text-mid);">
+      <strong style="color:var(--text-dark);">${notifications.length}</strong> total ·
+      <strong style="color:var(--maroon);">${totalUnread}</strong> unread
+    </span>
+    ${totalUnread > 0 ? `<button type="button" class="btn-outline btn-sm" onclick="markAllNotificationsRead()"><i class="fas fa-check-double"></i> Mark all read</button>` : ''}
+  </div>`;
+
+  ["critical", "warning", "info", "success"].forEach(key => {
+    const items = groups[key];
+    if (!items.length) return;
+    const g = groupLabels[key];
+    html += `<div style="margin-bottom:1.25rem;">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;padding-bottom:.35rem;border-bottom:1px dashed var(--border);">
+        <i class="fas ${g.icon}" style="color:${g.color};font-size:.85rem;"></i>
+        <span style="font-size:.68rem;font-weight:800;color:${g.color};text-transform:uppercase;letter-spacing:.05em;">${g.label} (${items.length})</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;">`;
+
+    items.forEach(n => {
+      const v = getNotificationVisual(n.type);
+      const when = n.time ? formatRelativeTime(n.time) : "";
+      html += `<div class="notification-card ${n.unread ? 'is-unread' : ''}" 
+                    style="display:flex;gap:.75rem;padding:.85rem 1rem;background:${n.unread ? v.bg : '#fff'};border:1px solid var(--border-soft);border-left:4px solid ${v.color};border-radius:.6rem;transition:all .15s;${n.actionUrl ? 'cursor:pointer;' : ''}"
+                    ${n.actionUrl ? `onclick="navigateTo('${escapeHtml(n.actionUrl)}')"` : ''}>
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:50%;background:${v.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.85rem;">
+          <i class="fas ${v.icon}"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:.5rem;">
+            <div style="font-weight:700;font-size:.85rem;color:var(--text-dark);">${escapeHtml(n.title)}</div>
+            <div style="font-size:.68rem;color:var(--text-soft);white-space:nowrap;">${escapeHtml(when)}</div>
+          </div>
+          <div style="font-size:.78rem;color:var(--text-mid);margin-top:.2rem;line-height:1.4;">${escapeHtml(n.message)}</div>
+          ${n.actionLabel ? `<div style="margin-top:.5rem;"><span style="font-size:.7rem;font-weight:700;color:${v.color};"><i class="fas fa-arrow-right"></i> ${escapeHtml(n.actionLabel)}</span></div>` : ''}
+        </div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  container.innerHTML = html;
 }
 window.renderNotificationsPage = renderNotificationsPage;
 
@@ -374,7 +650,21 @@ function initNotificationBell() {
   }
 
   loadNotifications();
+  startNotificationPolling();
 }
+
+function startNotificationPolling() {
+  if (__notificationPollTimer) clearInterval(__notificationPollTimer);
+  __notificationPollTimer = setInterval(() => {
+    if (document.visibilityState === "visible") {
+      loadNotifications();
+    }
+  }, NOTIFICATION_REFRESH_MS);
+}
+
+window.addEventListener("focus", () => {
+  if (document.visibilityState === "visible") loadNotifications();
+});
 
 async function updateDashboard() {
   try {
@@ -783,7 +1073,8 @@ async function __loadStationsForUserForm() {
   try {
     const res = await window.api('terminals.php');
     if (res && res.success && res.data && Array.isArray(res.data.terminals)) {
-      __adminStations = res.data.terminals        .filter(t => /^active$/i.test(t.status || 'Active'))
+      __adminStations = res.data.terminals
+        .filter(t => /^active$/i.test(t.status || 'Active'))
         .map(t => ({ id: String(t.id), code: String(t.code), name: String(t.name) }));
     }
   } catch (e) { console.warn('Could not load stations:', e); }
@@ -1249,11 +1540,16 @@ function renderTransactions() {
   const dateF = $("transDate")?.value || "";
   const typeF = $("transType")?.value || "";
   let data = transactions;
+
   if (search) data = data.filter(t =>
     (t.driverName || "").toLowerCase().includes(search) ||
-    (t.reference || "").toLowerCase().includes(search));
+    (t.reference || "").toLowerCase().includes(search) ||
+    (t.stationName || "").toLowerCase().includes(search) ||
+    (t.staffName || "").toLowerCase().includes(search) ||
+    (t.plateNumber || "").toLowerCase().includes(search));
   if (dateF) data = data.filter(t => t.date === dateF);
   if (typeF) data = data.filter(t => t.type === typeF);
+
   window.__currentTransactionList = data;
   const tb = $("transTable");
   if (!tb) return;
@@ -1261,30 +1557,51 @@ function renderTransactions() {
     tb.innerHTML = '<tr><td colspan="9"><div class="empty-state py-4"><i class="fas fa-receipt"></i><h3>No transactions</h3></div></td></tr>';
     return;
   }
-  tb.innerHTML = data.slice().reverse().slice(0, 500).map(t => '<tr>' +
-    '<td class="py-2 text-sm">' + escapeHtml(t.date) + '</td>' +
-    '<td class="py-2">' + escapeHtml(t.driverName) + '</td>' +
-    '<td class="py-2 text-sm">' + escapeHtml(t.vehicleType) + '</td>' +
-    '<td class="py-2">' + typeBadge(t.type) + '</td>' +
-    '<td class="py-2 font-bold ' + (t.type === "LOAD" ? "text-green" : "text-primary") + '">' + (t.type === "LOAD" ? "+" : "-") + '₱' + t.amount.toFixed(2) + '</td>' +
-    '<td class="py-2 text-sm">' + (t.balance != null ? "₱" + t.balance.toFixed(2) : "—") + '</td>' +
-    '<td class="py-2 text-sm">' + escapeHtml(t.recordedBy || "System") + '</td>' +
-    '<td class="py-2">' + statusBadge(t.status) + '</td>' +
-    '<td class="py-2">' +
-      (t.type === "LOAD" ?
-        '<button type="button" class="btn-primary btn-sm" onclick="printLoadRecord(\'' + escapeHtml(String(t.reference || t.id)) + '\')" title="Print record"><i class="fas fa-print"></i></button>' :
-        '<button type="button" class="btn-primary btn-sm" onclick="printReceiptById(\'' + escapeHtml(String(t.id)) + '\')" title="Print receipt"><i class="fas fa-print"></i></button>') +
-    '</td>' +
-    '</tr>').join("");
+
+  tb.innerHTML = data.slice().reverse().slice(0, 500).map(t => {
+    const printAction = t.type === "LOAD"
+      ? `printLoadRecord('${escapeHtml(String(t.reference || t.id))}')`
+      : `printReceiptById('${escapeHtml(String(t.id))}')`;
+
+    const printTitle = t.type === "LOAD" ? "Print Load Record" : "Print Terminal Fee Receipt";
+    const amountSign = t.type === "LOAD" ? "+" : "−";
+    const amountCls = t.type === "LOAD" ? "text-green" : "text-primary";
+
+    const stationInfo = t.type === "FEE" && t.stationName
+      ? `<div class="text-[10px] text-gray-400 mt-0.5"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(t.stationName)}</div>`
+      : '';
+
+    return '<tr>' +
+      '<td class="py-2 text-sm">' + escapeHtml(t.date) + '</td>' +
+      '<td class="py-2">' + escapeHtml(t.driverName) + stationInfo + '</td>' +
+      '<td class="py-2 text-sm">' + escapeHtml(t.vehicleType) +
+        (t.plateNumber && t.plateNumber !== "Not recorded" ? '<br><span class="text-[10px] text-gray-400 font-mono">' + escapeHtml(t.plateNumber) + '</span>' : '') + '</td>' +
+      '<td class="py-2">' + typeBadge(t.type) + '</td>' +
+      '<td class="py-2 font-bold ' + amountCls + '">' + amountSign + '₱' + t.amount.toFixed(2) + '</td>' +
+      '<td class="py-2 text-sm">' + (t.balance != null ? "₱" + t.balance.toFixed(2) : "—") + '</td>' +
+      '<td class="py-2 text-sm">' + escapeHtml(t.recordedBy || "System") + '</td>' +
+      '<td class="py-2">' + statusBadge(t.status) + '</td>' +
+      '<td class="py-2">' +
+        '<button type="button" class="btn-primary btn-sm" onclick="' + printAction + '" title="' + printTitle + '">' +
+          '<i class="fas fa-print"></i>' +
+        '</button>' +
+      '</td>' +
+      '</tr>';
+  }).join("");
 }
 window.renderTransactions = renderTransactions;
 
 window.exportTransactionsExcel = function () {
   if (!transactions.length) { showToast("Nothing to export", "warning"); return; }
   const cell = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-  let csv = "Date,Reference,Type,Driver,Vehicle,Amount,Balance,Processed By,Status\r\n";
+  let csv = "Date,Reference,Type,Driver,Vehicle,Plate,Station,Amount,Balance,Processed By,Status\r\n";
   transactions.forEach(t => {
-    csv += [t.date, t.reference, t.type, t.driverName, t.vehicleType, t.amount.toFixed(2), (t.balance || 0).toFixed(2), t.recordedBy, t.status].map(cell).join(",") + "\r\n";
+    csv += [
+      t.date, t.reference, t.type, t.driverName, t.vehicleType,
+      t.plateNumber || "", t.stationName || "",
+      t.amount.toFixed(2), (t.balance || 0).toFixed(2),
+      t.recordedBy, t.status
+    ].map(cell).join(",") + "\r\n";
   });
   const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
@@ -1587,6 +1904,19 @@ window.logout = function () {
 };
 
 window.updateAdmin = async function () {
+  const nameEl = $("adminName");
+  const emailEl = $("adminEmail");
+  if (!nameEl || !emailEl) return;
+
+  const fullName = nameEl.value.trim();
+  const email = emailEl.value.trim();
+
+  if (!fullName) {
+    showToast("Full name is required", "error");
+    nameEl.focus();
+    return;
+  }
+
   const p = $("adminPassword")?.value || "";
   const c = $("adminConfirmPassword")?.value || "";
   if (p && p !== c) { showToast("Passwords do not match", "error"); return; }
@@ -1595,44 +1925,114 @@ window.updateAdmin = async function () {
     showToast("Enter your current password to change it", "error");
     return;
   }
-  const res = await window.api("users.php", {
-    method: "PATCH", query: { me: 1 },
-    body: {
-      fullName: $("adminName").value.trim(),
-      email: $("adminEmail").value.trim(),
-      currentPassword, newPassword: p,
-    },
-  });
-  if (!res.success) { showToast(res.message || "Profile could not be updated", "error"); return; }
-  if (window.CURRENT_USER && res.data && res.data.user) {
-    window.CURRENT_USER.fullName = res.data.user.fullName;
+
+  const btn = document.querySelector("#page-settings button.btn-primary") ||
+              document.querySelector("#adminName")?.closest(".card")?.querySelector("button.btn-primary");
+  const origBtnHtml = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
   }
-  if (res.data && res.data.user) setText("adminGreetingName", res.data.user.fullName || res.data.user.username);
-  $("adminCurrentPassword").value = "";
-  $("adminPassword").value = "";
-  $("adminConfirmPassword").value = "";
-  showToast("Profile updated", "success");
+
+  try {
+    const res = await window.api("users.php", {
+      method: "PATCH",
+      query: { me: 1 },
+      body: {
+        fullName,
+        email,
+        currentPassword,
+        newPassword: p,
+      },
+    });
+
+    if (!res.success) {
+      showToast(res.message || "Profile could not be updated", "error");
+      return;
+    }
+
+    const updatedUser = res.data?.user;
+    if (updatedUser) {
+      if (window.CURRENT_USER) {
+        window.CURRENT_USER.fullName = updatedUser.fullName;
+        window.CURRENT_USER.email = updatedUser.email;
+      }
+      const displayName = updatedUser.fullName || updatedUser.username || "Admin";
+      setText("adminGreetingName", displayName);
+      setText("sidebarUser", displayName);
+      setText("userNameChip", displayName);
+      const av = $("userAvatarChip");
+      if (av) av.textContent = displayName.charAt(0).toUpperCase();
+
+      nameEl.value = updatedUser.fullName || "";
+      emailEl.value = updatedUser.email || "";
+    }
+
+    if ($("adminCurrentPassword")) $("adminCurrentPassword").value = "";
+    if ($("adminPassword")) $("adminPassword").value = "";
+    if ($("adminConfirmPassword")) $("adminConfirmPassword").value = "";
+
+    showToast("Profile updated successfully!", "success");
+  } catch (err) {
+    console.error("updateAdmin error:", err);
+    showToast("An unexpected error occurred while updating profile", "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origBtnHtml;
+    }
+  }
 };
 
 window.changeOwnPassword = async function () {
-  const current = $("cpCurrent")?.value || "";
-  const next    = $("cpNew")?.value || "";
-  const confirm = $("cpConfirm")?.value || "";
+  const currentEl = $("cpCurrent");
+  const nextEl    = $("cpNew");
+  const confirmEl = $("cpConfirm");
+  const current   = currentEl?.value || "";
+  const next      = nextEl?.value || "";
+  const confirm   = confirmEl?.value || "";
+
   if (!current || !next || !confirm) { showToast("Fill in all password fields", "error"); return; }
-  if (next.length < 8) { showToast("New password must be 8+ characters", "error"); return; }
+  if (next.length < 8) { showToast("New password must be at least 8 characters", "error"); return; }
   if (next !== confirm) { showToast("New passwords do not match", "error"); return; }
-  const res = await window.api("users.php", {
-    method: "PATCH", query: { me: 1 },
-    body: {
-      currentPassword: current, newPassword: next,
-      fullName: window.CURRENT_USER?.fullName || $("adminName")?.value || "",
-      email: window.CURRENT_USER?.email || $("adminEmail")?.value || ""
+
+  const btn = document.querySelector("#page-change-password button.btn-primary") ||
+              document.querySelector("#cpCurrent")?.closest(".card")?.querySelector("button.btn-primary");
+  const origBtnHtml = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+  }
+
+  try {
+    const res = await window.api("users.php", {
+      method: "PATCH",
+      query: { me: 1 },
+      body: {
+        currentPassword: current,
+        newPassword: next,
+        fullName: window.CURRENT_USER?.fullName || $("adminName")?.value || "",
+        email: window.CURRENT_USER?.email || $("adminEmail")?.value || "",
+      },
+    });
+
+    if (res.success) {
+      showToast("Password updated successfully!", "success");
+      if (currentEl) currentEl.value = "";
+      if (nextEl) nextEl.value = "";
+      if (confirmEl) confirmEl.value = "";
+    } else {
+      showToast(res.message || "Password update failed", "error");
     }
-  });
-  if (res.success) {
-    showToast("Password updated", "success");
-    $("cpCurrent").value = ""; $("cpNew").value = ""; $("cpConfirm").value = "";
-  } else showToast(res.message || "Password update failed", "error");
+  } catch (err) {
+    console.error("changeOwnPassword error:", err);
+    showToast("An unexpected error occurred while updating password", "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origBtnHtml;
+    }
+  }
 };
 
 async function loadSystemSettings() {
@@ -2375,6 +2775,7 @@ window.printReceiptById = function (id) {
       <div class="row"><span>Driver ID</span><strong>${escapeHtml(t.driverId || "—")}</strong></div>
       <div class="row"><span>Vehicle Type</span><strong>${escapeHtml(t.vehicleType || "—")}</strong></div>
       <div class="row"><span>Plate Number</span><strong>${escapeHtml(t.plateNumber || "—")}</strong></div>
+      ${t.stationName ? `<div class="row"><span>Station</span><strong>${escapeHtml(t.stationName)}</strong></div>` : ''}
       <div class="total"><span>Fee Collected</span><span>− ${fmt(t.amount)}</span></div>
       <div class="total"><span>Balance After</span><span>${fmt(t.balance)}</span></div>
       <div class="row"><span>Processed By</span><strong>${escapeHtml(t.recordedBy || "—")}</strong></div>
@@ -2580,6 +2981,304 @@ function updateTopbarClock() {
   el.textContent = `${datePart}, ${timePart}`;
 }
 
+let __inqCurrentId = null;
+let __inqList = [];
+let __inqOriginalReply = "";
+let __inqLoading = false;
+let __inqError = null;
+let __inqBusy = false;
+
+const __INQ_STATUS = {
+  new:      { dbValue: 'new',      wire: 'new',      display: 'new',         filter: 'new',         label: 'New' },
+  read:     { dbValue: 'read',     wire: 'read',     display: 'in_progress', filter: 'in_progress', label: 'In Progress' },
+  replied:  { dbValue: 'replied',  wire: 'replied',  display: 'replied',     filter: 'replied',     label: 'Replied' },
+  resolved: { dbValue: 'resolved', wire: 'resolved', display: 'resolved',    filter: 'resolved',    label: 'Resolved' }
+};
+
+function __inqStatusKey(raw) {
+  const s = String(raw || 'new').toLowerCase().trim();
+  if (__INQ_STATUS[s]) return s;
+  for (const k of Object.keys(__INQ_STATUS)) {
+    if (__INQ_STATUS[k].display === s || __INQ_STATUS[k].filter === s) return k;
+  }
+  return 'new';
+}
+function __inqStatusInfo(raw) { return __INQ_STATUS[__inqStatusKey(raw)]; }
+
+function __inqEscape(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+function __inqFormatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString('en-PH', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit'
+  });
+}
+
+function __inqUpdateSidebarBadge() {
+  const newCount = __inqList.filter(i => __inqStatusKey(i.status) === 'new').length;
+  const badge = document.getElementById('inquirySidebarBadge');
+  if (!badge) return;
+  badge.textContent = newCount;
+  badge.hidden = newCount === 0;
+}
+
+function renderInquiryStats(list) {
+  const counts = { new: 0, read: 0, replied: 0, resolved: 0 };
+  list.forEach(i => { counts[__inqStatusKey(i.status)]++; });
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('inqStatTotal',    list.length);
+  set('inqStatNew',      counts.new);
+  set('inqStatReplied',  counts.replied);
+  set('inqStatResolved', counts.resolved);
+}
+
+function renderInquiries() {
+  const table   = document.getElementById('inquiryTable');
+  const counter = document.getElementById('inquiryCount');
+  if (!table) return;
+
+  if (__inqLoading) {
+    table.innerHTML = '<tr><td colspan="6"><div class="empty-inline">' +
+      '<i class="fas fa-spinner fa-spin" style="margin-right:.4rem;"></i> Loading inquiries…' +
+      '</div></td></tr>';
+    if (counter) counter.textContent = '…';
+    return;
+  }
+
+  if (__inqError) {
+    table.innerHTML = '<tr><td colspan="6"><div class="empty-state py-6">' +
+      '<i class="fas fa-triangle-exclamation" style="color:var(--red);"></i>' +
+      '<h3>Could not load inquiries</h3>' +
+      '<p class="text-sm">' + __inqEscape(__inqError) + '</p>' +
+      '<button class="btn-outline btn-sm" style="margin-top:.75rem;" ' +
+        'onclick="refreshInquiries()"><i class="fas fa-sync"></i> Retry</button>' +
+      '</div></td></tr>';
+    if (counter) counter.textContent = '0';
+    return;
+  }
+
+  const filterValue = document.getElementById('inquiryStatusFilter')?.value || '';
+  const search      = (document.getElementById('inquirySearch')?.value || '').toLowerCase().trim();
+
+  renderInquiryStats(__inqList);
+  __inqUpdateSidebarBadge();
+
+  let list = __inqList.slice();
+  list.sort((a, b) => new Date(b.receivedAt || 0) - new Date(a.receivedAt || 0));
+
+  if (filterValue) list = list.filter(i => __inqStatusInfo(i.status).filter === filterValue);
+  if (search) {
+    list = list.filter(i =>
+      (i.name    || '').toLowerCase().includes(search) ||
+      (i.email   || '').toLowerCase().includes(search) ||
+      (i.subject || '').toLowerCase().includes(search) ||
+      (i.message || '').toLowerCase().includes(search));
+  }
+
+  if (counter) counter.textContent = list.length;
+
+  if (!list.length) {
+    const filtered = !!(filterValue || search);
+    table.innerHTML = '<tr><td colspan="6"><div class="empty-state py-6">' +
+      '<i class="fas fa-inbox"></i>' +
+      '<h3>' + (filtered ? 'No matching inquiries' : 'No inquiries yet') + '</h3>' +
+      '<p class="text-sm">' +
+        (filtered ? 'Try clearing filters or search.' : 'Public and driver messages will appear here.') +
+      '</p></div></td></tr>';
+    return;
+  }
+
+  table.innerHTML = list.map(inq => {
+    const info    = __inqStatusInfo(inq.status);
+    const preview = (inq.message || '').length > 70 ? inq.message.slice(0, 70) + '…' : (inq.message || '');
+    const isDriver = inq.isDriver === true;
+    const driverBadge = isDriver
+      ? ' <span style="font-size:.6rem;background:var(--maroon-soft);color:var(--maroon);padding:.1rem .4rem;border-radius:4px;font-weight:700;letter-spacing:.03em;vertical-align:middle;">DRIVER</span>'
+      : '';
+    return '<tr>' +
+      '<td>' + __inqEscape(__inqFormatDate(inq.receivedAt)) + '</td>' +
+      '<td><div class="inq-subject">' + __inqEscape(inq.name || 'Anonymous') + driverBadge + '</div>' +
+        '<div class="inq-email">' + __inqEscape(inq.email || '—') + '</div></td>' +
+      '<td><strong>' + __inqEscape(inq.subject || '—') + '</strong></td>' +
+      '<td><div class="inq-preview">' + __inqEscape(preview) + '</div></td>' +
+      '<td><span class="inq-status ' + info.display + '">' + __inqEscape(info.label) + '</span></td>' +
+      '<td><button class="btn-primary btn-sm" onclick="openInquiry(\'' + __inqEscape(inq.id) + '\')">' +
+        '<i class="fas fa-eye"></i> View</button></td>' +
+    '</tr>';
+  }).join('');
+}
+window.renderInquiries = renderInquiries;
+
+async function __refreshInquiries(showSuccess = false) {
+  __inqLoading = true; __inqError = null; renderInquiries();
+  try {
+    const result = await window.api('inquiries.php');
+    if (!result || !result.success || !result.data || !Array.isArray(result.data.inquiries)) {
+      __inqLoading = false;
+      __inqError = (result && result.message) || 'Inquiries could not be loaded.';
+      renderInquiries();
+      if (typeof showToast === 'function') showToast(__inqError, 'error');
+      return false;
+    }
+    __inqList = result.data.inquiries;
+    __inqLoading = false; __inqError = null;
+    renderInquiries();
+    if (showSuccess && typeof showToast === 'function') showToast('Inquiries refreshed.', 'success');
+    if (typeof window.loadNotifications === 'function') window.loadNotifications();
+    return true;
+  } catch (err) {
+    console.error('Inquiry load failed:', err);
+    __inqLoading = false;
+    __inqError = 'Network error. Please check your connection.';
+    renderInquiries();
+    if (typeof showToast === 'function') showToast(__inqError, 'error');
+    return false;
+  }
+}
+
+async function openInquiry(id) {
+  let inq = __inqList.find(i => i.id === id);
+  if (!inq) return;
+  __inqCurrentId = id;
+  const dbStatus = __inqStatusKey(inq.status);
+  if (dbStatus === 'new') {
+    try {
+      const res = await window.api('inquiries.php', { method: 'PATCH', body: { id, status: __INQ_STATUS.read.wire } });
+      if (res && res.success && res.data && res.data.inquiry) {
+        inq = res.data.inquiry;
+        __inqList = __inqList.map(item => item.id === id ? inq : item);
+        renderInquiries();
+      }
+    } catch (err) { console.warn('Auto-bump network error:', err); }
+  }
+  document.getElementById('inqModalName').textContent    = inq.name || 'Anonymous';
+  document.getElementById('inqModalEmail').textContent   = inq.email || '—';
+  document.getElementById('inqModalSubject').textContent = inq.subject || '—';
+  document.getElementById('inqModalBody').textContent    = inq.message || '—';
+  document.getElementById('inqModalDate').textContent    = __inqFormatDate(inq.receivedAt);
+  document.getElementById('inqModalType').textContent    = inq.topic || inq.subject || 'General';
+  const info = __inqStatusInfo(inq.status);
+  const statusEl = document.getElementById('inqModalStatus');
+  statusEl.className = 'inq-status ' + info.display;
+  statusEl.textContent = info.label.toUpperCase();
+  const replyEl = document.getElementById('inqReplyText');
+  replyEl.value = inq.reply || '';
+  __inqOriginalReply = replyEl.value;
+  __renderPreviousResponse(inq);
+  openModal('inquiryModal');
+}
+window.openInquiry = openInquiry;
+
+function __renderPreviousResponse(inq) {
+  let wrap = document.getElementById('inqResponseHistory');
+  const form = document.querySelector('.inq-reply-form');
+  if (!form) return;
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'inqResponseHistory';
+    wrap.style.cssText = 'margin:.75rem 0;';
+    form.parentNode.insertBefore(wrap, form);
+  }
+  if (!inq.reply || !inq.repliedAt) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML =
+    '<div class="section-mini-title"><i class="fas fa-comments"></i> Previous Response</div>' +
+    '<div style="background:var(--maroon-tint);border-left:3px solid var(--maroon);' +
+         'padding:.6rem .75rem;border-radius:.5rem;margin-bottom:.5rem;">' +
+      '<div style="font-size:.7rem;color:var(--text-mid);margin-bottom:.2rem;">' +
+        '<strong>Admin</strong> · ' + __inqEscape(__inqFormatDate(inq.repliedAt)) + '</div>' +
+      '<div style="font-size:.82rem;white-space:pre-wrap;">' + __inqEscape(inq.reply) + '</div>' +
+    '</div>';
+}
+
+async function __inqPatch(body, successMessage) {
+  if (!__inqCurrentId) return false;
+  if (__inqBusy) { if (typeof showToast === 'function') showToast('Please wait…', 'warning'); return false; }
+  __inqBusy = true;
+  try {
+    const res = await window.api('inquiries.php', { method: 'PATCH', body: { id: __inqCurrentId, ...body } });
+    if (!res || !res.success || !res.data || !res.data.inquiry) {
+      const msg = (res && res.message) || 'Inquiry could not be saved.';
+      if (typeof showToast === 'function') showToast(msg, 'error');
+      return false;
+    }
+    const updated = res.data.inquiry;
+    __inqList = __inqList.map(item => item.id === updated.id ? updated : item);
+    renderInquiries();
+    if (typeof showToast === 'function') showToast(successMessage, 'success');
+    if (typeof window.loadNotifications === 'function') window.loadNotifications();
+    closeModal('inquiryModal');
+    return true;
+  } catch (err) {
+    console.error('Inquiry update failed:', err);
+    if (typeof showToast === 'function') showToast('Network error saving inquiry.', 'error');
+    return false;
+  } finally { __inqBusy = false; }
+}
+
+function saveInquiryReply() {
+  const reply = document.getElementById('inqReplyText').value.trim();
+  if (!reply) { if (typeof showToast === 'function') showToast('Enter a response before saving.', 'error'); return; }
+  return __inqPatch({ reply }, 'Response saved.');
+}
+window.saveInquiryReply = saveInquiryReply;
+
+function resolveInquiry() {
+  const replyEl = document.getElementById('inqReplyText');
+  const typed   = replyEl.value.trim();
+  const hasUnsaved = typed && typed !== __inqOriginalReply;
+  if (hasUnsaved) {
+    if (window.ConfirmModal) {
+      window.ConfirmModal.show({
+        title: 'Unsaved response',
+        message: 'You have unsaved response text. Resolving without saving will discard the typed text.',
+        confirmText: 'Resolve without saving',
+        cancelText: 'Cancel',
+        onConfirm: () => __inqPatch({ status: __INQ_STATUS.resolved.wire }, 'Inquiry marked as resolved.')
+      });
+      return;
+    }
+  }
+  return __inqPatch({ status: __INQ_STATUS.resolved.wire }, 'Inquiry marked as resolved.');
+}
+window.resolveInquiry = resolveInquiry;
+
+function closeInquiryModalSafe() {
+  const current = document.getElementById('inqReplyText')?.value.trim() || '';
+  if (current && current !== __inqOriginalReply) {
+    if (window.ConfirmModal) {
+      window.ConfirmModal.show({
+        title: 'Discard unsaved changes?',
+        message: 'Your response text has not been saved. Close anyway?',
+        confirmText: 'Discard', cancelText: 'Keep editing',
+        onConfirm: () => closeModal('inquiryModal')
+      });
+      return;
+    }
+    if (!confirm('Discard unsaved response?')) return;
+  }
+  closeModal('inquiryModal');
+}
+window.closeInquiryModalSafe = closeInquiryModalSafe;
+
+window.refreshInquiries = function () { return __refreshInquiries(true); };
+
+function __wireInqStatCard(cardId, filterKey) {
+  const el = document.getElementById(cardId)?.closest('.kpi-tile');
+  if (!el) return;
+  el.style.cursor = 'pointer';
+  el.addEventListener('click', () => {
+    const sf = document.getElementById('inquiryStatusFilter');
+    if (sf) sf.value = filterKey;
+    renderInquiries();
+  });
+}
+
 window.authReady.then(async (me) => {
   if (!me) return;
   currentAdminUser = me;
@@ -2591,6 +3290,11 @@ window.authReady.then(async (me) => {
   initUserForm();
   initNotificationBell();
   initUserChip();
+
+  const earlyPage = (location.hash || "").replace("#", "").trim() || sessionStorage.getItem("admin_active_page");
+  if (earlyPage && earlyPage !== "dashboard" && $("page-" + earlyPage)) {
+    navigateTo(earlyPage);
+  }
 
   document.querySelectorAll(".modal-overlay").forEach(m => {
     m.addEventListener("click", e => { if (e.target === m) m.classList.remove("active"); });
@@ -2615,6 +3319,20 @@ window.authReady.then(async (me) => {
   $("userSearch")?.addEventListener("input", renderUsers);
   $("userRoleFilter")?.addEventListener("change", renderUsers);
   $("refSearch")?.addEventListener("input", renderReferences);
+  $("inquiryStatusFilter")?.addEventListener("change", renderInquiries);
+  $("inquirySearch")?.addEventListener("input", renderInquiries);
+
+  document.querySelectorAll('.sidebar-item[data-page="inquiries"]').forEach(btn => {
+    btn.addEventListener('click', function () { __refreshInquiries(); });
+  });
+  document.querySelectorAll('.sidebar-item[data-page="staff-assignments"]').forEach(btn => {
+    btn.addEventListener('click', function () { setTimeout(loadStaffAssignments, 100); });
+  });
+
+  __wireInqStatCard('inqStatTotal',    '');
+  __wireInqStatCard('inqStatNew',      __INQ_STATUS.new.filter);
+  __wireInqStatCard('inqStatReplied',  __INQ_STATUS.replied.filter);
+  __wireInqStatCard('inqStatResolved', __INQ_STATUS.resolved.filter);
 
   updateTopbarClock();
   setInterval(updateTopbarClock, 30000);
@@ -2639,7 +3357,17 @@ window.authReady.then(async (me) => {
   }
 
   initChart();
-  updateDashboard();
   loadFees();
   loadTerminalsData();
+
+  const finalTarget = (location.hash || "").replace("#", "").trim() || sessionStorage.getItem("admin_active_page") || "dashboard";
+  if (finalTarget && $("page-" + finalTarget)) {
+    navigateTo(finalTarget);
+    refreshCurrentPage(finalTarget);
+  } else {
+    navigateTo("dashboard");
+    updateDashboard();
+  }
+
+  __refreshInquiries();
 });

@@ -9,12 +9,27 @@
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
     const escapeHtml = esc;
+
     const fmtDateTime = (iso) => {
         const d = new Date(iso);
-        return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString("en-PH", {
-            month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit"
+        if (Number.isNaN(d.getTime())) return "—";
+        return d.toLocaleString("en-PH", {
+            month: "short", day: "numeric", year: "numeric",
+            hour: "numeric", minute: "2-digit", hour12: true
         });
     };
+
+    const fmtTime12 = (date) => {
+        const d = date instanceof Date ? date : new Date(date);
+        if (Number.isNaN(d.getTime())) return "—";
+        let h = d.getHours();
+        const m = String(d.getMinutes()).padStart(2, "0");
+        const ampm = h >= 12 ? "PM" : "AM";
+        h = h % 12;
+        if (h === 0) h = 12;
+        return h + ":" + m + " " + ampm;
+    };
+
     const localDateKey = (date) => [
         date.getFullYear(),
         String(date.getMonth() + 1).padStart(2, "0"),
@@ -38,6 +53,8 @@
     let assignedStation = null;
     let assignedStationMapInstance = null;
     let assignedStationMarker = null;
+    let staffNotifs = [];
+    let notifCurrentFilter = "all";
 
     function setText(id, v) { const e = $(id); if (e) e.textContent = v; }
 
@@ -45,9 +62,10 @@
         const el = $("topbarDateTime");
         if (!el) return;
         const now = new Date();
-        const datePart = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-        const timePart = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-        el.textContent = datePart + ", " + timePart;
+        const datePart = now.toLocaleDateString("en-US", {
+            weekday: "short", month: "short", day: "numeric", year: "numeric"
+        });
+        el.textContent = datePart + ", " + fmtTime12(now);
     }
 
     function toast(msg, type) {
@@ -81,9 +99,10 @@
             if (!res || !res.success || !res.data) return;
             const s = res.data.settings || res.data || {};
             if (s.duplicate_scan_seconds) DUP_WINDOW_SECONDS = Number(s.duplicate_scan_seconds) || DUP_WINDOW_SECONDS;
-            if (s.low_balance_threshold)  LOW_BALANCE_THRESHOLD = Number(s.low_balance_threshold) || LOW_BALANCE_THRESHOLD;
-        } catch (e) {  }
+            if (s.low_balance_threshold) LOW_BALANCE_THRESHOLD = Number(s.low_balance_threshold) || LOW_BALANCE_THRESHOLD;
+        } catch (e) {}
     }
+    window.loadSystemSettings = loadSystemSettings;
 
     async function identifyStation() {
         try {
@@ -91,7 +110,8 @@
             if (res && res.success && res.data && res.data.station) {
                 assignedStation = res.data.station;
                 renderStationBanner();
-                setText("stationTitle", assignedStation.name + " Dashboard");
+                const titleEl = $("stationTitle");
+                if (titleEl) titleEl.textContent = (assignedStation.name || "Staff") + " Dashboard";
                 return true;
             }
             assignedStation = null;
@@ -104,6 +124,7 @@
             return false;
         }
     }
+    window.identifyStation = identifyStation;
 
     function renderStationBanner() {
         const banner = $("stationBanner");
@@ -121,10 +142,10 @@
         if (banner) banner.hidden = true;
         const warn = $("noStationWarning");
         if (warn) warn.hidden = false;
-        const scanBtn = $("scannerInput");
-        if (scanBtn) {
-            scanBtn.disabled = true;
-            scanBtn.placeholder = "No station assigned — contact Admin";
+        const scanInput = $("scannerInput");
+        if (scanInput) {
+            scanInput.disabled = true;
+            scanInput.placeholder = "No station assigned — contact Admin";
         }
         const manualBtn = $("manualScanBtn");
         if (manualBtn) manualBtn.disabled = true;
@@ -236,6 +257,19 @@
     }
     window.loadAssignedStation = loadAssignedStation;
 
+    async function refreshAssignedStation() {
+        const btn = document.querySelector('#page-assigned-station .btn-outline');
+        const orig = btn ? btn.innerHTML : "";
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing…'; }
+        await loadAssignedStation();
+        if (assignedStationMapInstance) {
+            setTimeout(() => assignedStationMapInstance.invalidateSize(), 100);
+        }
+        if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+        toast("Station refreshed.", "success");
+    }
+    window.refreshAssignedStation = refreshAssignedStation;
+
     function focusAssignedStationOnMap() {
         if (!assignedStation || !assignedStationMapInstance) return;
         assignedStationMapInstance.flyTo(
@@ -250,53 +284,197 @@
 
     function startNotifPolling() {
         stopNotifPolling();
-        checkNotifications();
-        notifPollTimer = setInterval(checkNotifications, 15000);
+        refreshStaffNotifications(false);
+        notifPollTimer = setInterval(() => refreshStaffNotifications(false), 20000);
     }
+    window.startNotifPolling = startNotifPolling;
+
     function stopNotifPolling() {
         if (notifPollTimer) clearInterval(notifPollTimer);
         notifPollTimer = null;
     }
+    window.stopNotifPolling = stopNotifPolling;
 
-    async function checkNotifications() {
+    async function refreshStaffNotifications(showToastFlag) {
         try {
-            const res = await window.api("payments.php", { query: { action: "list", type: "ALL", limit: 10 } });
-            if (res && res.success && res.data.transactions) {
-                const savedReadIds = JSON.parse(localStorage.getItem("bctt_read_notifs") || "[]");
-                unreadNotifs = res.data.transactions.map((t) => {
-                    const notifId = t.id || t.referenceNumber || t.date + t.time;
-                    return {
-                        id: notifId,
-                        title: t.type === "LOAD" ? "Balance Loaded" : "Fee Collected",
-                        message: `${t.type === "LOAD" ? "Loaded" : "Collected"} ${peso(t.amount)} for ${t.driverName || "Driver"}`,
-                        time: t.date + " " + t.time,
-                        isRead: savedReadIds.includes(notifId)
-                    };
-                });
-                renderNotifications();
+            const res = await window.api("notifications.php", { query: { action: "list" } });
+            if (!res || !res.success || !res.data) {
+                renderNotifError((res && res.message) ? res.message : "Could not load notifications.");
+                return;
             }
-        } catch (err) { console.warn("Notif fetch failed", err); }
+            staffNotifs = Array.isArray(res.data.notifications) ? res.data.notifications : [];
+            renderNotifications();
+            renderFullNotifications();
+            updateNotifBadges();
+            if (showToastFlag) toast("Notifications refreshed.", "success");
+        } catch (err) {
+            console.warn("Notification fetch failed:", err);
+            renderNotifError("Network error while loading notifications.");
+        }
+    }
+    window.refreshStaffNotifications = refreshStaffNotifications;
+
+    function renderNotifError(msg) {
+        const list = $("notifList");
+        if (list) list.innerHTML =
+            '<div class="notif-empty"><i class="fas fa-triangle-exclamation" style="color:var(--red);"></i><div>' +
+            esc(msg) + '</div></div>';
+    }
+
+    function notifIcon(type) {
+        return {
+            transaction:      { icon: 'fa-check-circle',         cls: 'success' },
+            insufficient:     { icon: 'fa-triangle-exclamation', cls: 'warning' },
+            qr_invalid:       { icon: 'fa-qrcode',               cls: 'error' },
+            low_balance:      { icon: 'fa-wallet',               cls: 'warning' },
+            station_update:   { icon: 'fa-map-location-dot',     cls: 'info' },
+            station_inactive: { icon: 'fa-circle-xmark',         cls: 'error' },
+            announcement:     { icon: 'fa-bullhorn',             cls: 'info' }
+        }[type] || { icon: 'fa-bell', cls: 'info' };
+    }
+
+    function fmtNotifTime(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return iso;
+        const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
+        if (diffMin < 1) return 'Just now';
+        if (diffMin < 60) return diffMin + ' min' + (diffMin === 1 ? '' : 's') + ' ago';
+        const diffHr = Math.floor(diffMin / 60);
+        if (diffHr < 24) return diffHr + ' hr' + (diffHr === 1 ? '' : 's') + ' ago';
+        return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function updateNotifBadges() {
+        const unreadCount = staffNotifs.filter((n) => !n.read).length;
+        const badge = $("notifBadge");
+        const sidebarBadge = $("notifBadgeSidebar");
+        if (badge) {
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+                badge.hidden = false;
+            } else {
+                badge.hidden = true;
+            }
+        }
+        if (sidebarBadge) {
+            if (unreadCount > 0) {
+                sidebarBadge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+                sidebarBadge.hidden = false;
+            } else {
+                sidebarBadge.hidden = true;
+            }
+        }
     }
 
     function renderNotifications() {
-        const badge = $("notifBadge");
         const list = $("notifList");
-        if (!badge || !list) return;
-        const unreadCount = unreadNotifs.filter((n) => !n.isRead).length;
-        if (unreadCount > 0) { badge.textContent = unreadCount > 9 ? "9+" : unreadCount; badge.hidden = false; }
-        else badge.hidden = true;
-        if (unreadNotifs.length === 0) { list.innerHTML = '<div class="notif-empty">No new notifications.</div>'; return; }
-        list.innerHTML = unreadNotifs.map((n) => `
-            <div class="notif-item ${n.isRead ? "" : "unread"}" data-id="${escapeHtml(n.id)}">
-                <div class="notif-icon"><i class="fas fa-money-bill-wave"></i></div>
-                <div class="notif-content">
-                    <p>${escapeHtml(n.title)}</p>
-                    <p style="font-weight:400; font-size:.7rem; color:var(--text-mid);">${escapeHtml(n.message)}</p>
-                    <small>${escapeHtml(n.time)}</small>
-                </div>
-            </div>
-        `).join("");
+        if (!list) return;
+
+        if (!staffNotifs.length) {
+            list.innerHTML = '<div class="notif-empty">No notifications yet.</div>';
+            return;
+        }
+
+        const recent = staffNotifs.slice(0, 8);
+        list.innerHTML = recent.map((n) => {
+            const ic = notifIcon(n.type);
+            return `
+                <div class="notif-item ${n.read ? '' : 'unread'}" data-id="${esc(n.id)}">
+                    <div class="notif-icon notif-${ic.cls}"><i class="fas ${ic.icon}"></i></div>
+                    <div class="notif-content">
+                        <p class="notif-title">${esc(n.title)}</p>
+                        <p class="notif-msg">${esc(n.message)}</p>
+                        <small class="notif-time">${esc(fmtNotifTime(n.createdAt))}</small>
+                    </div>
+                </div>`;
+        }).join("");
     }
+    window.renderNotifications = renderNotifications;
+
+    function renderFullNotifications() {
+        const list = $("notificationsFullList");
+        if (!list) return;
+
+        let rows = staffNotifs.slice();
+        if (notifCurrentFilter === 'unread') {
+            rows = rows.filter((n) => !n.read);
+        } else if (notifCurrentFilter === 'transaction') {
+            rows = rows.filter((n) => ['transaction', 'insufficient', 'low_balance', 'qr_invalid'].includes(n.type));
+        } else if (notifCurrentFilter === 'station') {
+            rows = rows.filter((n) => ['station_update', 'station_inactive', 'announcement'].includes(n.type));
+        }
+
+        if (!rows.length) {
+            list.innerHTML = '<div class="empty-inline">No notifications to display.</div>';
+            return;
+        }
+
+        list.innerHTML = rows.map((n) => {
+            const ic = notifIcon(n.type);
+            return `
+                <div class="notif-full-item ${n.read ? '' : 'unread'}" data-id="${esc(n.id)}">
+                    <div class="notif-icon notif-${ic.cls}"><i class="fas ${ic.icon}"></i></div>
+                    <div class="notif-full-body">
+                        <div class="notif-full-title">
+                            ${esc(n.title)}
+                            ${n.read ? '' : '<span class="notif-unread-pill">UNREAD</span>'}
+                        </div>
+                        <div class="notif-full-msg">${esc(n.message)}</div>
+                        <div class="notif-full-meta">
+                            <span><i class="far fa-clock"></i> ${esc(fmtNotifTime(n.createdAt))}</span>
+                            ${n.stationCode ? `<span><i class="fas fa-map-marker-alt"></i> ${esc(n.stationCode)}</span>` : ''}
+                            ${n.referenceId ? `<span><i class="fas fa-hashtag"></i> ${esc(n.referenceId)}</span>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+        }).join("");
+
+        list.querySelectorAll(".notif-full-item").forEach((el) => {
+            el.addEventListener("click", () => markStaffNotificationRead(el.dataset.id));
+        });
+    }
+    window.renderFullNotifications = renderFullNotifications;
+
+    async function markStaffNotificationRead(id) {
+        const n = staffNotifs.find((x) => String(x.id) === String(id));
+        if (!n || n.read) return;
+        n.read = true;
+        renderNotifications();
+        renderFullNotifications();
+        updateNotifBadges();
+        try {
+            await window.api("notifications.php", {
+                method: "PATCH",
+                query: { action: "read" },
+                body: { id }
+            });
+        } catch (e) { console.warn("Mark read failed:", e); }
+    }
+    window.markStaffNotificationRead = markStaffNotificationRead;
+
+    async function markAllStaffNotificationsRead() {
+        if (!staffNotifs.some((n) => !n.read)) {
+            toast("No unread notifications.", "warning");
+            return;
+        }
+        staffNotifs.forEach((n) => { n.read = true; });
+        renderNotifications();
+        renderFullNotifications();
+        updateNotifBadges();
+        try {
+            await window.api("notifications.php", {
+                method: "PATCH",
+                query: { action: "read" },
+                body: { markAll: true }
+            });
+            toast("All notifications marked as read.", "success");
+        } catch (e) {
+            toast("Could not update — will retry.", "error");
+            refreshStaffNotifications(false);
+        }
+    }
+    window.markAllStaffNotificationsRead = markAllStaffNotificationsRead;
 
     let staffStationsMapInstance = null;
     let staffStationMarkers = {};
@@ -346,25 +524,25 @@
                 const marker = L.marker([t.latitude, t.longitude], { icon }).addTo(staffStationsMapInstance);
                 marker.bindPopup(
                     `<div style="font-family:'Inter',sans-serif;padding:4px 2px;min-width:210px;">` +
-                    `<span style="font-size:10px;font-weight:800;color:${pinBg};background:#f8fafc;padding:2px 6px;border-radius:4px;">${escapeHtml(t.code)} · ${typeLabel}</span>` +
-                    `<h4 style="font-size:13px;font-weight:700;margin:4px 0 4px 0;color:#0f172a;">${escapeHtml(t.name)}</h4>` +
-                    `<p style="font-size:11.5px;color:#64748b;margin:0 0 6px 0;">${escapeHtml(t.address || "Borongan City")}</p>` +
+                    `<span style="font-size:10px;font-weight:800;color:${pinBg};background:#f8fafc;padding:2px 6px;border-radius:4px;">${esc(t.code)} · ${typeLabel}</span>` +
+                    `<h4 style="font-size:13px;font-weight:700;margin:4px 0 4px 0;color:#0f172a;">${esc(t.name)}</h4>` +
+                    `<p style="font-size:11.5px;color:#64748b;margin:0 0 6px 0;">${esc(t.address || "Borongan City")}</p>` +
                     `</div>`);
                 staffStationMarkers[t.code] = marker;
                 markersGroup.push(marker);
 
                 const isAssigned = assignedStation && assignedStation.code === t.code;
                 html += `
-                    <div class="station-card" onclick="focusStaffStation('${escapeHtml(t.code)}', ${t.latitude}, ${t.longitude})" style="${isAssigned ? "border-color:var(--maroon);box-shadow:0 0 0 2px rgba(107,21,32,.15);" : ""}">
+                    <div class="station-card" onclick="focusStaffStation('${esc(t.code)}', ${t.latitude}, ${t.longitude})" style="${isAssigned ? "border-color:var(--maroon);box-shadow:0 0 0 2px rgba(107,21,32,.15);" : ""}">
                         <div>
                             <div class="station-card-head">
-                                <span class="station-code ${codeClass}">${escapeHtml(t.code)}</span>
+                                <span class="station-code ${codeClass}">${esc(t.code)}</span>
                                 <span class="station-type">${typeLabel}${isAssigned ? " · YOUR STATION" : ""}</span>
                             </div>
-                            <div class="station-name">${escapeHtml(t.name)}</div>
+                            <div class="station-name">${esc(t.name)}</div>
                             <div class="station-address">
                                 <i class="fas fa-location-dot"></i>
-                                <span>${escapeHtml(t.address || "Borongan City")}</span>
+                                <span>${esc(t.address || "Borongan City")}</span>
                             </div>
                         </div>
                         <div class="station-foot">
@@ -409,10 +587,12 @@
         summary: "Daily Summary",
         attendance: "My Attendance",
         profile: "My Profile",
-        "stations-map": "Stations & Checkpoints"
+        "stations-map": "Stations & Checkpoints",
+        notifications: "Notifications"
     };
 
     function navigateTo(page) {
+        if (!page) return;
         currentPage = page;
         document.querySelectorAll(".page-section").forEach((s) =>
             s.classList.toggle("active", s.id === "page-" + page)
@@ -424,6 +604,13 @@
         if (sb) sb.classList.remove("open");
         window.scrollTo({ top: 0, behavior: "smooth" });
         setText("topbarCurrentPage", PAGE_LABELS[page] || "Dashboard");
+
+        try {
+            sessionStorage.setItem("staff_active_page", page);
+            if ((location.hash || "").replace("#", "") !== page) {
+                history.replaceState(null, "", "#" + page);
+            }
+        } catch (e) {}
 
         if (page === "dashboard") refreshDashboard();
         if (page === "assigned-station") {
@@ -439,6 +626,7 @@
         if (page === "vehicles") loadVehicles();
         if (page === "summary") loadSummary();
         if (page === "attendance") loadAttendance();
+        if (page === "notifications") refreshStaffNotifications(false);
         if (page === "stations-map") {
             initStaffStationsMap();
             setTimeout(() => { if (staffStationsMapInstance) staffStationsMapInstance.invalidateSize(); }, 150);
@@ -446,23 +634,9 @@
     }
     window.navigateTo = navigateTo;
 
-    document.querySelectorAll(".sidebar-item[data-page]").forEach((b) => {
-        b.addEventListener("click", () => navigateTo(b.dataset.page));
-    });
-    document.querySelectorAll("[data-goto]").forEach((b) => {
-        b.addEventListener("click", () => navigateTo(b.dataset.goto));
-    });
-    $("mobileToggle")?.addEventListener("click", () => $("sidebar")?.classList.toggle("open"));
-    $("logoutBtn")?.addEventListener("click", () => {
-        if (window.ConfirmModal) {
-            window.ConfirmModal.show({
-                title: "Log out?", message: "Log out of the station?",
-                confirmText: "Yes, log out",
-                onConfirm: () => window.logoutAndRedirect()
-            });
-        } else if (confirm("Log out?")) {
-            window.logoutAndRedirect();
-        }
+    window.addEventListener("hashchange", () => {
+        const p = (location.hash || "").replace("#", "").trim();
+        if (p && $("page-" + p)) navigateTo(p);
     });
 
     async function refreshDashboard() {
@@ -491,7 +665,7 @@
             setText("statFees", peso(total));
             setText("quickScans", cachedTx.length);
             setText("quickFees", peso(total));
-            setText("lastUpdatedTime", new Date().toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" }));
+            setText("lastUpdatedTime", fmtTime12(new Date()));
 
             const tb = $("recentTable");
             if (tb) {
@@ -524,8 +698,9 @@
             if (dashboardRefreshQueued) { dashboardRefreshQueued = false; refreshDashboard(); }
         }
     }
+    window.refreshDashboard = refreshDashboard;
 
-    $("refreshStatsBtn")?.addEventListener("click", async () => {
+    async function refreshAllData() {
         const btn = $("refreshStatsBtn");
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing…'; }
         await refreshDashboard();
@@ -533,13 +708,29 @@
         if (currentPage === "history") await loadHistory();
         if (currentPage === "summary") await loadSummary();
         if (currentPage === "assigned-station") await loadAssignedStation();
+        if (currentPage === "drivers") await loadDrivers();
+        if (currentPage === "vehicles") await loadVehicles();
+        if (currentPage === "attendance") await loadAttendance();
+        if (currentPage === "notifications") await refreshStaffNotifications(false);
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> Refresh'; }
         toast("Refreshed.", "success");
-    });
+    }
+    window.refreshAllData = refreshAllData;
 
-    $("refreshStatsBtnToday")?.addEventListener("click", async () => { await loadToday(); toast("Refreshed.", "success"); });
-    $("refreshStatsBtnHistory")?.addEventListener("click", async () => { await loadHistory(); toast("Refreshed.", "success"); });
-    $("refreshStatsBtnSummary")?.addEventListener("click", async () => { await loadSummary(); toast("Refreshed.", "success"); });
+    async function refreshToday() { await loadToday(); toast("Refreshed.", "success"); }
+    async function refreshHistory() { await loadHistory(); toast("Refreshed.", "success"); }
+    async function refreshSummary() { await loadSummary(); toast("Refreshed.", "success"); }
+    async function refreshDrivers() { await loadDrivers(); toast("Refreshed.", "success"); }
+    async function refreshVehicles() { await loadVehicles(); toast("Refreshed.", "success"); }
+    async function refreshAttendance() { await loadAttendance(); toast("Refreshed.", "success"); }
+    async function refreshStationsMap() { await initStaffStationsMap(true); }
+    window.refreshToday = refreshToday;
+    window.refreshHistory = refreshHistory;
+    window.refreshSummary = refreshSummary;
+    window.refreshDrivers = refreshDrivers;
+    window.refreshVehicles = refreshVehicles;
+    window.refreshAttendance = refreshAttendance;
+    window.refreshStationsMap = refreshStationsMap;
 
     setInterval(() => {
         if (document.visibilityState === "visible" && currentPage === "dashboard") refreshDashboard();
@@ -578,7 +769,7 @@
         try {
             const obj = JSON.parse(text);
             if (obj && obj.driverId) driverId = String(obj.driverId).trim();
-        } catch (e) {  }
+        } catch (e) {}
 
         scanProcessing = true;
         setScanStatus("Checking " + driverId + "…");
@@ -661,11 +852,7 @@
         el.value = "";
         if (text) handleScan(text);
     }
-
-    $("scannerInput")?.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); parseScanned(); }
-    });
-    $("manualScanBtn")?.addEventListener("click", parseScanned);
+    window.parseScanned = parseScanned;
 
     function resetScan() {
         currentScan = null;
@@ -740,28 +927,30 @@
         const vs = $("verifyStep"); if (vs) vs.hidden = true;
         setScanStatus("Paid — ready for the next driver.", "ok");
         refreshDashboard();
+        refreshStaffNotifications(false);
     }
 
-    $("processTransactionBtn")?.addEventListener("click", async () => {
+    async function processTransaction(confirmDuplicate) {
         if (!currentScan || submitting) return;
         submitting = true;
         const btn = $("processTransactionBtn");
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing…'; }
 
-        const res = await window.api("payments.php", {
-            method: "POST",
-            body: {
-                action: "collect",
-                driverId: currentScan.driver.driverId,
-                stationId: currentScan.station ? currentScan.station.code : (assignedStation ? assignedStation.code : "")
-            }
-        });
+        const body = {
+            action: "collect",
+            driverId: currentScan.driver.driverId,
+            stationId: currentScan.station ? currentScan.station.code : (assignedStation ? assignedStation.code : "")
+        };
+        if (confirmDuplicate) body.confirmDuplicate = true;
+
+        const res = await window.api("payments.php", { method: "POST", body });
 
         submitting = false;
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm &amp; Process'; }
-        closeConfirmModal();
 
         if (res.success) {
+            closeConfirmModal();
+            closeModal("duplicateModal");
             const lowFlag = !!(res.data && res.data.lowBalance);
             const lowThresh = (res.data && res.data.lowBalanceThreshold) || LOW_BALANCE_THRESHOLD;
             handleSuccessfulTransaction(res.data.receipt, lowFlag, lowThresh);
@@ -776,11 +965,13 @@
                 : (currentScan && currentScan.recentPayment ? fmtDateTime(currentScan.recentPayment.createdAt) : "—"));
             setText("dupPrevFee", d.previousFee ? peso(d.previousFee)
                 : (currentScan && currentScan.recentPayment ? peso(currentScan.recentPayment.amount) : "—"));
+            closeConfirmModal();
             openModal("duplicateModal");
             return;
         }
 
         if (res.code === "INSUFFICIENT_BALANCE") {
+            closeConfirmModal();
             setText("inDriver", currentScan ? currentScan.driver.fullName || "—" : "—");
             setText("inBalance", peso(res.data ? res.data.balance : 0));
             setText("inFee", peso(res.data ? res.data.fee : 0));
@@ -790,50 +981,18 @@
         }
 
         if (res.code === "STATION_NOT_AUTHORIZED") {
+            closeConfirmModal();
             openModal("noStationModal");
             toast(res.message || "Station not authorized.", "error");
             return;
         }
 
+        closeConfirmModal();
         toast(res.message || "Transaction failed.", "error");
-    });
+    }
 
     window.cancelDuplicateScan = function () { closeModal("duplicateModal"); resetScan(); };
-
-    window.confirmDuplicateScan = async function () {
-        closeModal("duplicateModal");
-        if (!currentScan || submitting) return;
-        submitting = true;
-        const btn = $("processTransactionBtn");
-        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing…'; }
-
-        const res = await window.api("payments.php", {
-            method: "POST",
-            body: {
-                action: "collect",
-                driverId: currentScan.driver.driverId,
-                stationId: currentScan.station ? currentScan.station.code : (assignedStation ? assignedStation.code : ""),
-                confirmDuplicate: true
-            }
-        });
-
-        submitting = false;
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm &amp; Process'; }
-
-        if (res.success) {
-            const lowFlag = !!(res.data && res.data.lowBalance);
-            const lowThresh = (res.data && res.data.lowBalanceThreshold) || LOW_BALANCE_THRESHOLD;
-            handleSuccessfulTransaction(res.data.receipt, lowFlag, lowThresh);
-        } else if (res.code === "INSUFFICIENT_BALANCE") {
-            setText("inDriver", currentScan ? currentScan.driver.fullName || "—" : "—");
-            setText("inBalance", peso(res.data ? res.data.balance : 0));
-            setText("inFee", peso(res.data ? res.data.fee : 0));
-            setText("inShortage", peso(res.data ? res.data.shortBy : 0));
-            openModal("insufficientModal");
-        } else {
-            toast(res.message || "Transaction failed.", "error");
-        }
-    };
+    window.confirmDuplicateScan = function () { processTransaction(true); };
 
     window.scanNextDriver = function () {
         closeModal("successModal"); closeModal("lowBalanceModal");
@@ -857,7 +1016,7 @@
         const now = new Date();
         setText("rctTxn", info.transactionId || "—");
         setText("rctDate", now.toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }));
-        setText("rctTime", now.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" }));
+        setText("rctTime", fmtTime12(now));
         setText("rctDriver", d.fullName || "—");
         setText("rctDriverId", d.driverId || "—");
         setText("rctVehicle", d.vehicleType || "—");
@@ -873,27 +1032,6 @@
         return true;
     }
 
-    $("printReceiptBtn")?.addEventListener("click", () => {
-        if (!fillReceipt()) return;
-        const area = $("receiptPrintArea");
-        if (area) area.style.display = "block";
-        setTimeout(() => {
-            window.print();
-            setTimeout(() => { if (area) area.style.display = "none"; }, 500);
-        }, 100);
-    });
-
-    $("reprintTxnBtn")?.addEventListener("click", () => {
-        if (!fillReceipt()) return;
-        closeModal("txnDetailsModal");
-        const area = $("receiptPrintArea");
-        if (area) area.style.display = "block";
-        setTimeout(() => {
-            window.print();
-            setTimeout(() => { if (area) area.style.display = "none"; }, 500);
-        }, 100);
-    });
-
     async function loadToday() {
         const today = localDateKey(new Date());
         const res = await window.api("payments.php", {
@@ -903,6 +1041,7 @@
         cachedTx = res.data.transactions || [];
         renderToday();
     }
+    window.loadToday = loadToday;
 
     function renderToday() {
         const search  = ($("todaySearch")?.value || "").toLowerCase();
@@ -942,18 +1081,7 @@
         }
         setText("todayCount", rows.length + " transaction" + (rows.length === 1 ? "" : "s"));
     }
-
-    ["todaySearch", "todayVehicle", "todayStatus"].forEach((id) => {
-        const el = $(id);
-        if (el) el.addEventListener("input", renderToday);
-        if (el) el.addEventListener("change", renderToday);
-    });
-    $("todayClearBtn")?.addEventListener("click", () => {
-        if ($("todaySearch")) $("todaySearch").value = "";
-        if ($("todayVehicle")) $("todayVehicle").value = "";
-        if ($("todayStatus")) $("todayStatus").value = "";
-        renderToday();
-    });
+    window.renderToday = renderToday;
 
     async function loadHistory() {
         const q        = ($("histSearch")?.value || "").trim();
@@ -998,6 +1126,7 @@
         }
         setText("historyCount", rows.length + " record" + (rows.length === 1 ? "" : "s"));
     }
+    window.loadHistory = loadHistory;
 
     function openTransactionDetails(t) {
         lastTransaction = {
@@ -1030,32 +1159,6 @@
     }
     window.openTransactionDetails = openTransactionDetails;
 
-    ["histSearch", "histDriverId", "histVehicle", "histStatus", "histFrom", "histTo"].forEach((id) => {
-        const el = $(id);
-        if (!el) return;
-        el.addEventListener("input", () => { clearTimeout(window.__hT); window.__hT = setTimeout(loadHistory, 350); });
-        el.addEventListener("change", loadHistory);
-    });
-    $("histClearBtn")?.addEventListener("click", () => {
-        ["histSearch", "histFrom", "histTo", "histDriverId", "histVehicle", "histStatus"].forEach((id) => {
-            const el = $(id); if (el) el.value = "";
-        });
-        loadHistory();
-    });
-
-    $("exportCsvBtn")?.addEventListener("click", () => {
-        const rows = cachedTx.filter((t) => String(t.type).toUpperCase() === "FEE");
-        if (!rows.length) { toast("Nothing to export.", "warning"); return; }
-        const cell = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-        const lines = [["Date", "Time", "Reference", "Driver", "Vehicle", "Plate", "Fee", "Previous", "Balance After", "Station", "Status"].map(cell).join(",")];
-        rows.forEach((t) => lines.push([t.date, t.time, t.referenceNumber, t.driverName, t.vehicleType, t.plateNumber, t.amount, t.previousBalance, t.balanceAfter, t.stationId || "", t.status].map(cell).join(",")));
-        const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "staff-transactions-" + new Date().toISOString().slice(0, 10) + ".csv";
-        a.click();
-    });
-
     async function loadDrivers() {
         const q = ($("driverSearch")?.value || "").trim();
         const res = await window.api("drivers.php", { query: q ? { q } : {} });
@@ -1082,10 +1185,7 @@
             b.addEventListener("click", () => reportIssue(b.dataset.report))
         );
     }
-    $("driverSearch")?.addEventListener("input", () => {
-        clearTimeout(window.__dT);
-        window.__dT = setTimeout(loadDrivers, 350);
-    });
+    window.loadDrivers = loadDrivers;
 
     async function reportIssue(driverId) {
         if (!window.ConfirmModal) return;
@@ -1134,7 +1234,7 @@
             "</tr>"
         ).join("");
     }
-    $("vehicleSearch")?.addEventListener("input", () => loadVehicles());
+    window.loadVehicles = loadVehicles;
 
     async function loadSummary() {
         const today = localDateKey(new Date());
@@ -1170,120 +1270,49 @@
             ).join("");
         }
     }
-    $("summaryPrintBtn")?.addEventListener("click", () => window.print());
+    window.loadSummary = loadSummary;
 
     async function loadAttendance() {
         const res = await window.api("attendance.php", { query: { action: "list", date: localDateKey(new Date()) } });
         if (!res || !res.success) return;
         const myName = (user ? (user.fullName || user.username || "") : "").toLowerCase();
         const mine = (res.data.records || []).find((r) => (r.name || "").toLowerCase() === myName);
-        if (!mine) return;
-        setText("attTimeIn", mine.timeIn);
-        setText("attTimeOut", mine.timeOut);
+        if (!mine) {
+            setText("attTimeIn", "—");
+            setText("attTimeOut", "—");
+            const st = $("attStatus");
+            if (st) st.innerHTML = '<span class="status-badge neutral">NOT CLOCKED IN</span>';
+            return;
+        }
+        setText("attTimeIn", mine.timeIn || "—");
+        setText("attTimeOut", mine.timeOut || "—");
         const s = (mine.status || "").toUpperCase();
         const cls = s === "ON TIME" ? "successful" : s === "LATE" ? "pending" : "failed";
         const el = $("attStatus");
         if (el) el.innerHTML = '<span class="status-badge ' + cls + '">' + esc(s || "—") + "</span>";
     }
-    $("timeInBtn")?.addEventListener("click", async () => {
-        const res = await window.api("attendance.php", { method: "POST", body: { action: "time-in" } });
-        setText("attMessage", res.success ? "Time In recorded." : (res.message || "Failed."));
-        if (res.success) loadAttendance();
-    });
-    $("timeOutBtn")?.addEventListener("click", () => {
-        if (window.ConfirmModal) {
-            window.ConfirmModal.show({
-                title: "Confirm Time Out?", message: "Record your time out?", confirmText: "Confirm",
-                onConfirm: async () => {
-                    const res = await window.api("attendance.php", { method: "POST", body: { action: "time-out" } });
-                    setText("attMessage", res.success ? "Time Out recorded." : (res.message || "Failed."));
-                    if (res.success) loadAttendance();
-                }
-            });
-        }
-    });
+    window.loadAttendance = loadAttendance;
 
-    $("testScannerBtn")?.addEventListener("click", () => {
-        const el = $("scannerInput");
-        if (el && !el.disabled) { el.focus(); el.value = ""; el.placeholder = "Test: scan any QR"; }
-        toast("Scanner ready — scan any QR to test.", "success");
-    });
-    $("testPrinterBtn")?.addEventListener("click", () => {
-        setText("rctTxn", "TEST-" + Date.now());
-        setText("rctDate", new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }));
-        setText("rctTime", new Date().toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" }));
-        setText("rctDriver", "Test Driver");
-        setText("rctDriverId", "TEST-000");
-        setText("rctVehicle", "Tricycle");
-        setText("rctBody", "0000");
-        setText("rctPlate", "TEST-0000");
-        setText("rctFee", "₱5.00");
-        setText("rctAfter", "₱95.00");
-        setText("rctStaff", user ? (user.username || "Staff") : "Staff");
-        setText("rctStation", assignedStation ? (assignedStation.code + " · " + assignedStation.name) : "—");
-        const area = $("receiptPrintArea");
-        if (area) area.style.display = "block";
-        setTimeout(() => {
-            window.print();
-            setTimeout(() => { if (area) area.style.display = "none"; }, 500);
-        }, 100);
-    });
+    function bindAllButtons() {
+        $("notifBellBtn")?.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const nd = $("notifDropdown");
+            if (nd) nd.classList.toggle("active");
+            const ud = $("userDropdown");
+            if (ud) ud.classList.remove("active");
+            if (nd && nd.classList.contains("active")) refreshStaffNotifications(false);
+        });
 
-    $("passwordForm")?.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const cp = $("currentPassword"), np = $("newPassword"), cf = $("confirmPassword"), msg = $("profileMsg");
-        if (!cp || !np || !cf || !msg) return;
-        if (!cp.value) { msg.textContent = "Enter your current password."; return; }
-        if (np.value.length < 8) { msg.textContent = "New password must be at least 8 characters."; return; }
-        if (np.value !== cf.value) { msg.textContent = "New passwords do not match."; return; }
-        const res = await window.api("change_password.php", {
-            method: "POST",
-            body: { currentPassword: cp.value, newPassword: np.value }
+        $("markAllReadBtn")?.addEventListener("click", (e) => {
+            e.stopPropagation();
+            markAllStaffNotificationsRead();
         });
-        msg.textContent = res.message || (res.success ? "Password updated." : "Failed.");
-        if (res.success) $("passwordForm").reset();
-    });
 
-    document.addEventListener("DOMContentLoaded", () => {
-        const notifBell = $("notifBellBtn");
-        const notifDropdown = $("notifDropdown");
-        if (notifBell && notifDropdown) {
-            notifBell.addEventListener("click", (e) => {
-                e.stopPropagation();
-                notifDropdown.classList.toggle("active");
-                const ud = $("userDropdown");
-                if (ud) ud.classList.remove("active");
-            });
-        }
-        document.addEventListener("click", (e) => {
-            const nw = document.querySelector(".notif-wrapper");
-            if (nw && !nw.contains(e.target)) { const nd = $("notifDropdown"); if (nd) nd.classList.remove("active"); }
-            const uw = document.querySelector(".user-chip-wrapper");
-            if (uw && !uw.contains(e.target)) { const ud = $("userDropdown"); if (ud) ud.classList.remove("active"); }
-        });
-        $("markAllReadBtn")?.addEventListener("click", () => {
-            const savedReadIds = JSON.parse(localStorage.getItem("bctt_read_notifs") || "[]");
-            const allIds = unreadNotifs.map((n) => n.id);
-            const newReadIds = [...new Set([...savedReadIds, ...allIds])];
-            localStorage.setItem("bctt_read_notifs", JSON.stringify(newReadIds));
-            unreadNotifs.forEach((n) => n.isRead = true);
-            renderNotifications();
-            toast("All notifications marked as read.", "success");
-        });
         $("notifList")?.addEventListener("click", (e) => {
             const item = e.target.closest(".notif-item");
-            if (item && item.classList.contains("unread")) {
-                const id = item.dataset.id;
-                const savedReadIds = JSON.parse(localStorage.getItem("bctt_read_notifs") || "[]");
-                if (!savedReadIds.includes(id)) {
-                    savedReadIds.push(id);
-                    localStorage.setItem("bctt_read_notifs", JSON.stringify(savedReadIds));
-                }
-                const notif = unreadNotifs.find((n) => n.id === id);
-                if (notif) notif.isRead = true;
-                renderNotifications();
-            }
+            if (item) markStaffNotificationRead(item.dataset.id);
         });
+
         const userChipBtn = $("userChipBtn");
         const userDropdown = $("userDropdown");
         if (userChipBtn && userDropdown) {
@@ -1307,7 +1336,172 @@
                 $("logoutBtn")?.click();
             });
         }
-    });
+
+        document.addEventListener("click", (e) => {
+            const nw = document.querySelector(".notif-wrapper");
+            if (nw && !nw.contains(e.target)) { const nd = $("notifDropdown"); if (nd) nd.classList.remove("active"); }
+            const uw = document.querySelector(".user-chip-wrapper");
+            if (uw && !uw.contains(e.target)) { const ud = $("userDropdown"); if (ud) ud.classList.remove("active"); }
+            const tab = e.target.closest("#notifTabBar .notif-tab");
+            if (tab) {
+                document.querySelectorAll("#notifTabBar .notif-tab").forEach((t) => t.classList.remove("active"));
+                tab.classList.add("active");
+                notifCurrentFilter = tab.dataset.filter || "all";
+                renderFullNotifications();
+            }
+        });
+
+        $("mobileToggle")?.addEventListener("click", () => $("sidebar")?.classList.toggle("open"));
+        $("logoutBtn")?.addEventListener("click", () => {
+            if (window.ConfirmModal) {
+                window.ConfirmModal.show({
+                    title: "Log out?",
+                    message: "Log out of the station?",
+                    confirmText: "Yes, log out",
+                    onConfirm: () => window.logoutAndRedirect()
+                });
+            } else if (confirm("Log out?")) {
+                window.logoutAndRedirect();
+            }
+        });
+
+        document.querySelectorAll(".sidebar-item[data-page]").forEach((b) => {
+            b.addEventListener("click", () => navigateTo(b.dataset.page));
+        });
+        document.querySelectorAll("[data-goto]").forEach((b) => {
+            b.addEventListener("click", () => navigateTo(b.dataset.goto));
+        });
+
+        $("refreshStatsBtn")?.addEventListener("click", refreshAllData);
+        $("refreshStatsBtnToday")?.addEventListener("click", refreshToday);
+        $("refreshStatsBtnHistory")?.addEventListener("click", refreshHistory);
+        $("refreshStatsBtnSummary")?.addEventListener("click", refreshSummary);
+
+        $("summaryPrintBtn")?.addEventListener("click", () => window.print());
+
+        $("exportCsvBtn")?.addEventListener("click", () => {
+            const rows = cachedTx.filter((t) => String(t.type).toUpperCase() === "FEE");
+            if (!rows.length) { toast("Nothing to export.", "warning"); return; }
+            const cell = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+            const lines = [["Date", "Time", "Reference", "Driver", "Vehicle", "Plate", "Fee", "Previous", "Balance After", "Station", "Status"].map(cell).join(",")];
+            rows.forEach((t) => lines.push([t.date, t.time, t.referenceNumber, t.driverName, t.vehicleType, t.plateNumber, t.amount, t.previousBalance, t.balanceAfter, t.stationId || "", t.status].map(cell).join(",")));
+            const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "staff-transactions-" + new Date().toISOString().slice(0, 10) + ".csv";
+            a.click();
+        });
+
+        ["todaySearch", "todayVehicle", "todayStatus"].forEach((id) => {
+            const el = $(id);
+            if (el) el.addEventListener("input", renderToday);
+            if (el) el.addEventListener("change", renderToday);
+        });
+
+        ["histSearch", "histDriverId", "histVehicle", "histStatus", "histFrom", "histTo"].forEach((id) => {
+            const el = $(id);
+            if (!el) return;
+            el.addEventListener("input", () => { clearTimeout(window.__hT); window.__hT = setTimeout(loadHistory, 350); });
+            el.addEventListener("change", loadHistory);
+        });
+
+        $("driverSearch")?.addEventListener("input", () => {
+            clearTimeout(window.__dT);
+            window.__dT = setTimeout(loadDrivers, 350);
+        });
+
+        $("vehicleSearch")?.addEventListener("input", () => loadVehicles());
+
+        $("scannerInput")?.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") { e.preventDefault(); parseScanned(); }
+        });
+        $("manualScanBtn")?.addEventListener("click", parseScanned);
+
+        $("processTransactionBtn")?.addEventListener("click", () => processTransaction(false));
+
+        $("printReceiptBtn")?.addEventListener("click", () => {
+            if (!fillReceipt()) return;
+            const area = $("receiptPrintArea");
+            if (area) area.style.display = "block";
+            setTimeout(() => {
+                window.print();
+                setTimeout(() => { if (area) area.style.display = "none"; }, 500);
+            }, 100);
+        });
+
+        $("reprintTxnBtn")?.addEventListener("click", () => {
+            if (!fillReceipt()) return;
+            closeModal("txnDetailsModal");
+            const area = $("receiptPrintArea");
+            if (area) area.style.display = "block";
+            setTimeout(() => {
+                window.print();
+                setTimeout(() => { if (area) area.style.display = "none"; }, 500);
+            }, 100);
+        });
+
+        $("timeInBtn")?.addEventListener("click", async () => {
+            const res = await window.api("attendance.php", { method: "POST", body: { action: "time-in" } });
+            setText("attMessage", res.success ? "Time In recorded." : (res.message || "Failed."));
+            if (res.success) loadAttendance();
+        });
+        $("timeOutBtn")?.addEventListener("click", () => {
+            if (window.ConfirmModal) {
+                window.ConfirmModal.show({
+                    title: "Confirm Time Out?",
+                    message: "Record your time out?",
+                    confirmText: "Confirm",
+                    onConfirm: async () => {
+                        const res = await window.api("attendance.php", { method: "POST", body: { action: "time-out" } });
+                        setText("attMessage", res.success ? "Time Out recorded." : (res.message || "Failed."));
+                        if (res.success) loadAttendance();
+                    }
+                });
+            }
+        });
+
+        $("testScannerBtn")?.addEventListener("click", () => {
+            const el = $("scannerInput");
+            if (el && !el.disabled) { el.focus(); el.value = ""; el.placeholder = "Test: scan any QR"; }
+            toast("Scanner ready — scan any QR to test.", "success");
+        });
+
+        $("testPrinterBtn")?.addEventListener("click", () => {
+            setText("rctTxn", "TEST-" + Date.now());
+            setText("rctDate", new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }));
+            setText("rctTime", fmtTime12(new Date()));
+            setText("rctDriver", "Test Driver");
+            setText("rctDriverId", "TEST-000");
+            setText("rctVehicle", "Tricycle");
+            setText("rctBody", "0000");
+            setText("rctPlate", "TEST-0000");
+            setText("rctFee", "₱5.00");
+            setText("rctAfter", "₱95.00");
+            setText("rctStaff", user ? (user.username || "Staff") : "Staff");
+            setText("rctStation", assignedStation ? (assignedStation.code + " · " + assignedStation.name) : "—");
+            const area = $("receiptPrintArea");
+            if (area) area.style.display = "block";
+            setTimeout(() => {
+                window.print();
+                setTimeout(() => { if (area) area.style.display = "none"; }, 500);
+            }, 100);
+        });
+
+        $("passwordForm")?.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const cp = $("currentPassword"), np = $("newPassword"), cf = $("confirmPassword"), msg = $("profileMsg");
+            if (!cp || !np || !cf || !msg) return;
+            if (!cp.value) { msg.textContent = "Enter your current password."; return; }
+            if (np.value.length < 8) { msg.textContent = "New password must be at least 8 characters."; return; }
+            if (np.value !== cf.value) { msg.textContent = "New passwords do not match."; return; }
+            const res = await window.api("change_password.php", {
+                method: "POST",
+                body: { currentPassword: cp.value, newPassword: np.value }
+            });
+            msg.textContent = res.message || (res.success ? "Password updated." : "Failed.");
+            if (res.success) $("passwordForm").reset();
+        });
+    }
 
     window.authReady.then(async (u) => {
         if (!u) return;
@@ -1342,7 +1536,16 @@
 
         await identifyStation();
         loadSystemSettings();
-        refreshDashboard();
+        bindAllButtons();
+
+        const fromHash = (location.hash || "").replace("#", "").trim();
+        const activePage = fromHash || sessionStorage.getItem("staff_active_page") || "dashboard";
+        if (activePage && $("page-" + activePage)) {
+            navigateTo(activePage);
+        } else {
+            refreshDashboard();
+        }
+
         loadAttendance();
         startNotifPolling();
         setTimeout(() => { const el = $("scannerInput"); if (el && !el.disabled) el.focus(); }, 500);

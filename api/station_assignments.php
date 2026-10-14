@@ -8,7 +8,7 @@ function ensureStaffStations(PDO $pdo): void {
     try {
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS public.staff_stations (
-                id          serial PRIMARY KEY,
+                id          bigserial PRIMARY KEY,
                 staff_id    text NOT NULL,
                 station_id  text NOT NULL,
                 assigned_at timestamptz DEFAULT now(),
@@ -23,7 +23,7 @@ function ensureStaffStations(PDO $pdo): void {
 
 $action = $_GET['action'] ?? '';
 
- if (method() === 'GET') {
+if (method() === 'GET') {
     ensureStaffStations($pdo);
 
     try {
@@ -83,7 +83,7 @@ $action = $_GET['action'] ?? '';
     }
 }
 
- if (method() === 'POST') {
+if (method() === 'POST') {
     ensureStaffStations($pdo);
     $data      = body();
     $staffId   = trim((string)($data['staffId'] ?? ''));
@@ -112,6 +112,17 @@ $action = $_GET['action'] ?? '';
             ON CONFLICT (staff_id, station_id) DO NOTHING
         ")->execute([$staffId, $stationId]);
 
+        $newStationCode = (string)$stRow['code'];
+
+        pushStaffNotification($pdo, [
+            'staff_id'     => $staffId,
+            'station_code' => $newStationCode,
+            'type'         => 'station_update',
+            'title'        => 'Station Assignment Updated',
+            'message'      => "Your assigned station has been changed to {$newStationCode}. Please verify your station information before processing transactions.",
+            'reference_id' => $newStationCode,
+        ]);
+
         auditLog('Assigned Staff to Station', 'STATION', $stationId,
                  "Assigned {$staffRow['full_name']} to {$stRow['code']}");
 
@@ -122,7 +133,7 @@ $action = $_GET['action'] ?? '';
     }
 }
 
- if (method() === 'DELETE') {
+if (method() === 'DELETE') {
     $id = trim((string)($_GET['id'] ?? ''));
     if ($id === '') {
         $data = body();

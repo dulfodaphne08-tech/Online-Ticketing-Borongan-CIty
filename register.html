@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@500;600;700;800&family=Playfair+Display:ital,wght@1,600;1,700;1,800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet" />
 
-    <link rel="stylesheet" href="assets/css/register.css?v=20261011" />
+    <link rel="stylesheet" href="assets/css/register.css?v=20261014" />
 </head>
 
 <body>
@@ -164,14 +164,18 @@
 
                                         <div class="field span-2">
                                             <label class="label-sm">Upload Photo <span class="optional">(optional)</span></label>
-                                            <label for="photoUpload" class="upload-dropzone">
-                                                <i class="fas fa-camera"></i>
-                                                <div class="upload-text">
+                                            <div class="upload-dropzone" id="photoDropzone" role="button" tabindex="0">
+                                                <img id="photoPreviewImg" class="upload-preview-thumb hidden" alt="Driver Photo Preview" />
+                                                <i class="fas fa-camera" id="photoDefaultIcon"></i>
+                                                <div class="upload-text" id="photoUploadText">
                                                     <strong>Click to upload photo</strong>
-                                                    <span>JPG or PNG · Max 5MB</span>
+                                                    <span>JPG, PNG or WEBP · Max 5MB</span>
                                                 </div>
+                                                <button type="button" id="photoClearBtn" class="upload-clear-btn hidden" title="Remove photo">
+                                                    <i class="fas fa-times"></i> Remove
+                                                </button>
                                                 <input type="file" id="photoUpload" accept="image/*" class="upload-input" />
-                                            </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -489,7 +493,7 @@
 
     </div>
 
-    <script src="assets/js/register.js?v=20261011"></script>
+    <script src="assets/js/register.js?v=20261014"></script>
 
     <script>
         (function bgParallax() {

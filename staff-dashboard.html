@@ -29,6 +29,215 @@
 
         #assignedStationMap { border-radius: 0; overflow: hidden; }
         .assigned-station-pin { background: transparent !important; border: none !important; }
+
+        .notif-tabs-bar { display: flex; gap: .35rem; flex-wrap: wrap; }
+        .notif-tab {
+            display: inline-flex; align-items: center; gap: .4rem;
+            padding: .5rem .9rem; border-radius: 999px;
+            background: var(--bg-light, #f6f6f7); border: 1px solid var(--border-soft, #e6e6e9);
+            font-size: .78rem; font-weight: 700; color: var(--text-mid, #6b7280);
+            cursor: pointer; transition: all .15s ease;
+        }
+        .notif-tab:hover { background: var(--maroon-tint, #fdf2f4); border-color: var(--maroon, #6B1520); color: var(--maroon, #6B1520); }
+        .notif-tab.active { background: var(--maroon, #6B1520); border-color: var(--maroon, #6B1520); color: #fff; }
+        .notif-full-list { display: flex; flex-direction: column; gap: .6rem; }
+        .sidebar-badge {
+            margin-left: auto; background: #DC2626; color: #fff;
+            font-size: .6rem; font-weight: 800; line-height: 1;
+            padding: .25rem .4rem; border-radius: 999px; min-width: 1.1rem; text-align: center;
+        }
+        .sidebar-badge[hidden] { display: none !important; }
+
+         #summaryPrintArea {
+            display: none;
+            font-family: 'Inter', -apple-system, 'Segoe UI', Arial, sans-serif;
+            color: #111;
+            background: #fff;
+            padding: 0;
+            line-height: 1.4;
+        }
+
+        #summaryPrintArea .report-head {
+            text-align: center;
+            margin-bottom: 18px;
+        }
+        #summaryPrintArea .report-head .report-title {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: #111;
+            margin: 0;
+        }
+        #summaryPrintArea .report-head .report-org {
+            font-size: 16px;
+            font-weight: 600;
+            color: #222;
+            margin-top: 6px;
+        }
+        #summaryPrintArea .report-head .report-sub {
+            font-style: italic;
+            font-size: 14px;
+            color: #444;
+            margin-top: 2px;
+        }
+        #summaryPrintArea .report-divider {
+            height: 3px;
+            background: #111;
+            margin: 14px 0 18px;
+        }
+
+        #summaryPrintArea .report-meta {
+            display: flex;
+            justify-content: space-between;
+            border: 1px solid #333;
+            padding: 10px 14px;
+            font-size: 12px;
+            margin-bottom: 14px;
+        }
+        #summaryPrintArea .report-meta .report-meta-left,
+        #summaryPrintArea .report-meta .report-meta-right {
+            display: flex;
+            gap: 6px;
+        }
+        #summaryPrintArea .report-meta strong {
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        #summaryPrintArea .report-totals {
+            display: flex;
+            justify-content: space-between;
+            border: 1px solid #333;
+            padding: 10px 14px;
+            font-size: 12px;
+            margin-bottom: 16px;
+        }
+        #summaryPrintArea .report-totals strong {
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        #summaryPrintArea .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-bottom: 18px;
+        }
+        #summaryPrintArea .report-table thead th {
+            background: #e8e8e8;
+            border: 1px solid #333;
+            padding: 7px 9px;
+            text-align: left;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            font-size: 10px;
+            color: #111;
+        }
+        #summaryPrintArea .report-table tbody td {
+            border: 1px solid #888;
+            padding: 6px 9px;
+            color: #111;
+            vertical-align: top;
+        }
+        #summaryPrintArea .report-table tbody tr:nth-child(even) td {
+            background: #fafafa;
+        }
+        #summaryPrintArea .report-table .text-right {
+            text-align: right;
+        }
+        #summaryPrintArea .report-table .text-center {
+            text-align: center;
+        }
+        #summaryPrintArea .report-table tfoot td {
+            border: 1px solid #333;
+            padding: 7px 9px;
+            font-weight: 800;
+            background: #e8e8e8;
+        }
+        #summaryPrintArea .report-table-empty {
+            text-align: center;
+            font-style: italic;
+            color: #666;
+            padding: 14px;
+        }
+
+        #summaryPrintArea .report-section-title {
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+            color: #111;
+            margin: 18px 0 8px;
+            padding-bottom: 4px;
+            border-bottom: 2px solid #111;
+        }
+
+        #summaryPrintArea .report-signatures {
+            display: flex;
+            justify-content: space-between;
+            gap: 60px;
+            margin-top: 40px;
+            margin-bottom: 18px;
+        }
+        #summaryPrintArea .report-signature {
+            flex: 1;
+            text-align: center;
+        }
+        #summaryPrintArea .report-signature-line {
+            border-top: 1px solid #111;
+            margin-bottom: 4px;
+            height: 0;
+        }
+        #summaryPrintArea .report-signature-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #222;
+        }
+
+        #summaryPrintArea .report-footer {
+            border-top: 1px solid #888;
+            padding-top: 8px;
+            text-align: center;
+            font-size: 10px;
+            color: #555;
+            margin-top: 12px;
+        }
+
+         @media print {
+            @page { size: A4 portrait; margin: 14mm 14mm; }
+
+            body:not(.printing-summary) #summaryPrintArea { display: none !important; }
+
+            body.printing-summary * { visibility: hidden !important; }
+            body.printing-summary,
+            body.printing-summary #summaryPrintArea,
+            body.printing-summary #summaryPrintArea * { visibility: visible !important; }
+
+            body.printing-summary #summaryPrintArea {
+                display: block !important;
+                position: absolute !important;
+                top: 0 !important; left: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+                color: #000 !important;
+                font-size: 11px !important;
+            }
+
+            body.printing-summary #receiptPrintArea,
+            body.printing-summary .sidebar,
+            body.printing-summary .topbar,
+            body.printing-summary .toast-container,
+            body.printing-summary .modal-overlay { display: none !important; visibility: hidden !important; }
+
+            body.printing-summary .report-head .report-title { font-size: 22px !important; }
+            body.printing-summary .report-head .report-org { font-size: 14px !important; }
+            body.printing-summary .report-head .report-sub { font-size: 12px !important; }
+        }
     </style>
 </head>
 <body>
@@ -90,6 +299,10 @@
         <button class="sidebar-item" data-page="profile">
             <i class="fa-solid fa-user"></i><span>My Profile</span>
         </button>
+        <button class="sidebar-item" data-page="notifications">
+            <i class="fa-solid fa-bell"></i><span>Notifications</span>
+            <span class="sidebar-badge" id="notifBadgeSidebar" hidden>0</span>
+        </button>
 
         <div class="sidebar-section-title">Session</div>
         <button class="sidebar-item sidebar-item-logout" id="logoutBtn">
@@ -131,17 +344,23 @@
             </span>
 
             <div class="notif-wrapper">
-                <button class="notif-btn" id="notifBellBtn" aria-label="Notifications">
-                    <i class="fas fa-bell"></i>
-                    <span class="notif-badge" id="notifBadge" hidden>0</span>
+                <button type="button" class="topbar-icon-btn" id="notifBellBtn" aria-label="Notifications">
+                    <i class="fa-solid fa-bel"></i>
+                    <span class="notif-dot" id="notifBadge" hidden>0</span>
                 </button>
+
                 <div class="notif-dropdown" id="notifDropdown">
-                    <div class="notif-head">
+                    <div class="notif-header">
                         <span>Notifications</span>
-                        <button id="markAllReadBtn">Mark all as read</button>
+                        <button type="button" id="markAllReadBtn" class="notif-mark-btn">Mark all as read</button>
                     </div>
                     <div class="notif-list" id="notifList">
                         <div class="notif-empty">Loading…</div>
+                    </div>
+                    <div class="notif-footer">
+                        <button type="button" class="notif-view-all" onclick="navigateTo('notifications')">
+                            View All Notifications <i class="fas fa-arrow-right"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -359,8 +578,8 @@
                 <p class="page-subtitle">Your authorized workstation for processing transactions.</p>
             </div>
             <div class="page-header-actions">
-                <button class="btn-outline btn-sm" onclick="loadAssignedStation()">
-                    <i class="fas fa-sync-alt"></i> Refresh
+               <button class="btn-outline btn-sm" onclick="refreshAssignedStation()">
+              <i class="fas fa-sync-alt"></i> Refresh
                 </button>
                 <button class="btn-outline btn-sm" onclick="navigateTo('stations-map')">
                     <i class="fas fa-map-location-dot"></i> View on Map
@@ -646,12 +865,6 @@
                         <option>SUCCESSFUL</option><option>FAILED</option>
                     </select>
                 </div>
-                <div class="filter-group">
-                    <label>&nbsp;</label>
-                    <button class="btn-outline btn-sm" id="todayClearBtn">
-                        <i class="fas fa-times"></i> Clear
-                    </button>
-                </div>
             </div>
             <div class="table-wrap">
                 <table class="data-table">
@@ -718,12 +931,6 @@
                 <div class="filter-group">
                     <label for="histTo">To</label>
                     <input type="date" id="histTo" class="input-field input-field-sm">
-                </div>
-                <div class="filter-group">
-                    <label>&nbsp;</label>
-                    <button class="btn-outline btn-sm" id="histClearBtn">
-                        <i class="fas fa-times"></i> Clear
-                    </button>
                 </div>
             </div>
             <div class="table-wrap">
@@ -985,6 +1192,44 @@
             <div id="staffStationsList" class="station-grid"></div>
         </div>
     </section>
+
+    <section id="page-notifications" class="page-section">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Notifications</h1>
+                <p class="page-subtitle">Updates relevant to your assigned station and duties.</p>
+            </div>
+            <div class="page-header-actions">
+                <button class="btn-outline btn-sm" onclick="refreshStaffNotifications(true)">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <button class="btn-outline btn-sm" onclick="markAllStaffNotificationsRead()">
+                    <i class="fas fa-check-double"></i> Mark All as Read
+                </button>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="notif-tabs-bar" id="notifTabBar">
+                <button class="notif-tab active" data-filter="all" type="button">
+                    <i class="fas fa-inbox"></i> All
+                </button>
+                <button class="notif-tab" data-filter="unread" type="button">
+                    <i class="fas fa-circle-dot"></i> Unread
+                </button>
+                <button class="notif-tab" data-filter="transaction" type="button">
+                    <i class="fas fa-receipt"></i> Transactions
+                </button>
+                <button class="notif-tab" data-filter="station" type="button">
+                    <i class="fas fa-map-location-dot"></i> Station Updates
+                </button>
+            </div>
+        </div>
+
+        <div id="notificationsFullList" class="notif-full-list">
+            <div class="empty-inline">Loading…</div>
+        </div>
+    </section>
 </main>
 
 <div class="modal-overlay" id="confirmModal">
@@ -1230,16 +1475,282 @@
     </div>
 </div>
 
-<style>
-    @media print {
-        body * { visibility: hidden !important; }
-        #receiptPrintArea, #receiptPrintArea * { visibility: visible !important; }
-        #receiptPrintArea { display: block !important; position: absolute; top: 0; left: 0; width: 100%; padding: 20px; background: #fff; }
-    }
-</style>
+<div id="summaryPrintArea">
+    <div class="report-head">
+        <div class="report-title">BORONGAN TRANSPORT</div>
+        <div class="report-org">Borongan City Transport Terminal</div>
+        <div class="report-sub">DAILY TERMINAL SUMMARY</div>
+    </div>
+    <div class="report-divider"></div>
+
+    <div class="report-meta">
+        <div class="report-meta-left">
+            <strong>STATION:</strong>
+            <span id="printStationLabel">—</span>
+        </div>
+        <div class="report-meta-right">
+            <strong>GENERATED:</strong>
+            <span id="printGeneratedAt">—</span>
+        </div>
+    </div>
+
+    <div class="report-totals">
+        <div><strong>TOTAL TRANSACTIONS:</strong> <span id="printTotalScans">0</span></div>
+        <div><strong>TOTAL AMOUNT:</strong> <span id="printTotalFees">₱0.00</span></div>
+    </div>
+
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Reference</th>
+                <th>Driver</th>
+                <th>Vehicle</th>
+                <th class="text-right">Fee</th>
+                <th class="text-right">Balance After</th>
+                <th class="text-center">Status</th>
+            </tr>
+        </thead>
+        <tbody id="printTransactionList">
+            <tr><td colspan="7" class="report-table-empty">No transactions</td></tr>
+        </tbody>
+    </table>
+
+    <div class="report-section-title">Vehicle Breakdown</div>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Vehicle Type</th>
+                <th class="text-right">Transactions</th>
+                <th class="text-right">Total Fees</th>
+            </tr>
+        </thead>
+        <tbody id="printVehicleBreakdown">
+            <tr><td colspan="3" class="report-table-empty">No data</td></tr>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td>TOTAL</td>
+                <td class="text-right" id="printVehicleTotalCount">0</td>
+                <td class="text-right" id="printVehicleTotalFees">₱0.00</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="report-signatures">
+        <div class="report-signature">
+            <div class="report-signature-line"></div>
+            <div class="report-signature-label">Prepared By (Staff)</div>
+        </div>
+        <div class="report-signature">
+            <div class="report-signature-line"></div>
+            <div class="report-signature-label">Verified By (Supervisor)</div>
+        </div>
+    </div>
+
+    <div class="report-footer">
+        This is a system-generated summary. Generated by <span id="printGeneratedBy">—</span>.
+    </div>
+</div>
 
 <script src="assets/js/confirm-modal.js?v=20261005"></script>
 <script src="assets/js/staff-dashboard.js?v=20261026"></script>
+
+<script>
+(function () {
+    "use strict";
+
+    function peso(n) {
+        return "₱" + Number(n || 0).toLocaleString("en-PH", {
+            minimumFractionDigits: 2, maximumFractionDigits: 2
+        });
+    }
+
+    function esc(v) {
+        return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+        });
+    }
+
+    function fmtTime12(date) {
+        const d = date instanceof Date ? date : new Date(date);
+        if (Number.isNaN(d.getTime())) return "—";
+        let h = d.getHours();
+        const m = String(d.getMinutes()).padStart(2, "0");
+        const ampm = h >= 12 ? "PM" : "AM";
+        h = h % 12; if (h === 0) h = 12;
+        return h + ":" + m + " " + ampm;
+    }
+
+    function localDateKey(date) {
+        return [
+            date.getFullYear(),
+            String(date.getMonth() + 1).padStart(2, "0"),
+            String(date.getDate()).padStart(2, "0")
+        ].join("-");
+    }
+
+    function getAssignedStation() {
+        try {
+            if (window.assignedStation && window.assignedStation.code) {
+                return window.assignedStation;
+            }
+        } catch (e) {}
+        const codeEl = document.getElementById("asCode");
+        const nameEl = document.getElementById("asName");
+        if (codeEl && nameEl && codeEl.textContent !== "—") {
+            return { code: codeEl.textContent, name: nameEl.textContent };
+        }
+        const bannerCode = document.getElementById("stationBannerCode");
+        const bannerName = document.getElementById("stationBannerName");
+        if (bannerCode && bannerName && bannerCode.textContent !== "—") {
+            return { code: bannerCode.textContent, name: bannerName.textContent };
+        }
+        return null;
+    }
+
+    var originalPrint = window.print.bind(window);
+    var printingSummary = false;
+
+    window.print = function () {
+        if (printingSummary) {
+            document.body.classList.add("printing-summary");
+        } else {
+            document.body.classList.remove("printing-summary");
+        }
+        originalPrint();
+        setTimeout(function () {
+            document.body.classList.remove("printing-summary");
+        }, 600);
+    };
+
+    async function buildAndPrintSummary() {
+        const btn = document.getElementById("summaryPrintBtn");
+        const orig = btn ? btn.innerHTML : "";
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing…'; }
+
+        try {
+            const today = localDateKey(new Date());
+            const res = await window.api("payments.php", {
+                query: { action: "list", type: "FEE", from: today, to: today, limit: 1000 }
+            });
+
+            const rows = (res && res.success && res.data && res.data.transactions) ? res.data.transactions : [];
+            const ok = rows.filter(function (t) {
+                return String(t.status).toUpperCase() === "SUCCESSFUL";
+            }).length;
+            const fail = rows.length - ok;
+            const totalFees = rows.reduce(function (a, t) { return a + Number(t.amount || 0); }, 0);
+
+            const station = getAssignedStation();
+            const staffName = (function () {
+                const el = document.getElementById("sidebarUser");
+                if (el && el.textContent && el.textContent !== "—") {
+                    return el.textContent.split("·")[0].trim();
+                }
+                const g = document.getElementById("greetingName");
+                return g ? g.textContent : "Staff";
+            })();
+
+            const now = new Date();
+            const dateLabel = now.toLocaleDateString("en-PH", {
+                weekday: "long", year: "numeric", month: "long", day: "numeric"
+            });
+
+            const stationLabel = station
+                ? (station.code + " · " + station.name)
+                : "—";
+
+            document.getElementById("printStationLabel").textContent = stationLabel;
+            document.getElementById("printGeneratedAt").textContent =
+                dateLabel + " · " + fmtTime12(now);
+            document.getElementById("printTotalScans").textContent = rows.length;
+            document.getElementById("printTotalFees").textContent = peso(totalFees);
+            document.getElementById("printGeneratedBy").textContent = staffName;
+
+            const tTbody = document.getElementById("printTransactionList");
+            if (!rows.length) {
+                tTbody.innerHTML = '<tr><td colspan="7" class="report-table-empty">No transactions</td></tr>';
+            } else {
+                tTbody.innerHTML = rows.map(function (t) {
+                    return "<tr>" +
+                        "<td>" + esc(t.time || "") + "</td>" +
+                        "<td>" + esc(t.referenceNumber || "") + "</td>" +
+                        "<td>" + esc(t.driverName || t.driverId || "") + "</td>" +
+                        "<td>" + esc(t.vehicleType || "—") + "</td>" +
+                        '<td class="text-right">' + peso(t.amount) + "</td>" +
+                        '<td class="text-right">' + peso(t.balanceAfter) + "</td>" +
+                        '<td class="text-center">' + esc(t.status || "") + "</td>" +
+                    "</tr>";
+                }).join("");
+            }
+
+            const map = {};
+            rows.forEach(function (t) {
+                const v = t.vehicleType || "Unknown";
+                if (!map[v]) map[v] = { count: 0, total: 0 };
+                map[v].count++;
+                map[v].total += Number(t.amount || 0);
+            });
+
+            const vTbody = document.getElementById("printVehicleBreakdown");
+            const vEntries = Object.entries(map);
+            if (!vEntries.length) {
+                vTbody.innerHTML = '<tr><td colspan="3" class="report-table-empty">No data</td></tr>';
+            } else {
+                vTbody.innerHTML = vEntries.map(function (entry) {
+                    const k = entry[0], v = entry[1];
+                    return "<tr><td>" + esc(k) + "</td>" +
+                        '<td class="text-right">' + v.count + "</td>" +
+                        '<td class="text-right">' + peso(v.total) + "</td></tr>";
+                }).join("");
+            }
+            document.getElementById("printVehicleTotalCount").textContent = rows.length;
+            document.getElementById("printVehicleTotalFees").textContent = peso(totalFees);
+
+            printingSummary = true;
+            document.body.classList.add("printing-summary");
+
+            setTimeout(function () {
+                originalPrint();
+                setTimeout(function () {
+                    document.body.classList.remove("printing-summary");
+                    printingSummary = false;
+                }, 800);
+            }, 30);
+
+        } catch (e) {
+            console.warn("Summary print failed:", e);
+            if (window.showToast) window.showToast("Could not prepare summary.", "error");
+            document.body.classList.remove("printing-summary");
+            printingSummary = false;
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = orig; }
+        }
+    }
+
+    function attachSummaryHandler() {
+        const btn = document.getElementById("summaryPrintBtn");
+        if (!btn || btn.dataset.summaryPrintHooked) return;
+        btn.dataset.summaryPrintHooked = "1";
+        btn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            buildAndPrintSummary();
+        }, true);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", attachSummaryHandler);
+    } else {
+        attachSummaryHandler();
+    }
+
+    window.addEventListener("hashchange", function () {
+        setTimeout(attachSummaryHandler, 100);
+    });
+})();
+</script>
 
 </body>
 </html>

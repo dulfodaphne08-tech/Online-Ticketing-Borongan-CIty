@@ -1,11 +1,13 @@
 <?php
- declare(strict_types=1);
+declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/driver_account.php';
 
+ensureDriverSchema($pdo);
+
 $id = trim((string)($_GET['id'] ?? ''));
 
- if (method() === 'GET' && isset($_GET['me'])) {
+if (method() === 'GET' && isset($_GET['me'])) {
     $user   = requireRole('driver');
     $driver = findDriver($pdo, sessionDriverId($pdo, $user));
     if (!$driver) fail('Driver profile not found.', 404);
@@ -22,7 +24,7 @@ $id = trim((string)($_GET['id'] ?? ''));
 
 $admin = requireRole('admin');
 
- if (method() === 'GET') {
+if (method() === 'GET') {
     if ($id !== '') {
         $driver = findDriver($pdo, $id);
         if (!$driver) fail('Driver not found.', 404);
@@ -53,16 +55,14 @@ $admin = requireRole('admin');
     ok(['drivers' => $drivers]);
 }
 
- if (method() === 'POST' && $id === '') {
+if (method() === 'POST' && $id === '') {
     $data     = validateDriverInput($pdo, body(), true);
     $driverId = createDriverAccount($pdo, $data);
-
     auditLog('Added Driver', 'DRIVER', $driverId, 'Created ' . $data['full_name']);
-
     ok(['driverId' => $driverId], 'Driver ' . $data['full_name'] . ' added.', 201);
 }
 
- if (method() === 'POST' && $id !== '') {
+if (method() === 'POST' && $id !== '') {
     $driver = findDriver($pdo, $id);
     if (!$driver) fail('Driver not found.', 404);
 
@@ -70,6 +70,10 @@ $admin = requireRole('admin');
     $status = trim((string)(body()['status'] ?? ''));
     if (in_array($status, ['Active', 'Inactive', 'Pending', 'Needs Correction'], true)) {
         $data['status'] = $status;
+    }
+    $approval = trim((string)(body()['approvalStatus'] ?? ''));
+    if (in_array($approval, ['Active', 'Pending', 'Needs Correction', 'Inactive'], true)) {
+        $data['approval_status'] = $approval;
     }
 
     try {
@@ -94,10 +98,7 @@ $admin = requireRole('admin');
 
             $newPassword = (string)(body()['password'] ?? '');
             if ($newPassword !== '') {
-                if (strlen($newPassword) < 8) {
-                    $pdo->rollBack();
-                    fail('Password must be at least 8 characters.', 422);
-                }
+                if (strlen($newPassword) < 8) { $pdo->rollBack(); fail('Password must be at least 8 characters.', 422); }
                 $pdo->prepare('UPDATE users SET password = ? WHERE id = ?')
                     ->execute([password_hash($newPassword, PASSWORD_DEFAULT), $driver['user_id']]);
             }
@@ -110,13 +111,11 @@ $admin = requireRole('admin');
     }
 
     auditLog('Updated Driver Information', 'DRIVER', $driver['driver_id'], 'Updated ' . $data['full_name']);
-
     ok(null, 'Driver ' . $data['full_name'] . ' updated.');
 }
 
- if (method() === 'PATCH') {
+if (method() === 'PATCH') {
     if ($id === '') fail('Driver ID is required.', 422);
-
     $driver = findDriver($pdo, $id);
     if (!$driver) fail('Driver not found.', 404);
 
@@ -124,14 +123,13 @@ $admin = requireRole('admin');
     $action = strtolower(trim((string)($_GET['action'] ?? $body['action'] ?? '')));
     $status = trim((string)($body['status'] ?? ''));
 
-     if ($action === 'approve')    $status = 'Active';
+    if ($action === 'approve')    $status = 'Active';
     elseif ($action === 'return') $status = 'Needs Correction';
     elseif ($action === 'deactivate') $status = 'Inactive';
     elseif ($action === 'activate')   $status = 'Active';
-
     if ($status === '') fail('No status provided.', 422);
 
-     $normalized = [
+    $normalized = [
         'active'           => 'Active',
         'inactive'         => 'Inactive',
         'pending'          => 'Pending',
@@ -145,18 +143,25 @@ $admin = requireRole('admin');
         fail('Invalid status "' . $status . '". Must be one of: ' . implode(', ', $validStatuses), 422);
     }
 
-     try {
-        $upd = $pdo->prepare('UPDATE drivers SET status = ? WHERE driver_id = ?');
+    try {
+        $upd = $pdo->prepare('UPDATE drivers SET approval_status = ? WHERE driver_id = ?');
         $upd->execute([$status, $driver['driver_id']]);
+
+        if ($status === 'Active' || $status === 'Inactive') {
+            $upd2 = $pdo->prepare('UPDATE drivers SET status = ? WHERE driver_id = ?');
+            $upd2->execute([$status, $driver['driver_id']]);
+        }
     } catch (Throwable $e) {
-        error_log('driver patch drivers: ' . $e->getMessage());
+        error_log('driver patch: ' . $e->getMessage());
         fail('Could not update driver status: ' . $e->getMessage(), 500);
     }
 
-     if (!empty($driver['user_id'])) {
+    if (!empty($driver['user_id'])) {
         try {
-            $pdo->prepare('UPDATE users SET status = ? WHERE id = ?')
-                ->execute([$status, $driver['user_id']]);
+            if ($status === 'Active' || $status === 'Inactive') {
+                $pdo->prepare('UPDATE users SET status = ? WHERE id = ?')
+                    ->execute([$status, $driver['user_id']]);
+            }
         } catch (Throwable $e) {
             error_log('driver patch users sync skipped: ' . $e->getMessage());
         }
@@ -173,7 +178,7 @@ $admin = requireRole('admin');
     ok(['driverId' => $driver['driver_id'], 'status' => $status], $msg);
 }
 
- if (method() === 'DELETE') {
+if (method() === 'DELETE') {
     $driver = findDriver($pdo, $id);
     if (!$driver) fail('Driver not found.', 404);
 
@@ -182,41 +187,25 @@ $admin = requireRole('admin');
     if ($purge) {
         try {
             $pdo->beginTransaction();
-
             $driverId    = $driver['driver_id'];
             $plateNumber = $driver['plate_number'] ?? null;
             $userId      = $driver['user_id'] ?? null;
 
             try {
-                if ($plateNumber) {
-                    $pdo->prepare('DELETE FROM vehicles WHERE driver_id = ? OR plate_number = ?')->execute([$driverId, $plateNumber]);
-                } else {
-                    $pdo->prepare('DELETE FROM vehicles WHERE driver_id = ?')->execute([$driverId]);
-                }
+                if ($plateNumber) $pdo->prepare('DELETE FROM vehicles WHERE driver_id = ? OR plate_number = ?')->execute([$driverId, $plateNumber]);
+                else              $pdo->prepare('DELETE FROM vehicles WHERE driver_id = ?')->execute([$driverId]);
             } catch (Throwable $e) { error_log('purge vehicles skipped: ' . $e->getMessage()); }
 
-            try { $pdo->prepare('DELETE FROM wallet_transactions WHERE driver_id = ?')->execute([$driverId]); }
-            catch (Throwable $e) { error_log('purge wallet skipped: ' . $e->getMessage()); }
-
-            try { $pdo->prepare('DELETE FROM payments WHERE driver_id = ?')->execute([$driverId]); }
-            catch (Throwable $e) { error_log('purge payments skipped: ' . $e->getMessage()); }
-
-            try { $pdo->prepare('DELETE FROM qr_codes WHERE driver_id = ?')->execute([$driverId]); }
-            catch (Throwable $e) { error_log('purge qr_codes skipped: ' . $e->getMessage()); }
-
-            try { $pdo->prepare('DELETE FROM notifications WHERE driver_id = ?')->execute([$driverId]); }
-            catch (Throwable $e) { error_log('purge notifications skipped: ' . $e->getMessage()); }
-
-            try { $pdo->prepare('DELETE FROM driver_notifications WHERE driver_id = ?')->execute([$driverId]); }
-            catch (Throwable $e) { error_log('purge driver_notifications skipped: ' . $e->getMessage()); }
+            foreach (['wallet_transactions', 'payments', 'qr_codes', 'notifications', 'driver_notifications'] as $tbl) {
+                try { $pdo->prepare("DELETE FROM $tbl WHERE driver_id = ?")->execute([$driverId]); }
+                catch (Throwable $e) { error_log("purge $tbl skipped: " . $e->getMessage()); }
+            }
 
             $pdo->prepare('DELETE FROM drivers WHERE driver_id = ?')->execute([$driverId]);
-
             if ($userId) {
                 try { $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$userId]); }
                 catch (Throwable $e) { error_log('purge user skipped: ' . $e->getMessage()); }
             }
-
             $pdo->commit();
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
@@ -229,19 +218,15 @@ $admin = requireRole('admin');
     }
 
     try {
+        $pdo->prepare("UPDATE drivers SET approval_status = 'Inactive' WHERE driver_id = ?")->execute([$driver['driver_id']]);
         $pdo->prepare("UPDATE drivers SET status = 'Inactive' WHERE driver_id = ?")->execute([$driver['driver_id']]);
     } catch (Throwable $e) {
         fail('The driver could not be deactivated: ' . $e->getMessage(), 500);
     }
-
     if (!empty($driver['user_id'])) {
-        try {
-            $pdo->prepare("UPDATE users SET status = 'Inactive' WHERE id = ?")->execute([$driver['user_id']]);
-        } catch (Throwable $e) {
-            error_log('driver deactivate users sync skipped: ' . $e->getMessage());
-        }
+        try { $pdo->prepare("UPDATE users SET status = 'Inactive' WHERE id = ?")->execute([$driver['user_id']]); }
+        catch (Throwable $e) { error_log('driver deactivate users sync skipped: ' . $e->getMessage()); }
     }
-
     auditLog('Deactivated Driver', 'DRIVER', $driver['driver_id'], (string)$driver['full_name']);
     ok(null, 'Driver ' . $driver['full_name'] . ' deactivated.');
 }

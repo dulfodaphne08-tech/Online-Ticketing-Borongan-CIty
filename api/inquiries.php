@@ -2,7 +2,14 @@
 declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 
+/* ------------------------------------------------------------------
+   RESPONSE SHAPER
+   ------------------------------------------------------------------ */
 function inquiryResponse(array $row): array {
+    // Detect whether this inquiry came from a driver dashboard
+    // by checking the email pattern we insert on POST.
+    $isDriver = strpos((string)$row['email'], 'driver+') === 0;
+
     return [
         'id'         => (string)$row['id'],
         'name'       => (string)$row['name'],
@@ -16,6 +23,7 @@ function inquiryResponse(array $row): array {
         'readAt'     => $row['read_at'] === null ? null : date(DATE_ATOM, strtotime((string)$row['read_at'])),
         'repliedAt'  => $row['replied_at'] === null ? null : date(DATE_ATOM, strtotime((string)$row['replied_at'])),
         'resolvedAt' => $row['resolved_at'] === null ? null : date(DATE_ATOM, strtotime((string)$row['resolved_at'])),
+        'isDriver'   => $isDriver,   // <-- distinguishes driver from public
     ];
 }
 
@@ -29,73 +37,84 @@ function inquiryById(PDO $pdo, string $id): array {
     return $row;
 }
 
- if (method() === 'POST') {
+/* ------------------------------------------------------------------
+   Explicit action routing (GET only). Keeps original behaviour.
+   ------------------------------------------------------------------ */
+$action = isset($_GET['action']) ? (string)$_GET['action'] : '';
+
+/* ==================================================================
+   POST  — Create inquiry
+   ================================================================== */
+if (method() === 'POST') {
     $input = body();
 
- $loggedUser = currentUser();
-$isDriverRequest = $loggedUser
-    && $loggedUser['role'] === 'driver'
-    && isset($input['kind']);
+    /* ---------------- DRIVER REQUEST ---------------- */
+    $loggedUser = currentUser();
+    $isDriverRequest = $loggedUser
+        && $loggedUser['role'] === 'driver'
+        && isset($input['kind']);
 
-if ($isDriverRequest) {
-    $kind    = trim((string)($input['kind'] ?? ''));
-    $subjectLine = trim((string)($input['subject'] ?? ''));
-    $message = trim((string)($input['message'] ?? ''));
+    if ($isDriverRequest) {
+        $kind        = trim((string)($input['kind'] ?? ''));
+        $subjectLine = trim((string)($input['subject'] ?? ''));
+        $message     = trim((string)($input['message'] ?? ''));
 
-    if (!in_array($kind, ['personal', 'vehicle', 'general'], true)) {
-        fail('Select a valid request type.', 422);
+        if (!in_array($kind, ['personal', 'vehicle', 'general'], true)) {
+            fail('Select a valid request type.', 422);
+        }
+        if ($message === '' || mb_strlen($message) > 1000) {
+            fail('Please describe your request (up to 1000 characters).', 422);
+        }
+        if (mb_strlen($subjectLine) > 120) {
+            fail('Subject is too long (max 120 characters).', 422);
+        }
+
+        $driverId = sessionDriverId($pdo, $loggedUser);
+
+        $stmt = $pdo->prepare('SELECT full_name, plate_number, body_number, vehicle_type
+                               FROM drivers WHERE driver_id = ? LIMIT 1');
+        $stmt->execute([$driverId]);
+        $driver = $stmt->fetch();
+        if (!$driver) fail('Driver profile not found.', 404);
+
+        $defaultSubjects = [
+            'vehicle'  => 'Vehicle Information Update',
+            'personal' => 'Personal Information Update',
+            'general'  => 'General Request'
+        ];
+        $subject = $subjectLine !== '' ? $subjectLine : $defaultSubjects[$kind];
+
+        $context = $kind === 'vehicle'
+            ? "Vehicle: {$driver['vehicle_type']} · Plate {$driver['plate_number']} · Body {$driver['body_number']}"
+            : "Driver ID: {$driverId}";
+
+        $fullMessage = $message . "\n\n─────\n" . $context . "\nSubmitted from Driver Dashboard";
+
+        try {
+            $ins = $pdo->prepare('INSERT INTO public.inquiries (name, email, subject, message)
+                                  VALUES (?, ?, ?, ?)
+                                  RETURNING id, name, email, subject, message, status, reply,
+                                            created_at, read_at, replied_at, resolved_at');
+            $ins->execute([
+                (string)$driver['full_name'],
+                'driver+' . $driverId . '@bctt.local',   // <-- identifies driver inquiries
+                $subject,
+                $fullMessage,
+            ]);
+            $row = $ins->fetch();
+
+            auditLog('Driver Requested Update', 'INQUIRY', (string)$row['id'], $subject);
+
+            ok(['inquiry' => inquiryResponse($row)],
+               'Your request was submitted. The office will review it.', 201);
+        } catch (Throwable $e) {
+            error_log('Driver request submission failed: ' . $e->getMessage());
+            fail('Your request could not be submitted. Please try again.', 500);
+        }
     }
-    if ($message === '' || mb_strlen($message) > 1000) {
-        fail('Please describe your request (up to 1000 characters).', 422);
-    }
-    if (mb_strlen($subjectLine) > 120) {
-        fail('Subject is too long (max 120 characters).', 422);
-    }
 
-    $driverId = sessionDriverId($pdo, $loggedUser);
-
-    $stmt = $pdo->prepare('SELECT full_name, plate_number, body_number, vehicle_type
-                           FROM drivers WHERE driver_id = ? LIMIT 1');
-    $stmt->execute([$driverId]);
-    $driver = $stmt->fetch();
-    if (!$driver) fail('Driver profile not found.', 404);
-
-     $defaultSubjects = [
-        'vehicle'  => 'Vehicle Information Update',
-        'personal' => 'Personal Information Update',
-        'general'  => 'General Request'
-    ];
-    $subject = $subjectLine !== '' ? $subjectLine : $defaultSubjects[$kind];
-
-     $context = $kind === 'vehicle'
-        ? "Vehicle: {$driver['vehicle_type']} · Plate {$driver['plate_number']} · Body {$driver['body_number']}"
-        : "Driver ID: {$driverId}";
-
-    $fullMessage = $message . "\n\n─────\n" . $context . "\nSubmitted from Driver Dashboard";
-
-    try {
-        $ins = $pdo->prepare('INSERT INTO public.inquiries (name, email, subject, message)
-                              VALUES (?, ?, ?, ?)
-                              RETURNING id, name, email, subject, message, status, reply,
-                                        created_at, read_at, replied_at, resolved_at');
-        $ins->execute([
-            (string)$driver['full_name'],
-            'driver+' . $driverId . '@bctt.local',
-            $subject,
-            $fullMessage,
-        ]);
-        $row = $ins->fetch();
-
-        auditLog('Driver Requested Update', 'INQUIRY', (string)$row['id'], $subject);
-
-        ok(['inquiry' => inquiryResponse($row)], 'Your request was submitted. The office will review it.', 201);
-    } catch (Throwable $e) {
-        error_log('Driver request submission failed: ' . $e->getMessage());
-        fail('Your request could not be submitted. Please try again.', 500);
-    }
-}
-
-     foreach (['name', 'email', 'subject', 'message'] as $field) {
+    /* ---------------- PUBLIC / GENERIC INQUIRY ---------------- */
+    foreach (['name', 'email', 'subject', 'message'] as $field) {
         if (isset($input[$field]) && !is_string($input[$field])) {
             fail('Inquiry details must be submitted as text.', 422);
         }
@@ -128,9 +147,17 @@ if ($isDriverRequest) {
     ok(['inquiry' => inquiryResponse($row)], 'Your inquiry was sent.', 201);
 }
 
- if (method() === 'GET') {
+/* ==================================================================
+   GET  — List inquiries
+   ================================================================== */
+if (method() === 'GET') {
 
-     $me = currentUser();
+    $me = currentUser();
+
+    /* ---------------- DRIVER LISTING ----------------
+       Driver sees ONLY their own inquiries.
+       Triggered by:  ?action=list   OR   any GET when role=driver
+    ------------------------------------------------- */
     if ($me && $me['role'] === 'driver') {
         try {
             $driverId = sessionDriverId($pdo, $me);
@@ -152,7 +179,10 @@ if ($isDriverRequest) {
         }
     }
 
-     requireRole('admin');
+    /* ---------------- ADMIN LISTING ----------------
+       Admin sees ALL inquiries (public + driver).
+    ------------------------------------------------- */
+    requireRole('admin');
     try {
         $stmt = $pdo->query('SELECT id, name, email, subject, message, status, reply,
                                     created_at, read_at, replied_at, resolved_at
@@ -165,7 +195,10 @@ if ($isDriverRequest) {
     ok(['inquiries' => $inquiries]);
 }
 
- if (method() === 'PATCH') {
+/* ==================================================================
+   PATCH  — Admin reply / resolve
+   ================================================================== */
+if (method() === 'PATCH') {
     requireRole('admin');
     $input = body();
     foreach (['id', 'status', 'reply'] as $field) {

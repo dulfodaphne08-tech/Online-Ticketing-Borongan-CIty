@@ -1,5 +1,5 @@
 <?php
- declare(strict_types=1);
+declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -18,14 +18,21 @@ if (session_status() !== PHP_SESSION_ACTIVE && !headers_sent()) {
     session_start();
 }
 
-require_once __DIR__ . '/env.php';   
-function ok($data = null, string $message = 'OK', int $status = 200): void {
+require_once __DIR__ . '/env.php';
+
+/**
+ * @return never
+ */
+function ok($data = null, string $message = 'OK', int $status = 200): never {
     http_response_code($status);
     echo json_encode(['success' => true, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-function fail(string $message, int $status = 400, $data = null, ?string $code = null): void {
+/**
+ * @return never
+ */
+function fail(string $message, int $status = 400, $data = null, ?string $code = null): never {
     http_response_code($status);
     $out = ['success' => false, 'message' => $message, 'error' => $message, 'data' => $data];
     if ($code !== null) $out['code'] = $code;
@@ -33,7 +40,10 @@ function fail(string $message, int $status = 400, $data = null, ?string $code = 
     exit;
 }
 
- function respond($data, $code = 200): void {
+/**
+ * @return never
+ */
+function respond($data, $code = 200): never {
     http_response_code((int)$code);
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
@@ -53,15 +63,15 @@ function method(): string {
     return strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 }
 
- try {
+try {
     [$dsn, $dbUser, $dbPass] = databaseSettings();
-$pdo = new PDO($dsn, $dbUser, $dbPass, [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES   => true,
-    PDO::ATTR_TIMEOUT            => 10,
-]);
-} catch (PDOException $e) {             
+    $pdo = new PDO($dsn, $dbUser, $dbPass, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => true,
+        PDO::ATTR_TIMEOUT            => 10,
+    ]);
+} catch (PDOException $e) {
     $why = $e->getMessage();
     error_log('DB connection failed: ' . $why);
     if (stripos($why, 'could not find driver') !== false) {
@@ -71,11 +81,11 @@ $pdo = new PDO($dsn, $dbUser, $dbPass, [
         fail('The database password is wrong. Check SUPABASE_PASS in .env (it is the database password, not the anon key).', 500);
     }
     fail('Unable to connect to the database. Check the internet connection and the database settings in .env / api/db_config.php.', 500);
-} catch (RuntimeException $e) {         
+} catch (RuntimeException $e) {
     fail($e->getMessage(), 500);
 }
 
- const STAFF_ROLES = ['admin', 'cashier', 'staff'];
+const STAFF_ROLES = ['admin', 'cashier', 'staff'];
 
 function normalizeRole(string $role): string {
     $r = strtolower(trim($role));
@@ -131,7 +141,7 @@ function endAuthenticatedSession(): void {
     session_destroy();
 }
 
- function verifyPasswordAndUpgrade(PDO $pdo, array $user, string $password): bool {
+function verifyPasswordAndUpgrade(PDO $pdo, array $user, string $password): bool {
     $stored = (string)($user['password'] ?? '');
     if ($stored === '') $stored = (string)($user['password_hash'] ?? '');
     if ($stored === '') return false;
@@ -157,7 +167,7 @@ function endAuthenticatedSession(): void {
     return $legacyOk;
 }
 
- function sessionDriverId(PDO $pdo, array $user): string {
+function sessionDriverId(PDO $pdo, array $user): string {
     if ($user['driverId'] !== '') return $user['driverId'];
     $stmt = $pdo->prepare('SELECT driver_id FROM drivers WHERE user_id = ? LIMIT 1');
     $stmt->execute([$user['id']]);
@@ -167,7 +177,7 @@ function endAuthenticatedSession(): void {
     return $id;
 }
 
- const DRIVER_COLUMNS = 'd.driver_id, d.user_id, d.full_name, d.address, d.contact, d.birthdate, d.gender,
+const DRIVER_COLUMNS = 'd.driver_id, d.user_id, d.full_name, d.address, d.contact, d.birthdate, d.gender,
     d.vehicle_type, d.body_number, d.plate_type, d.plate_number, d.license_type, d.license_no,
     d.license_expiration, d.registration_date, d.photo, d.status, COALESCE(d.balance, 0) AS balance,
     d.created_at, COALESCE(u.username, d.username) AS username, u.email';
@@ -222,7 +232,7 @@ function isActive(?string $status): bool {
 
 const DEFAULT_FEES = ['tricycle' => 5.0, 'jeepney' => 60.0, 'multicab' => 60.0, 'bus' => 100.0];
 
- function getFee(PDO $pdo, string $vehicleType): float {
+function getFee(PDO $pdo, string $vehicleType): float {
     try {
         $stmt = $pdo->prepare('SELECT amount FROM fees WHERE lower(vehicle_type) = lower(?) LIMIT 1');
         $stmt->execute([trim($vehicleType)]);
@@ -234,11 +244,11 @@ const DEFAULT_FEES = ['tricycle' => 5.0, 'jeepney' => 60.0, 'multicab' => 60.0, 
     return DEFAULT_FEES[strtolower(trim($vehicleType))] ?? 0.0;
 }
 
- function newReference(string $prefix): string {
+function newReference(string $prefix): string {
     return $prefix . '-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
 }
 
- function todayStart(): string {
+function todayStart(): string {
     return (new DateTimeImmutable('today'))->format(DATE_ATOM);
 }
 
@@ -248,7 +258,7 @@ function formatTransaction(array $r): array {
     return [
         'id'              => (string)($r['id'] ?? ''),
         'referenceNumber' => (string)($r['reference_number'] ?? ''),
-        'orNumber'        => $r['or_number'] ?? null,          
+        'orNumber'        => $r['or_number'] ?? null,
         'type'            => strtoupper((string)($r['type'] ?? '')),
         'feeType'         => $r['fee_type'] ?? null,
         'driverId'        => (string)($r['driver_id'] ?? ''),
@@ -274,11 +284,11 @@ const TRANSACTION_SELECT = 'SELECT wt.id, wt.reference_number, wt.or_number, wt.
     FROM wallet_transactions wt
     LEFT JOIN drivers d ON d.driver_id = wt.driver_id';
 
- function addNotification(PDO $pdo, string $driverId, string $title, string $message, string $type): void {
+function addNotification(PDO $pdo, string $driverId, string $title, string $message, string $type): void {
     try {
         $pdo->exec('SAVEPOINT notify');
-        $pdo->prepare('INSERT INTO notifications (driver_id, title, message, type, is_read) VALUES (?, ?, ?, ?, false)')
-            ->execute([$driverId, $title, $message, $type]);
+        $pdo->prepare('INSERT INTO public.notifications (driver_id, recipient_type, title, message, type, is_read) VALUES (?, ?, ?, ?, ?, false)')
+            ->execute([$driverId, 'driver', $title, $message, $type]);
         $pdo->exec('RELEASE SAVEPOINT notify');
     } catch (Throwable $e) {
         try { $pdo->exec('ROLLBACK TO SAVEPOINT notify'); } catch (Throwable $ignored) {}
@@ -286,11 +296,32 @@ const TRANSACTION_SELECT = 'SELECT wt.id, wt.reference_number, wt.or_number, wt.
     }
 }
 
+function pushStaffNotification(PDO $pdo, array $payload): void {
+    try {
+        $stmt = $pdo->prepare(
+            "INSERT INTO public.notifications
+                (recipient_type, recipient_id, station_code, type, title, message, reference_id, is_read)
+             VALUES
+                ('staff', :recipient_id, :station_code, :type, :title, :message, :reference_id, false)"
+        );
+        $stmt->execute([
+            ':recipient_id' => $payload['staff_id']     ?? null,
+            ':station_code' => $payload['station_code'] ?? null,
+            ':type'         => $payload['type'],
+            ':title'        => $payload['title'],
+            ':message'      => $payload['message'],
+            ':reference_id' => $payload['reference_id'] ?? null,
+        ]);
+    } catch (Throwable $e) {
+        error_log('pushStaffNotification failed: ' . $e->getMessage());
+    }
+}
+
 function peso(float $amount): string {
     return '₱' . number_format($amount, 2);
 }
 
- function auditLog(
+function auditLog(
     string $action,
     ?string $recordType = null,
     ?string $recordRef = null,
@@ -320,6 +351,6 @@ function peso(float $amount): string {
             ':ip'      => $_SERVER['REMOTE_ADDR'] ?? null,
         ]);
     } catch (Throwable $e) {
-         error_log('auditLog: ' . $e->getMessage());
+        error_log('auditLog: ' . $e->getMessage());
     }
 }

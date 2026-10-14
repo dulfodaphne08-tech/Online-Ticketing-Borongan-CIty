@@ -171,9 +171,13 @@ async function loadDriverNotifications() {
     }
 }
 
+/* ==================================================================
+   MY REQUESTS — Load driver's own inquiries
+   ▲ ONLY CHANGE: query now explicitly passes { action: 'list' }
+   ================================================================== */
 async function loadDriverInquiries() {
     try {
-        const data = await apiGet('inquiries.php');
+        const data = await apiGet('inquiries.php', { action: 'list' });
         return Array.isArray(data.inquiries) ? data.inquiries : [];
     } catch (e) {
         console.error('inquiries.php (driver) failed:', e);
@@ -625,7 +629,7 @@ function renderDriverInquiries(list) {
                         : 'You haven\'t submitted any requests. Use the button below to send one to the office.'}
                 </div>
                 ${isFiltered
-                    ? `<button class="btn-outline btn-sm" onclick="clearInquiryFilters()"><i class="fas fa-times"></i> Clear Filters</button>`
+                    ? ''
                     : `<button class="btn-primary btn-sm" onclick="openNewInquiryModal()"><i class="fas fa-plus"></i> New Request</button>`}
             </div>`;
         return;
@@ -2088,6 +2092,7 @@ const PAGE_LABELS = {
 };
 
 function navigateTo(page) {
+    if (!page) return;
     document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
     const target = document.getElementById('page-' + page);
     if (target) target.classList.add('active');
@@ -2099,6 +2104,13 @@ function navigateTo(page) {
     setText('topbarCurrentPage', PAGE_LABELS[page] || 'Dashboard');
 
     if (window.innerWidth <= 1100) document.getElementById('sidebar')?.classList.remove('open');
+
+    try {
+        sessionStorage.setItem('driver_active_page', page);
+        if ((location.hash || '').replace('#', '') !== page) {
+            history.replaceState(null, '', '#' + page);
+        }
+    } catch (e) {}
 
     if (page === 'qr') { logDriverActivity('Viewed Driver ID', 'fa-id-card'); populateQRPage(); generateQR(); }
     if (page === 'myqr') { logDriverActivity('Viewed QR Code', 'fa-qrcode'); generateQR(); }
@@ -2123,6 +2135,11 @@ function navigateTo(page) {
     }
 }
 window.navigateTo = navigateTo;
+
+window.addEventListener('hashchange', () => {
+    const p = (location.hash || '').replace('#', '').trim();
+    if (p && document.getElementById('page-' + p)) navigateTo(p);
+});
 
 async function initDriverDashboard() {
     const driver = await loadDriverProfile();
@@ -2162,8 +2179,9 @@ async function initDriverDashboard() {
     try { await initDriverNotifications(); } catch (e) { console.error('initNotifications:', e); }
     startDriverPaymentPolling();
 
-    const fromHash = (location.hash || '').replace('#', '');
-    if (fromHash && document.getElementById('page-' + fromHash)) navigateTo(fromHash);
+    const fromHash = (location.hash || '').replace('#', '').trim();
+    const activePage = fromHash || sessionStorage.getItem('driver_active_page') || 'dashboard';
+    if (activePage && document.getElementById('page-' + activePage)) navigateTo(activePage);
 }
 
 window.logout = function() {

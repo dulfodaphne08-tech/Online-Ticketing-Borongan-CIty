@@ -10,7 +10,7 @@ $action = (string)($_GET['action'] ?? body()['action'] ?? '');
 
 function cents(float $v): int { return (int)round($v * 100); }
 
- function assertDriverApproved(array $driver): void {
+function assertDriverApproved(array $driver): void {
     $approval = strtoupper(trim((string)($driver['approval_status'] ?? 'Active')));
     if (in_array($approval, ['PENDING', 'NEEDS CORRECTION', 'INACTIVE'], true)) {
         fail(
@@ -25,14 +25,62 @@ function cents(float $v): int { return (int)round($v * 100); }
     }
 }
 
- if (method() === 'GET' && $action === 'verify') {
+function currentStaffStationCode(PDO $pdo, array $actor): ?string {
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT t.code
+             FROM public.staff_stations ss
+             JOIN public.terminals t ON t.id::text = ss.station_id::text
+             WHERE ss.staff_id = ?
+             ORDER BY ss.assigned_at DESC
+             LIMIT 1"
+        );
+        $stmt->execute([(string)$actor['id']]);
+        $code = $stmt->fetchColumn();
+        return $code !== false ? (string)$code : null;
+    } catch (Throwable $e) {
+        error_log('currentStaffStationCode: ' . $e->getMessage());
+        return null;
+    }
+}
+
+function staffStationIsActive(PDO $pdo, ?string $stationCode): bool {
+    if ($stationCode === null || $stationCode === '') return true;
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT lower(coalesce(status,'active'))
+             FROM public.terminals
+             WHERE code = ?
+             LIMIT 1"
+        );
+        $stmt->execute([$stationCode]);
+        $status = $stmt->fetchColumn();
+        if ($status === false) return true;
+        return (string)$status === 'active';
+    } catch (Throwable $e) {
+        error_log('staffStationIsActive: ' . $e->getMessage());
+        return true;
+    }
+}
+
+if (method() === 'GET' && $action === 'verify') {
     $driver = findDriver($pdo, (string)($_GET['driverId'] ?? ''));
-    if (!$driver) fail('No driver matches this QR code.', 404, null, 'NOT_FOUND');
+    if (!$driver) {
+        $stationCode = currentStaffStationCode($pdo, $actor);
+        pushStaffNotification($pdo, [
+            'staff_id'     => (string)$actor['id'],
+            'station_code' => $stationCode,
+            'type'         => 'qr_invalid',
+            'title'        => 'QR Validation Failed',
+            'message'      => "The scanned QR code could not be verified. Please check the driver's QR code and try again.",
+        ]);
+        fail('No driver matches this QR code.', 404, null, 'NOT_FOUND');
+    }
 
     $fee     = getFee($pdo, (string)$driver['vehicle_type']);
     $balance = round((float)$driver['balance'], 2);
 
-     $dupWindow = DUPLICATE_SCAN_SECONDS;
+    $dupWindow = DUPLICATE_SCAN_SECONDS;
     $lowThresh = LOW_BALANCE_THRESHOLD;
     try {
         $s = $pdo->prepare("SELECT setting_key, setting_value FROM system_settings
@@ -46,7 +94,7 @@ function cents(float $v): int { return (int)round($v * 100); }
                 $lowThresh = (float)$row['setting_value'];
             }
         }
-    } catch (Throwable $e) {  }
+    } catch (Throwable $e) { }
 
     $recent = $pdo->prepare("SELECT reference_number, created_at, amount FROM wallet_transactions
         WHERE driver_id = ? AND type = 'FEE'
@@ -56,12 +104,12 @@ function cents(float $v): int { return (int)round($v * 100); }
     $recent->execute([$driver['driver_id'], $dupWindow]);
     $recentRow = $recent->fetch();
 
-     $missing = [];
+    $missing = [];
     if (trim((string)$driver['full_name'])    === '') $missing[] = 'driver name';
     if (trim((string)$driver['vehicle_type']) === '') $missing[] = 'vehicle type';
     if (trim((string)$driver['driver_id'])    === '') $missing[] = 'driver ID';
 
-     $approvalStatus = strtoupper(trim((string)($driver['approval_status'] ?? 'Active')));
+    $approvalStatus = strtoupper(trim((string)($driver['approval_status'] ?? 'Active')));
     $isApproved     = !in_array($approvalStatus, ['PENDING', 'NEEDS CORRECTION', 'INACTIVE'], true);
 
     ok([
@@ -69,8 +117,8 @@ function cents(float $v): int { return (int)round($v * 100); }
         'fee'                 => $fee,
         'feeType'             => 'Terminal Fee',
         'active'              => isActive($driver['status']),
-        'approved'            => $isApproved,                           
-        'approvalStatus'      => $approvalStatus,                       
+        'approved'            => $isApproved,
+        'approvalStatus'      => $approvalStatus,
         'sufficient'          => cents($balance) >= cents($fee),
         'balanceAfter'        => round($balance - $fee, 2),
         'lowBalanceThreshold' => $lowThresh,
@@ -84,32 +132,54 @@ function cents(float $v): int { return (int)round($v * 100); }
     ]);
 }
 
- if (method() === 'POST' && $action === 'collect') {
+if (method() === 'POST' && $action === 'collect') {
     $driverId  = trim((string)(body()['driverId'] ?? ''));
     $confirmed = !empty(body()['confirmDuplicate']);
     if ($driverId === '') fail('Scan a driver QR code first.', 422);
 
-    $staffName = $actor['fullName'] ?: $actor['username'];
+    $staffName   = $actor['fullName'] ?: $actor['username'];
+    $stationCode = currentStaffStationCode($pdo, $actor);
+
+    if (!staffStationIsActive($pdo, $stationCode)) {
+        pushStaffNotification($pdo, [
+            'staff_id'     => (string)$actor['id'],
+            'station_code' => $stationCode,
+            'type'         => 'station_inactive',
+            'title'        => 'Station Unavailable',
+            'message'      => "Your assigned station is inactive. Transaction processing is currently unavailable. Please contact the Administrator.",
+        ]);
+        fail('Your assigned station is inactive. Transaction processing is currently unavailable. Please contact the Administrator.', 403, null, 'STATION_INACTIVE');
+    }
 
     try {
         $pdo->beginTransaction();
 
         $driver = findDriver($pdo, $driverId, true);
-        if (!$driver) { $pdo->rollBack(); fail('No driver matches this QR code.', 404, null, 'NOT_FOUND'); }
+        if (!$driver) {
+            $pdo->rollBack();
+            pushStaffNotification($pdo, [
+                'staff_id'     => (string)$actor['id'],
+                'station_code' => $stationCode,
+                'type'         => 'qr_invalid',
+                'title'        => 'QR Validation Failed',
+                'message'      => "The scanned QR code could not be verified. Please check the driver's QR code and try again.",
+            ]);
+            fail('No driver matches this QR code.', 404, null, 'NOT_FOUND');
+        }
 
-         assertDriverApproved($driver);
+        assertDriverApproved($driver);
 
         $fee = getFee($pdo, (string)$driver['vehicle_type']);
         if ($fee <= 0) { $pdo->rollBack(); fail('No terminal fee is set for vehicle type "' . $driver['vehicle_type'] . '". Ask the admin to set it.', 422, null, 'NO_FEE'); }
 
-         if (!$confirmed) {
+        if (!$confirmed) {
             $dupWindow = DUPLICATE_SCAN_SECONDS;
             try {
                 $s = $pdo->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'duplicate_scan_seconds'");
                 $s->execute();
                 $v = $s->fetchColumn();
                 if ($v !== false && is_numeric($v)) $dupWindow = max(10, (int)$v);
-            } catch (Throwable $e) {   }
+            } catch (Throwable $e) { }
 
             $dup = $pdo->prepare("SELECT reference_number, created_at, amount FROM wallet_transactions
                 WHERE driver_id = ? AND type = 'FEE'
@@ -136,6 +206,14 @@ function cents(float $v): int { return (int)round($v * 100); }
         $balance = round((float)$driver['balance'], 2);
         if (cents($balance) < cents($fee)) {
             $pdo->rollBack();
+            pushStaffNotification($pdo, [
+                'staff_id'     => (string)$actor['id'],
+                'station_code' => $stationCode,
+                'type'         => 'insufficient',
+                'title'        => 'Insufficient Balance',
+                'message'      => "Driver {$driver['full_name']} has insufficient balance. No fee was deducted. Please direct the driver to the Cashier.",
+                'reference_id' => (string)$driver['driver_id'],
+            ]);
             fail('Insufficient balance. ' . $driver['full_name'] . ' has ' . peso($balance) . ' but the fee is ' . peso($fee) . '.', 402, [
                 'driver'  => formatDriver($driver, $fee),
                 'balance' => $balance,
@@ -161,6 +239,34 @@ function cents(float $v): int { return (int)round($v * 100); }
         addNotification($pdo, (string)$driver['driver_id'], 'Terminal Fee Paid',
             peso($fee) . ' terminal fee was deducted. Remaining balance: ' . peso($newBalance) . '. Ref: ' . $ref,
             'TRANSPORT_FEE');
+
+        pushStaffNotification($pdo, [
+            'staff_id'     => (string)$actor['id'],
+            'station_code' => $stationCode,
+            'type'         => 'transaction',
+            'title'        => 'Transaction Successful',
+            'message'      => "Driver {$driver['full_name']}'s transaction was completed. " . peso($fee) . " was deducted at " . ($stationCode ?? 'your station') . ".",
+            'reference_id' => $ref,
+        ]);
+
+        $lowThreshold = LOW_BALANCE_THRESHOLD;
+        try {
+            $s = $pdo->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'low_balance_threshold'");
+            $s->execute();
+            $v = $s->fetchColumn();
+            if ($v !== false && is_numeric($v)) $lowThreshold = (float)$v;
+        } catch (Throwable $e) { }
+
+        if ($newBalance < $lowThreshold) {
+            pushStaffNotification($pdo, [
+                'staff_id'     => (string)$actor['id'],
+                'station_code' => $stationCode,
+                'type'         => 'low_balance',
+                'title'        => 'Low Driver Balance',
+                'message'      => "Driver {$driver['full_name']} has a remaining balance of " . peso($newBalance) . ".",
+                'reference_id' => (string)$driver['driver_id'],
+            ]);
+        }
 
         auditLog('Processed Terminal Fee', 'TRANSACTION', $ref,
             peso($fee) . ' from ' . $driver['full_name']);
@@ -188,7 +294,7 @@ function cents(float $v): int { return (int)round($v * 100); }
         $s->execute();
         $v = $s->fetchColumn();
         if ($v !== false && is_numeric($v)) $lowThresh = (float)$v;
-    } catch (Throwable $e) {   }
+    } catch (Throwable $e) { }
 
     ok([
         'receipt'             => $receipt,
@@ -197,7 +303,7 @@ function cents(float $v): int { return (int)round($v * 100); }
     ], 'Payment successful.');
 }
 
- if (method() === 'POST' && $action === 'load') {
+if (method() === 'POST' && $action === 'load') {
     $role = strtolower((string)($actor['role'] ?? ''));
     if ($role === 'staff') {
         fail('Only cashiers and admins can process prepaid loads.', 403);
@@ -214,6 +320,7 @@ function cents(float $v): int { return (int)round($v * 100); }
     if ($amount > 100000) fail('Load amount is too large.', 422);
 
     $cashierName = $actor['fullName'] ?: $actor['username'];
+    $stationCode = currentStaffStationCode($pdo, $actor);
 
     try {
         $pdo->beginTransaction();
@@ -221,7 +328,7 @@ function cents(float $v): int { return (int)round($v * 100); }
         $driver = findDriver($pdo, $driverId, true);
         if (!$driver) { $pdo->rollBack(); fail('Driver not found.', 404, null, 'NOT_FOUND'); }
 
-         assertDriverApproved($driver);
+        assertDriverApproved($driver);
 
         $previous = round((float)$driver['balance'], 2);
         $new      = round($previous + $amount, 2);
@@ -246,6 +353,15 @@ function cents(float $v): int { return (int)round($v * 100); }
         addNotification($pdo, $driverId, 'Prepaid Load Successful',
             peso($amount) . ' loaded. New balance: ' . peso($new) . '. Ref: ' . $ref,
             'LOAD_SUCCESS');
+
+        pushStaffNotification($pdo, [
+            'staff_id'     => (string)$actor['id'],
+            'station_code' => $stationCode,
+            'type'         => 'transaction',
+            'title'        => 'Prepaid Load Successful',
+            'message'      => "Driver {$driver['full_name']} loaded " . peso($amount) . ". New balance: " . peso($new) . ".",
+            'reference_id' => $ref,
+        ]);
 
         auditLog('Processed Prepaid Load', 'LOAD', $ref,
             peso($amount) . ' to ' . $driver['full_name'] . ' · New balance ' . peso($new));
@@ -272,7 +388,7 @@ function cents(float $v): int { return (int)round($v * 100); }
     }
 }
 
- if (method() === 'GET' && $action === 'print') {
+if (method() === 'GET' && $action === 'print') {
     requireRole('admin', 'cashier');
 
     $ref = trim((string)($_GET['reference'] ?? ''));
@@ -316,7 +432,7 @@ function cents(float $v): int { return (int)round($v * 100); }
     ]]);
 }
 
- if (method() === 'GET' && $action === 'list') {
+if (method() === 'GET' && $action === 'list') {
     $type  = strtoupper((string)($_GET['type'] ?? 'ALL'));
     $from  = (string)($_GET['from'] ?? '');
     $to    = (string)($_GET['to'] ?? '');
@@ -377,7 +493,7 @@ function cents(float $v): int { return (int)round($v * 100); }
     ok(['transactions' => $rows]);
 }
 
- if (method() === 'GET' && $action === 'stats') {
+if (method() === 'GET' && $action === 'stats') {
     $stmt = $pdo->prepare("SELECT
             COALESCE(SUM(amount) FILTER (WHERE type = 'FEE'), 0)  AS fees_total,
             COUNT(*)              FILTER (WHERE type = 'FEE')     AS fees_count,

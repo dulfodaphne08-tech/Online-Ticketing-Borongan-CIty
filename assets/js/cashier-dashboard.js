@@ -103,6 +103,7 @@ const PAGE_LABELS = {
 };
 
 function navigateTo(page) {
+    if (!page) return;
     currentPage = page;
     document.querySelectorAll('.page-section').forEach(s => {
         s.classList.toggle('active', s.id === 'page-' + page);
@@ -116,6 +117,14 @@ function navigateTo(page) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     const userDropdown = document.getElementById('userDropdown');
     if (userDropdown) userDropdown.classList.remove('active');
+
+    try {
+        sessionStorage.setItem('cashier_active_page', page);
+        if ((location.hash || '').replace('#', '') !== page) {
+            history.replaceState(null, '', '#' + page);
+        }
+    } catch (e) {}
+
     if (page === 'dashboard') refreshDashboard();
     if (page === 'history') loadHistory();
     if (page === 'references') loadReferences();
@@ -136,6 +145,11 @@ function navigateTo(page) {
     }
 }
 window.navigateTo = navigateTo;
+
+window.addEventListener('hashchange', () => {
+    const p = (location.hash || '').replace('#', '').trim();
+    if (p && document.getElementById('page-' + p)) navigateTo(p);
+});
 
 document.querySelectorAll('.sidebar-item[data-page]').forEach(b => {
     b.addEventListener('click', () => navigateTo(b.dataset.page));
@@ -766,7 +780,13 @@ window.authReady.then(u => {
     updateTopbarDateTime();
     setInterval(updateTopbarDateTime, 30000);
 
-    refreshDashboard();
+    const fromHash = (location.hash || '').replace('#', '').trim();
+    const activePage = fromHash || sessionStorage.getItem('cashier_active_page') || 'dashboard';
+    if (activePage && document.getElementById('page-' + activePage)) {
+        navigateTo(activePage);
+    } else {
+        refreshDashboard();
+    }
     loadAttendance();
     startDashboardPolling();
     startNotifPolling();

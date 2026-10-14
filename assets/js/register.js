@@ -1,19 +1,20 @@
 (function () {
-  const form        = document.getElementById("driverForm");
+  "use strict";
+
+  const form = document.getElementById("driverForm");
+  if (!form) return;
+
   const registerBtn = document.getElementById("registerBtn");
   const msgDiv      = document.getElementById("registerMsg");
   const successMsg  = document.getElementById("successMsg");
   const successText = document.getElementById("successText");
 
-   const takenCache = {};
+  const takenCache = {};
   async function isTaken(field, value) {
     const key = field + ":" + value.toUpperCase();
     if (key in takenCache) return takenCache[key];
     try {
-      const res = await fetch(
-        "api/register.php?check=" + encodeURIComponent(field) +
-        "&value=" + encodeURIComponent(value)
-      );
+      const res = await fetch("api/register.php?check=" + encodeURIComponent(field) + "&value=" + encodeURIComponent(value));
       const json = await res.json();
       takenCache[key] = !!(json.success && json.data && json.data.available === false);
     } catch (e) {
@@ -22,13 +23,7 @@
     return takenCache[key];
   }
 
-  function showFieldError(input, errorEl, text) {
-    input.classList.add("input-error");
-    errorEl.textContent = text;
-    errorEl.classList.add("show");
-  }
-
-   const today = new Date();
+  const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
   const regDateInput = document.getElementById("registrationDate");
   if (regDateInput) {
@@ -36,310 +31,396 @@
     regDateInput.setAttribute("readonly", true);
   }
 
-   const vehicleType = document.getElementById("vehicleType");
-  const bodyInput   = document.getElementById("bodyNumber");
-  const plateInput  = document.getElementById("plateNumber");
-  const licenseInput = document.getElementById("licenseNo");
+  const fullNameInput       = document.getElementById("fullName");
+  const genderInput         = document.getElementById("gender");
+  const birthdateInput      = document.getElementById("birthdate");
+  const contactInput        = document.getElementById("contact");
+  const addressInput        = document.getElementById("address");
 
-  const vehicleTypeError = document.getElementById("vehicleTypeError");
-  const bodyNumberError  = document.getElementById("bodyNumberError");
-  const plateError       = document.getElementById("plateError");
-  const licenseError     = document.getElementById("licenseError");
+  const vehicleType         = document.getElementById("vehicleType");
+  const bodyInput           = document.getElementById("bodyNumber");
+  const plateInput          = document.getElementById("plateNumber");
+  const terminalBaseSelect  = document.getElementById("driverTerminalBase");
+
+  const licenseInput        = document.getElementById("licenseNo");
+  const licenseExpInput     = document.getElementById("licenseExpiration");
 
   const emergencyNameEl     = document.getElementById("emergencyName");
   const emergencyRelationEl = document.getElementById("emergencyRelation");
   const emergencyNumberEl   = document.getElementById("emergencyNumber");
 
-  /* ---------- Radio helpers ---------- */
-  function getRadioValue(name, fallback) {
+  const usernameInput       = document.getElementById("username");
+  const passInput           = document.getElementById("password");
+  const confirmInput        = document.getElementById("confirmPassword");
+
+   const vehicleTypeError    = document.getElementById("vehicleTypeError");
+  const bodyNumberError     = document.getElementById("bodyNumberError");
+  const plateError          = document.getElementById("plateError");
+  const licenseError        = document.getElementById("licenseError");
+
+   const photoDropzone       = document.getElementById("photoDropzone");
+  const photoInput          = document.getElementById("photoUpload");
+  const photoPreviewImg     = document.getElementById("photoPreviewImg");
+  const photoDefaultIcon    = document.getElementById("photoDefaultIcon");
+  const photoUploadText     = document.getElementById("photoUploadText");
+  const photoClearBtn       = document.getElementById("photoClearBtn");
+
+  let attachedPhotoDataUrl = null;
+
+  const getRadioValue = (name, fallback) => {
     const r = document.querySelector(`input[name="${name}"]:checked`);
     return r ? r.value : fallback;
-  }
-  const getSelectedPlateType   = () => getRadioValue("plateType",   "Temporary");
+  };
+  const getSelectedPlateType   = () => getRadioValue("plateType", "Temporary");
   const getSelectedLicenseType = () => getRadioValue("licenseType", "Non-Professional");
   const getSelectedDriverClass = () => getRadioValue("driverClass", "Regular");
 
-  /* ---------- Validators ---------- */
-  function validateVehicleType() {
-    if (!vehicleType.value) {
-      vehicleType.classList.add("input-error");
-      vehicleTypeError.classList.add("show");
-      return false;
-    }
-    vehicleType.classList.remove("input-error");
-    vehicleTypeError.classList.remove("show");
-    return true;
-  }
+   const allInputs = form.querySelectorAll(".input-field");
+  allInputs.forEach((inp) => {
+    inp.addEventListener("input", () => {
+      inp.classList.remove("input-error");
+      const err = inp.parentElement?.querySelector(".error-message");
+      if (err) err.classList.remove("show");
+      if (msgDiv) msgDiv.innerHTML = "";
+    });
+    inp.addEventListener("change", () => {
+      inp.classList.remove("input-error");
+      const err = inp.parentElement?.querySelector(".error-message");
+      if (err) err.classList.remove("show");
+    });
+  });
 
-  function validateBodyNumber() {
-    const value = bodyInput.value.trim();
-    if (!value) {
-      bodyInput.classList.add("input-error");
-      bodyNumberError.textContent = "Body number is required.";
-      bodyNumberError.classList.add("show");
-      return false;
-    }
-    if (!/^\d{4}$/.test(value)) {
-      bodyInput.classList.add("input-error");
-      bodyNumberError.textContent = "Body number must be exactly 4 digits (0–9).";
-      bodyNumberError.classList.add("show");
-      return false;
-    }
-    bodyInput.classList.remove("input-error");
-    bodyNumberError.classList.remove("show");
-    return true;
-  }
-
-  function validatePlateNumber() {
-    const plate = plateInput.value.trim();
-    if (!plate) {
-      plateInput.classList.add("input-error");
-      plateError.textContent = "Please enter your plate number.";
-      plateError.classList.add("show");
-      return false;
-    }
-    if (plate.length < 3 || plate.length > 15) {
-      plateInput.classList.add("input-error");
-      plateError.textContent = "Plate number must be between 3 and 15 characters.";
-      plateError.classList.add("show");
-      return false;
-    }
-    if (!/^[A-Za-z0-9\s-]+$/.test(plate)) {
-      plateInput.classList.add("input-error");
-      plateError.textContent = "Use letters, numbers, and hyphens only.";
-      plateError.classList.add("show");
-      return false;
-    }
-    plateInput.classList.remove("input-error");
-    plateError.classList.remove("show");
-    return true;
-  }
-
-  function validateLicenseNumber() {
-    const license = licenseInput.value.trim();
-    if (!license) {
-      licenseInput.classList.add("input-error");
-      licenseError.textContent = "Please enter your driver's license number.";
-      licenseError.classList.add("show");
-      return false;
-    }
-    if (license.length < 5 || license.length > 20) {
-      licenseInput.classList.add("input-error");
-      licenseError.textContent = "License number must be between 5 and 20 characters.";
-      licenseError.classList.add("show");
-      return false;
-    }
-    if (!/^[A-Za-z0-9-]+$/.test(license)) {
-      licenseInput.classList.add("input-error");
-      licenseError.textContent = "Use letters, numbers, and hyphens only.";
-      licenseError.classList.add("show");
-      return false;
-    }
-    licenseInput.classList.remove("input-error");
-    licenseError.classList.remove("show");
-    return true;
-  }
-
-  function validateEmergency() {
-    let ok = true;
-    if (!emergencyNameEl.value.trim())   { emergencyNameEl.classList.add("input-error");     ok = false; } else { emergencyNameEl.classList.remove("input-error"); }
-    if (!emergencyRelationEl.value)      { emergencyRelationEl.classList.add("input-error"); ok = false; } else { emergencyRelationEl.classList.remove("input-error"); }
-    if (!emergencyNumberEl.value.trim()) { emergencyNumberEl.classList.add("input-error");   ok = false; } else { emergencyNumberEl.classList.remove("input-error"); }
-    return ok;
-  }
-
-  /* ---------- Live validation ---------- */
-  vehicleType.addEventListener("change", validateVehicleType);
-
-  bodyInput.addEventListener("input", function () {
-    let digits = this.value.replace(/\D+/g, "");
-    if (digits.length > 4) digits = digits.slice(0, 4);
+   bodyInput?.addEventListener("input", function () {
+    let digits = this.value.replace(/\D+/g, "").slice(0, 4);
     if (this.value !== digits) this.value = digits;
     if (digits.length === 4) {
       this.classList.remove("input-error");
-      bodyNumberError.classList.remove("show");
+      bodyNumberError?.classList.remove("show");
     }
   });
-  bodyInput.addEventListener("keydown", function (e) {
-    const allowed = ["Backspace","Delete","Tab","ArrowLeft","ArrowRight","Home","End"];
-    if (allowed.includes(e.key)) return;
-    if ((e.ctrlKey || e.metaKey) && ["a","c","v","x"].includes(e.key.toLowerCase())) return;
-    if (!/^\d$/.test(e.key)) e.preventDefault();
+
+   
+  photoDropzone?.addEventListener("click", function (e) {
+    if (e.target.closest("#photoClearBtn")) return;
+    photoInput?.click();
   });
-  bodyInput.addEventListener("paste", function (e) {
+
+   photoDropzone?.addEventListener("dragover", (e) => {
     e.preventDefault();
-    const text = (e.clipboardData || window.clipboardData).getData("text") || "";
-    let digits = text.replace(/\D+/g, "").slice(0, 4);
-    this.value = digits;
-    this.dispatchEvent(new Event("input", { bubbles: true }));
+    photoDropzone.classList.add("dragover");
   });
-  bodyInput.addEventListener("blur", validateBodyNumber);
-
-  plateInput.addEventListener("input", function () {
-    if (plateInput.classList.contains("input-error")) {
-      plateInput.classList.remove("input-error");
-      plateError.classList.remove("show");
-    }
+  photoDropzone?.addEventListener("dragleave", () => {
+    photoDropzone.classList.remove("dragover");
   });
-  plateInput.addEventListener("blur", async function () {
-    if (validatePlateNumber() && (await isTaken("plateNumber", plateInput.value.trim()))) {
-      showFieldError(plateInput, plateError, "Plate number already registered.");
+  photoDropzone?.addEventListener("drop", (e) => {
+    e.preventDefault();
+    photoDropzone.classList.remove("dragover");
+    if (e.dataTransfer?.files?.[0]) {
+      handleSelectedPhoto(e.dataTransfer.files[0]);
     }
   });
 
-  licenseInput.addEventListener("input", function () {
-    if (licenseInput.classList.contains("input-error")) {
-      licenseInput.classList.remove("input-error");
-      licenseError.classList.remove("show");
+  photoInput?.addEventListener("change", function () {
+    const file = this.files && this.files[0];
+    if (file) handleSelectedPhoto(file);
+  });
+
+  photoClearBtn?.addEventListener("click", function (e) {
+    e.stopPropagation();
+    clearAttachedPhoto();
+  });
+
+  function clearAttachedPhoto() {
+    attachedPhotoDataUrl = null;
+    if (photoInput) photoInput.value = "";
+    if (photoPreviewImg) {
+      photoPreviewImg.src = "";
+      photoPreviewImg.classList.add("hidden");
     }
-  });
-  licenseInput.addEventListener("blur", async function () {
-    if (validateLicenseNumber() && (await isTaken("licenseNo", licenseInput.value.trim()))) {
-      showFieldError(licenseInput, licenseError, "Driver's license number already registered.");
+    photoDefaultIcon?.classList.remove("hidden");
+    photoClearBtn?.classList.add("hidden");
+    photoDropzone?.classList.remove("has-file");
+    if (photoUploadText) {
+      photoUploadText.innerHTML = `
+        <strong>Click to upload photo</strong>
+        <span>JPG, PNG or WEBP · Max 5MB</span>
+      `;
     }
-  });
-
-  document.querySelectorAll('input[name="plateType"]').forEach((radio) => {
-    radio.addEventListener("change", function () {
-      const hint = document.getElementById("plateHint");
-      const type = getSelectedPlateType();
-      let example = "";
-      if (type === "Temporary") example = "e.g., TEMP-12345";
-      else if (type === "Old")  example = "e.g., ABC-1234";
-      else                      example = "e.g., NEW-1234-AB";
-      hint.innerHTML = `<i class="fas fa-info-circle mr-1"></i> ${type}: Letters, numbers, hyphens (${example})`;
-    });
-  });
-
-  [emergencyNameEl, emergencyRelationEl, emergencyNumberEl].forEach((el) => {
-    el.addEventListener("input",  () => { if (el.value.trim()) el.classList.remove("input-error"); });
-    el.addEventListener("change", () => { if (el.value.trim()) el.classList.remove("input-error"); });
-  });
-
-  /* ---------- Password strength + confirm ---------- */
-  const togglePass    = document.getElementById("togglePassword");
-  const toggleConfirm = document.getElementById("toggleConfirm");
-  const passInput     = document.getElementById("password");
-  const confirmInput  = document.getElementById("confirmPassword");
-
-  togglePass.addEventListener("click", function (e) {
-    e.preventDefault(); e.stopPropagation();
-    const show = passInput.type === "password";
-    passInput.type = show ? "text" : "password";
-    this.querySelector("i").className = show ? "fas fa-eye-slash" : "fas fa-eye";
-    passInput.focus();
-  });
-  toggleConfirm.addEventListener("click", function (e) {
-    e.preventDefault(); e.stopPropagation();
-    const show = confirmInput.type === "password";
-    confirmInput.type = show ? "text" : "password";
-    this.querySelector("i").className = show ? "fas fa-eye-slash" : "fas fa-eye";
-    confirmInput.focus();
-  });
-
-  const bars = ["bar1","bar2","bar3","bar4"].map(id => document.getElementById(id));
-  const strengthText = document.getElementById("pwStrengthText");
-
-  function checkPasswordStrength(password) {
-    let score = 0;
-    const checks = {
-      length:  password.length >= 8,
-      upper:   /[A-Z]/.test(password),
-      lower:   /[a-z]/.test(password),
-      number:  /\d/.test(password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-    };
-
-    document.getElementById("reqLength").innerHTML  = checks.length  ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-circle"></i>';
-    document.getElementById("reqUpper").innerHTML   = checks.upper   ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-circle"></i>';
-    document.getElementById("reqLower").innerHTML   = checks.lower   ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-circle"></i>';
-    document.getElementById("reqNumber").innerHTML  = checks.number  ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-circle"></i>';
-    document.getElementById("reqSpecial").innerHTML = checks.special ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-circle"></i>';
-
-    document.querySelectorAll(".req .icon").forEach((el) => {
-      el.className = "icon " + (el.innerHTML.includes("check-circle") ? "valid" : "invalid");
-    });
-
-    if (checks.length)  score++;
-    if (checks.upper)   score++;
-    if (checks.lower)   score++;
-    if (checks.number)  score++;
-    if (checks.special) score++;
-
-    bars.forEach((bar, i) => {
-      bar.className = "pw-strength-bar";
-      if (i < score) {
-        bar.classList.add("active");
-        if (score <= 2) bar.classList.add("weak");
-        else if (score <= 3) bar.classList.add("medium");
-        else bar.classList.add("strong");
-      }
-    });
-
-    if (password.length === 0) {
-      strengthText.textContent = "Enter a password";
-      strengthText.style.color = "#6b7280";
-    } else if (score <= 2) {
-      strengthText.textContent = "Weak password";
-      strengthText.style.color = "#ef4444";
-    } else if (score <= 3) {
-      strengthText.textContent = "Medium password";
-      strengthText.style.color = "#f59e0b";
-    } else {
-      strengthText.textContent = "Strong password!";
-      strengthText.style.color = "#22c55e";
-    }
-    return checks;
+    updateProgress();
   }
 
-  passInput.addEventListener("input", function () {
-    checkPasswordStrength(this.value);
-    checkConfirmMatch();
-  });
-
-  function checkConfirmMatch() {
-    const pass    = passInput.value;
-    const confirm = confirmInput.value;
-    const matchDiv = document.getElementById("confirmMatch");
-    if (confirm.length === 0) { matchDiv.textContent = ""; return; }
-    matchDiv.textContent = pass === confirm ? "Passwords match" : "Passwords do not match";
-    matchDiv.style.color = pass === confirm ? "#22c55e" : "#ef4444";
-  }
-  confirmInput.addEventListener("input", checkConfirmMatch);
-
-  /* ---------- Photo → data URL ---------- */
-  function readFileAsDataURL(file) {
+   function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.82) {
     return new Promise((resolve, reject) => {
+      if (!file.type.startsWith("image/")) {
+        return reject(new Error("Please select an image file (JPG, PNG, or WEBP)."));
+      }
       const reader = new FileReader();
-      reader.onload  = (e) => resolve(e.target.result);
-      reader.onerror = reject;
+      reader.onerror = () => reject(new Error("Could not read image file."));
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Invalid or corrupted image."));
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width  = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width  = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressed = canvas.toDataURL("image/jpeg", quality);
+          resolve(compressed);
+        };
+        img.src = e.target.result;
+      };
       reader.readAsDataURL(file);
     });
   }
 
-  /* ---------- Live review box (Vehicle Status removed) ---------- */
-  function updateReview() {
+  async function handleSelectedPhoto(file) {
+    if (!file.type.startsWith("image/")) {
+      showErrorMsg("Please select a valid image (JPG, PNG, or WEBP).");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showErrorMsg("Photo file exceeds 10MB limit. Please choose a smaller photo.");
+      return;
+    }
+
+    if (photoUploadText) {
+      photoUploadText.innerHTML = `
+        <strong>Processing photo...</strong>
+        <span>Optimizing image resolution</span>
+      `;
+    }
+
+    try {
+      const dataUrl = await compressImage(file);
+      attachedPhotoDataUrl = dataUrl;
+
+       if (photoPreviewImg) {
+        photoPreviewImg.src = dataUrl;
+        photoPreviewImg.classList.remove("hidden");
+      }
+      photoDefaultIcon?.classList.add("hidden");
+      photoClearBtn?.classList.remove("hidden");
+      photoDropzone?.classList.add("has-file");
+
+      const approxSizeKb = Math.round(dataUrl.length * 0.75 / 1024);
+      if (photoUploadText) {
+        photoUploadText.innerHTML = `
+          <strong title="${file.name}">${file.name}</strong>
+          <span style="color:#22c55e;font-weight:600;">
+            <i class="fas fa-check-circle mr-1"></i> Ready (${approxSizeKb} KB)
+          </span>
+        `;
+      }
+      if (msgDiv) msgDiv.innerHTML = "";
+    } catch (err) {
+      console.error("Photo processing failed:", err);
+      showErrorMsg(err.message || "Could not process photo.");
+      clearAttachedPhoto();
+    }
+  }
+
+ 
+  document.getElementById("togglePassword")?.addEventListener("click", function (e) {
+    e.preventDefault();
+    const show = passInput.type === "password";
+    passInput.type = show ? "text" : "password";
+    this.querySelector("i").className = show ? "fas fa-eye-slash" : "fas fa-eye";
+  });
+
+  document.getElementById("toggleConfirm")?.addEventListener("click", function (e) {
+    e.preventDefault();
+    const show = confirmInput.type === "password";
+    confirmInput.type = show ? "text" : "password";
+    this.querySelector("i").className = show ? "fas fa-eye-slash" : "fas fa-eye";
+  });
+
+ 
+  const reqLengthEl  = document.getElementById("reqLength");
+  const reqUpperEl   = document.getElementById("reqUpper");
+  const reqLowerEl   = document.getElementById("reqLower");
+  const reqNumberEl  = document.getElementById("reqNumber");
+  const reqSpecialEl = document.getElementById("reqSpecial");
+
+  const bar1 = document.getElementById("bar1");
+  const bar2 = document.getElementById("bar2");
+  const bar3 = document.getElementById("bar3");
+  const bar4 = document.getElementById("bar4");
+  const pwStrengthText = document.getElementById("pwStrengthText");
+  const confirmMatch   = document.getElementById("confirmMatch");
+
+  function setReqStatus(iconContainer, isMet) {
+    if (!iconContainer) return;
+    const parentReq = iconContainer.closest(".req");
+    if (isMet) {
+      iconContainer.classList.add("valid");
+      iconContainer.classList.remove("invalid");
+      iconContainer.innerHTML = '<i class="fas fa-check-circle"></i>';
+      if (parentReq) parentReq.classList.add("valid");
+    } else {
+      iconContainer.classList.remove("valid");
+      iconContainer.classList.add("invalid");
+      iconContainer.innerHTML = '<i class="fas fa-circle"></i>';
+      if (parentReq) parentReq.classList.remove("valid");
+    }
+  }
+
+  function updatePasswordStrength() {
+    const pwd = passInput?.value || "";
+
+    const hasLength  = pwd.length >= 8;
+    const hasUpper   = /[A-Z]/.test(pwd);
+    const hasLower   = /[a-z]/.test(pwd);
+    const hasNumber  = /[0-9]/.test(pwd);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-+=\\/\[\]~`]/.test(pwd);
+
+     setReqStatus(reqLengthEl, hasLength);
+    setReqStatus(reqUpperEl, hasUpper);
+    setReqStatus(reqLowerEl, hasLower);
+    setReqStatus(reqNumberEl, hasNumber);
+    setReqStatus(reqSpecialEl, hasSpecial);
+
+     let score = 0;
+    if (hasLength) score++;
+    if (hasUpper && hasLower) score++;
+    if (hasNumber) score++;
+    if (hasSpecial) score++;
+
+     
+    [bar1, bar2, bar3, bar4].forEach((b) => {
+      if (b) b.className = "pw-strength-bar";
+    });
+
+    if (pwd.length === 0) {
+      if (pwStrengthText) {
+        pwStrengthText.textContent = "Enter a password";
+        pwStrengthText.style.color = "var(--text-gray)";
+      }
+    } else if (score <= 1) {
+      if (bar1) bar1.className = "pw-strength-bar active weak";
+      if (pwStrengthText) {
+        pwStrengthText.textContent = "Weak password (add uppercase, number & symbol)";
+        pwStrengthText.style.color = "#ef4444";
+      }
+    } else if (score === 2) {
+      if (bar1) bar1.className = "pw-strength-bar active medium";
+      if (bar2) bar2.className = "pw-strength-bar active medium";
+      if (pwStrengthText) {
+        pwStrengthText.textContent = "Fair password (add numbers or symbols)";
+        pwStrengthText.style.color = "#f59e0b";
+      }
+    } else if (score === 3) {
+      if (bar1) bar1.className = "pw-strength-bar active medium";
+      if (bar2) bar2.className = "pw-strength-bar active medium";
+      if (bar3) bar3.className = "pw-strength-bar active medium";
+      if (pwStrengthText) {
+        pwStrengthText.textContent = "Good password";
+        pwStrengthText.style.color = "#eab308";
+      }
+    } else {
+      if (bar1) bar1.className = "pw-strength-bar active strong";
+      if (bar2) bar2.className = "pw-strength-bar active strong";
+      if (bar3) bar3.className = "pw-strength-bar active strong";
+      if (bar4) bar4.className = "pw-strength-bar active strong";
+      if (pwStrengthText) {
+        pwStrengthText.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Strong password! Ready to register.';
+        pwStrengthText.style.color = "#22c55e";
+      }
+    }
+
+    checkConfirmMatch();
+    updateProgress();
+  }
+
+  function checkConfirmMatch() {
+    if (!confirmMatch || !confirmInput) return;
+    const pwd = passInput?.value || "";
+    const cpwd = confirmInput.value;
+
+    if (!cpwd) {
+      confirmMatch.innerHTML = "";
+      return;
+    }
+    if (pwd === cpwd) {
+      confirmMatch.innerHTML = '<span style="color:#22c55e;font-weight:600;"><i class="fas fa-check-circle mr-1"></i> Passwords match</span>';
+      confirmInput.classList.remove("input-error");
+    } else {
+      confirmMatch.innerHTML = '<span style="color:#ef4444;font-weight:600;"><i class="fas fa-times-circle mr-1"></i> Passwords do not match</span>';
+    }
+  }
+
+  passInput?.addEventListener("input", updatePasswordStrength);
+  confirmInput?.addEventListener("input", checkConfirmMatch);
+
+   const progressFill  = document.getElementById("progressFill");
+  const progressLabel = document.getElementById("progressLabel");
+  const stepItems     = document.querySelectorAll(".step-item");
+
+  function updateProgress() {
+    const s1 = !!(fullNameInput?.value.trim() && genderInput?.value && birthdateInput?.value && contactInput?.value.trim() && addressInput?.value.trim());
+    const s2 = !!(vehicleType?.value && bodyInput?.value.trim().length === 4 && plateInput?.value.trim());
+    const s3 = !!(licenseInput?.value.trim() && licenseExpInput?.value);
+    const s4 = !!(emergencyNameEl?.value.trim() && emergencyRelationEl?.value && emergencyNumberEl?.value.trim());
+    const s5 = !!(usernameInput?.value.trim() && passInput?.value.length >= 8 && confirmInput?.value === passInput?.value);
+
+    const sections = [s1, s2, s3, s4, s5];
+    const completedCount = sections.filter(Boolean).length;
+
+    if (progressFill) {
+      progressFill.style.width = (completedCount / 5 * 100) + "%";
+    }
+    if (progressLabel) {
+      progressLabel.textContent = `${completedCount} of 5 sections complete`;
+    }
+
+    stepItems.forEach((stepEl, idx) => {
+      const isDone = sections[idx];
+      const dot = stepEl.querySelector(".step-dot");
+      if (isDone) {
+        stepEl.classList.add("completed");
+        stepEl.classList.remove("active");
+        if (dot) dot.innerHTML = '<i class="fas fa-check"></i>';
+      } else {
+        stepEl.classList.remove("completed");
+        if (dot) dot.textContent = String(idx + 1);
+        if (idx === sections.findIndex((done) => !done)) {
+          stepEl.classList.add("active");
+        } else {
+          stepEl.classList.remove("active");
+        }
+      }
+    });
+  }
+
+   function updateReview() {
     const box = document.getElementById("reviewBox");
     if (!box) return;
-    const v = (id) => {
-      const el = document.getElementById(id);
-      return el && el.value ? el.value : "—";
-    };
+    const v = (id) => document.getElementById(id)?.value?.trim() || "-";
+    const photoStatus = attachedPhotoDataUrl ? "Attached ✓" : "None";
+
     box.textContent =
       `PERSONAL\n` +
       `Full Name:       ${v("fullName")}\n` +
       `Gender:          ${v("gender")}\n` +
       `Birthdate:       ${v("birthdate")}\n` +
       `Contact:         ${v("contact")}\n` +
-      `Address:         ${v("address")}\n\n` +
+      `Address:         ${v("address")}\n` +
+      `Photo:           ${photoStatus}\n\n` +
       `VEHICLE\n` +
       `Vehicle Type:    ${v("vehicleType")}\n` +
       `Body Number:     ${v("bodyNumber")}\n` +
-      `Plate Number:    ${v("plateNumber")}\n` +
+      `Plate Number:    ${v("plateNumber").toUpperCase()}\n` +
       `Plate Type:      ${getSelectedPlateType()}\n` +
-      `Terminal Base:   ${v("driverTerminalBase")}\n\n` +
+      `Terminal Base:   ${v("driverTerminalBase") || "None (General)"}\n\n` +
       `DRIVER\n` +
-      `License No:      ${v("licenseNo")}\n` +
+      `License No:      ${v("licenseNo").toUpperCase()}\n` +
       `License Type:    ${getSelectedLicenseType()}\n` +
       `License Exp.:    ${v("licenseExpiration")}\n` +
       `Classification:  ${getSelectedDriverClass()}\n\n` +
@@ -349,183 +430,211 @@
       `Contact No:      ${v("emergencyNumber")}\n\n` +
       `ACCOUNT\n` +
       `Username:        ${v("username")}`;
+
+    updateProgress();
   }
 
-  form.addEventListener("input",  updateReview);
+  form.addEventListener("input", updateReview);
   form.addEventListener("change", updateReview);
   updateReview();
 
-  /* ---------- Progress bar (5 main sections only) ---------- */
-  (function progress() {
-    const fill     = document.getElementById("progressFill");
-    const label    = document.getElementById("progressLabel");
-    const sections = document.querySelectorAll('.form-section[data-section]:not([data-section="6"])');
-    if (!fill || !sections.length) return;
-
-    function update() {
-      let complete = 0;
-      sections.forEach((sec) => {
-        const required = sec.querySelectorAll("[required]");
-        let filled = 0;
-        required.forEach((el) => {
-          if (el.type === "radio") return;
-          if (el.value && el.value.trim()) filled++;
-        });
-        const radioNames = new Set();
-        sec.querySelectorAll('input[type="radio"][required]').forEach(r => radioNames.add(r.name));
-        const total = required.length - sec.querySelectorAll('input[type="radio"][required]').length + radioNames.size;
-        const done  = filled + radioNames.size;
-        if (total > 0 && done >= total) complete++;
-      });
-      const pct = (complete / sections.length) * 100;
-      fill.style.width = pct + "%";
-      label.textContent = `${complete} of ${sections.length} sections complete`;
+  
+  function showErrorMsg(m) {
+    if (msgDiv) {
+      msgDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> ' + m;
+      msgDiv.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
-    form.addEventListener("input",  update);
-    form.addEventListener("change", update);
-    update();
-  })();
+  }
 
-  /* ---------- Submit ---------- */
+  function highlightErrorField(inputEl, message) {
+    if (!inputEl) {
+      showErrorMsg(message);
+      return;
+    }
+    inputEl.classList.add("input-error");
+    inputEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    inputEl.focus();
+
+    const parent = inputEl.parentElement;
+    const customErr = parent?.querySelector(".error-message");
+    if (customErr) {
+      customErr.textContent = message;
+      customErr.classList.add("show");
+    }
+
+    showErrorMsg(message);
+  }
+
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
+    if (msgDiv) msgDiv.innerHTML = "";
+    if (successMsg) successMsg.classList.remove("show");
 
-    msgDiv.innerHTML = "";
-    successMsg.classList.remove("show");
+     document.querySelectorAll(".input-error").forEach((el) => el.classList.remove("input-error"));
+    document.querySelectorAll(".error-message.show").forEach((el) => el.classList.remove("show"));
 
-    const isVehicleTypeValid = validateVehicleType();
-    const isBodyNumberValid  = validateBodyNumber();
-    const isPlateValid       = validatePlateNumber();
-    const isLicenseValid     = validateLicenseNumber();
-    const isEmergencyValid   = validateEmergency();
+    const fullName          = fullNameInput?.value.trim();
+    const gender            = genderInput?.value;
+    const birthdate         = birthdateInput?.value;
+    const contact           = contactInput?.value.trim();
+    const address           = addressInput?.value.trim();
 
-    const fullName          = document.getElementById("fullName").value.trim();
-    const address           = document.getElementById("address").value.trim();
-    const contact           = document.getElementById("contact").value.trim();
-    const birthdate         = document.getElementById("birthdate").value;
-    const gender            = document.getElementById("gender").value;
-    const registrationDate  = document.getElementById("registrationDate").value;
-    const licenseExpiration = document.getElementById("licenseExpiration").value;
-    const username          = document.getElementById("username").value.trim();
-    const password          = document.getElementById("password").value;
-    const confirmPassword   = document.getElementById("confirmPassword").value;
-    const photoFile         = document.getElementById("photoUpload").files[0];
+    const vehicleTypeVal    = vehicleType?.value;
+    const bodyNumberVal     = bodyInput?.value.trim();
+    const plateNumberVal    = plateInput?.value.trim();
     const plateType         = getSelectedPlateType();
+    const terminalBase      = terminalBaseSelect?.value || null;
+
+    const licenseNoVal      = licenseInput?.value.trim();
+    const licenseExpiration = licenseExpInput?.value;
     const licenseType       = getSelectedLicenseType();
     const driverClass       = getSelectedDriverClass();
-    const terminalBase      = document.getElementById("driverTerminalBase").value;
-    const emergencyName     = emergencyNameEl.value.trim();
-    const emergencyRelation = emergencyRelationEl.value;
-    const emergencyNumber   = emergencyNumberEl.value.trim();
+    const registrationDate  = regDateInput?.value || todayStr;
 
-    const requireFail = (msg) => {
-      msgDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> ' + msg;
-    };
+    const emergencyName     = emergencyNameEl?.value.trim();
+    const emergencyRelation = emergencyRelationEl?.value;
+    const emergencyNumber   = emergencyNumberEl?.value.trim();
 
-    if (!fullName)          return requireFail("Full Name is required.");
-    if (!address)           return requireFail("Address is required.");
-    if (!contact)           return requireFail("Contact Number is required.");
-    if (!birthdate)         return requireFail("Birthdate is required.");
-    if (!gender)            return requireFail("Gender is required.");
-    if (!registrationDate)  return requireFail("Registration Date is required.");
-    if (!licenseExpiration) return requireFail("License Expiration is required.");
-    if (!username)          return requireFail("Username is required.");
-    if (!password)          return requireFail("Password is required.");
+    const username          = usernameInput?.value.trim();
+    const password          = passInput?.value;
+    const confirmPassword   = confirmInput?.value;
 
-    if (!isVehicleTypeValid || !isBodyNumberValid || !isPlateValid || !isLicenseValid || !isEmergencyValid) {
-      return requireFail("Please fix all errors before continuing.");
+     
+    if (!fullName) return highlightErrorField(fullNameInput, "Full Name is required.");
+    if (!gender)   return highlightErrorField(genderInput, "Please select gender.");
+    if (!birthdate) return highlightErrorField(birthdateInput, "Birthdate is required.");
+    if (!contact)  return highlightErrorField(contactInput, "Contact number is required.");
+    if (!address)  return highlightErrorField(addressInput, "Address is required.");
+
+    if (!vehicleTypeVal) return highlightErrorField(vehicleType, "Vehicle type is required.");
+    if (!bodyNumberVal || !/^\d{4}$/.test(bodyNumberVal)) {
+      return highlightErrorField(bodyInput, "Body number must be exactly 4 digits (e.g., 0123).");
     }
+    if (!plateNumberVal) return highlightErrorField(plateInput, "Plate number is required.");
 
+    if (!licenseNoVal) return highlightErrorField(licenseInput, "Driver's license number is required.");
+    if (!licenseExpiration) return highlightErrorField(licenseExpInput, "License expiration date is required.");
     if (licenseExpiration <= registrationDate) {
-      return requireFail("License expiration must be after registration date.");
+      return highlightErrorField(licenseExpInput, "License expiration must be a future date.");
     }
 
-    const pwChecks = checkPasswordStrength(password);
-    const isStrong = pwChecks.length && pwChecks.upper && pwChecks.lower && pwChecks.number && pwChecks.special;
-    if (!isStrong) return requireFail("Password must be at least 8 characters with uppercase, lowercase, number, and special character.");
-    if (password !== confirmPassword) return requireFail("Passwords do not match.");
-    if (await isTaken("username", username)) return requireFail("Username already taken.");
+    if (!emergencyName)     return highlightErrorField(emergencyNameEl, "Emergency contact name is required.");
+    if (!emergencyRelation) return highlightErrorField(emergencyRelationEl, "Select relationship to emergency contact.");
+    if (!emergencyNumber)   return highlightErrorField(emergencyNumberEl, "Emergency contact number is required.");
 
+    if (!username) return highlightErrorField(usernameInput, "Username is required.");
+    if (!/^[A-Za-z0-9_.]{3,30}$/.test(username)) {
+      return highlightErrorField(usernameInput, "Username must be 3-30 letters, numbers, dots or underscores.");
+    }
+
+    if (!password) return highlightErrorField(passInput, "Password is required.");
+    if (password.length < 8) {
+      return highlightErrorField(passInput, "Password must be at least 8 characters.");
+    }
+    if (password !== confirmPassword) {
+      return highlightErrorField(confirmInput, "Passwords do not match.");
+    }
+
+     
     registerBtn.disabled = true;
-    registerBtn.innerHTML = '<span class="spinner"></span> Registering...';
+    registerBtn.innerHTML = '<span class="spinner"></span> Checking details...';
 
-    /* ---------- Payload (NO vehicleStatus) ---------- */
-    const driverData = {
+    const userTaken = await isTaken("username", username);
+    if (userTaken) {
+      registerBtn.disabled = false;
+      registerBtn.innerHTML = '<span>Create account</span><i class="fas fa-arrow-right btn-arrow"></i>';
+      return highlightErrorField(usernameInput, "Username is already taken. Please choose another.");
+    }
+
+    registerBtn.innerHTML = '<span class="spinner"></span> Creating account...';
+
+    const driverPayload = {
       fullName,
       address,
       contact,
       birthdate,
       gender,
-      vehicleType:       vehicleType.value,
-      bodyNumber:        bodyInput.value.trim(),
-      plateType:         plateType,
-      plateNumber:       plateInput.value.trim().toUpperCase(),
-      terminalBase:      terminalBase,
-      licenseType:       licenseType,
-      licenseNo:         licenseInput.value.trim().toUpperCase(),
-      registrationDate:  registrationDate,
-      licenseExpiration: licenseExpiration,
-      driverClass:       driverClass,
-      emergencyName:     emergencyName,
-      emergencyRelation: emergencyRelation,
-      emergencyNumber:   emergencyNumber,
+      vehicleType: vehicleTypeVal,
+      bodyNumber: bodyNumberVal,
+      plateType,
+      plateNumber: plateNumberVal.toUpperCase(),
+      terminalBase,
+      licenseType,
+      licenseNo: licenseNoVal.toUpperCase(),
+      registrationDate,
+      licenseExpiration,
+      driverClass,
+      emergencyName,
+      emergencyRelation,
+      emergencyNumber,
       username,
       password,
-      photo: null,
+      photo: attachedPhotoDataUrl || null,
     };
 
-    if (photoFile) {
+    console.log("Submitting driver registration payload...");
+
+    try {
+      const response = await fetch("api/register.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(driverPayload),
+      });
+
+      const rawText = await response.text();
+      let resJson;
       try {
-        driverData.photo = await readFileAsDataURL(photoFile);
-      } catch (err) {
-        requireFail("Failed to read photo.");
+        resJson = JSON.parse(rawText);
+      } catch (e) {
+        console.error("Non-JSON API response:", rawText);
+        showErrorMsg("Server returned an invalid response. Please contact support.");
         registerBtn.disabled = false;
-        registerBtn.innerHTML = "Register Driver";
+        registerBtn.innerHTML = '<span>Create account</span><i class="fas fa-arrow-right btn-arrow"></i>';
         return;
       }
-    }
 
-    fetch("api/register.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(driverData),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success) {
-          successText.textContent = `Account created successfully for ${fullName}! Please wait for admin verification.`;
-          successMsg.classList.add("show");
-
-          form.reset();
-          document.getElementById("registrationDate").value = todayStr;
-          registerBtn.innerHTML = "Registered!";
-
-          setTimeout(function () {
-            window.location.href = "login.html?registered=true";
-          }, 3000);
-        } else {
-          requireFail("Registration failed: " + (data.error || data.message || "Unknown error"));
-          registerBtn.disabled = false;
-          registerBtn.innerHTML = "Register Driver";
+      if (resJson.success) {
+        if (successText) {
+          successText.textContent = `Account created successfully for ${fullName}! Awaiting admin verification.`;
         }
-      })
-      .catch((err) => {
-        console.error(err);
-        requireFail("Server error during registration.");
+        if (successMsg) successMsg.classList.add("show");
+        form.reset();
+        clearAttachedPhoto();
+        updatePasswordStrength();
+        updateReview();
+
+        registerBtn.innerHTML = '<i class="fas fa-check mr-1"></i> Registered!';
+
+         
+        successMsg?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        setTimeout(() => {
+          window.location.href = "login.html?registered=true";
+        }, 2500);
+
+      } else {
+        const errorText = resJson.error || resJson.message || "Registration failed.";
+        showErrorMsg("Registration failed: " + errorText);
+
+        if (errorText.toLowerCase().includes("plate")) {
+          highlightErrorField(plateInput, errorText);
+        } else if (errorText.toLowerCase().includes("license")) {
+          highlightErrorField(licenseInput, errorText);
+        } else if (errorText.toLowerCase().includes("username")) {
+          highlightErrorField(usernameInput, errorText);
+        } else if (errorText.toLowerCase().includes("photo")) {
+          showErrorMsg(errorText);
+        }
+
         registerBtn.disabled = false;
-        registerBtn.innerHTML = "Register Driver";
-      });
+        registerBtn.innerHTML = '<span>Create account</span><i class="fas fa-arrow-right btn-arrow"></i>';
+      }
+    } catch (err) {
+      console.error("Network or script error:", err);
+      showErrorMsg("Network error connecting to the server. Please check your connection.");
+      registerBtn.disabled = false;
+      registerBtn.innerHTML = '<span>Create account</span><i class="fas fa-arrow-right btn-arrow"></i>';
+    }
   });
 
-  /* ---------- Clear top error on focus ---------- */
-  document.querySelectorAll("#driverForm input, #driverForm select").forEach((el) => {
-    el.addEventListener("focus", () => {
-      const t = msgDiv.textContent;
-      if (t.includes("required") || t.includes("match") || t.includes("characters")
-        || t.includes("already") || t.includes("format") || t.includes("Invalid")
-        || t.includes("fix all errors")) {
-        msgDiv.innerHTML = "";
-      }
-    });
-  });
 })();
