@@ -1,3 +1,8 @@
+/* ============================================================
+   SITE SEARCH
+   Makes the existing .gov-search form work as a live search.
+   Requires: search-index.js loaded first.
+   ============================================================ */
 (function () {
     "use strict";
 

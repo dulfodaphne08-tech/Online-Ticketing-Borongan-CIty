@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@500;600;700;800&family=Playfair+Display:ital,wght@1,600;1,700;1,800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet" />
 
-    <link rel="stylesheet" href="assets/css/register.css?v=20261010" />
+    <link rel="stylesheet" href="assets/css/register.css?v=20261011" />
 </head>
 
 <body>
@@ -83,6 +83,10 @@
                             </div>
                             <div class="step-item" data-step="4">
                                 <span class="step-dot">4</span>
+                                <span class="step-label">Emergency</span>
+                            </div>
+                            <div class="step-item" data-step="5">
+                                <span class="step-dot">5</span>
                                 <span class="step-label">Account</span>
                             </div>
                         </div>
@@ -102,7 +106,7 @@
                         <div class="progress-track">
                             <div class="progress-fill" id="progressFill"></div>
                         </div>
-                        <p class="progress-label" id="progressLabel">0 of 4 sections complete</p>
+                        <p class="progress-label" id="progressLabel">0 of 5 sections complete</p>
 
                         <p class="helper-line">
                             <i class="fas fa-info-circle"></i>
@@ -243,15 +247,24 @@
                                         </div>
 
                                         <div class="field span-2">
-                                            <label class="label-sm">Designated Terminal Base / TODA Station <span class="optional">(optional)</span></label>
+                                            <label class="label-sm">
+                                                Designated Terminal Base / TODA Station
+                                                <span class="optional">(optional)</span>
+                                            </label>
                                             <select id="driverTerminalBase" class="input-field">
                                                 <option value="">Select Primary Terminal Base</option>
-                                                <option value="TRM-CENTRAL">Borongan Central Transport Terminal (Songco Bypass)</option>
-                                                <option value="TRM-REAL">Real Street Poblacion Terminal (City Proper)</option>
-                                                <option value="TRM-MARKET">Public Market &amp; Fish Port Terminal</option>
-                                                <option value="TRM-CAMPESAO">Campesao Junction Terminal</option>
-                                                <option value="TRM-TABOC">Taboc - Bugas TODA Station</option>
-                                                <option value="TRM-BAYBAY">Baybay Boulevard Seaside Terminal</option>
+
+                                                <optgroup label="Ticketing Stations">
+                                                    <option value="TS-01">TS-01 · Borongan City Transport Terminal – Borongan Public Market</option>
+                                                    <option value="TS-02">TS-02 · Borongan City Transport Terminal – Borongan Public Market (Short Ride)</option>
+                                                </optgroup>
+
+                                                <optgroup label="Receiving Stations">
+                                                    <option value="RS-01">RS-01 · Brgy. Pepelitan, Borongan City (Tricycles bound to Bugas)</option>
+                                                    <option value="RS-02">RS-02 · Brgy. Bugas, Borongan City (Jeep/Bus/Van leaving Borongan)</option>
+                                                    <option value="RS-03">RS-03 · Brgy. Can-abong, Borongan City (Tricycles bound to Camada)</option>
+                                                    <option value="RS-04">RS-04 · Brgy. Camada, Borongan City (Jeep/Bus/Van leaving Borongan)</option>
+                                                </optgroup>
                                             </select>
                                             <div class="format-hint">
                                                 <i class="fas fa-map-location-dot mr-1"></i>
@@ -264,7 +277,7 @@
                                 <div class="form-section" data-section="3">
                                     <div class="section-title">
                                         <i class="fas fa-id-badge"></i>
-                                        <span>License Information</span>
+                                        <span>Driver Information</span>
                                     </div>
 
                                     <div class="form-grid-2">
@@ -295,14 +308,90 @@
                                         </div>
 
                                         <div class="field span-2">
+                                            <label class="label-sm">Driver Classification</label>
+                                            <div class="pill-group" style="grid-template-columns: repeat(3, 1fr);">
+                                                <label class="pill">
+                                                    <input type="radio" name="driverClass" value="Regular" checked />
+                                                    <span>Regular</span>
+                                                </label>
+                                                <label class="pill">
+                                                    <input type="radio" name="driverClass" value="Senior Citizen" />
+                                                    <span>Senior Citizen</span>
+                                                </label>
+                                                <label class="pill">
+                                                    <input type="radio" name="driverClass" value="PWD" />
+                                                    <span>PWD</span>
+                                                </label>
+                                            </div>
+                                            <div class="format-hint">
+                                                <i class="fas fa-info-circle mr-1"></i>
+                                                For identification and records only. Does not change the transportation fee.
+                                            </div>
+                                        </div>
+
+                                        <div class="field span-2">
                                             <label class="label-sm">Registration Date <span class="req-star">*</span></label>
                                             <input type="date" id="registrationDate" class="input-field readonly-field" required readonly />
-                                            <div class="date-hint"><i class="fas fa-calendar-check mr-1"></i> Auto-set to today's date</div>
+                                            <div class="date-hint">
+                                                <i class="fas fa-calendar-check mr-1"></i>
+                                                Auto-set to today's date
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="form-section" data-section="4">
+                                    <div class="section-title">
+                                        <i class="fas fa-kit-medical"></i>
+                                        <span>Emergency Contact</span>
+                                    </div>
+
+                                    <p style="font-size:.68rem;color:#6B7280;margin-bottom:.6rem;line-height:1.5;">
+                                        <i class="fas fa-shield-heart mr-1" style="color:#C8102E;"></i>
+                                        In case of an emergency, we will contact this person.
+                                        Please make sure the details are correct.
+                                    </p>
+
+                                    <div class="form-grid-2">
+                                        <div class="field span-2">
+                                            <label class="label-sm">Emergency Contact Name <span class="req-star">*</span></label>
+                                            <input type="text" id="emergencyName" class="input-field"
+                                                   placeholder="Full name of your emergency contact" required />
+                                            <div class="format-hint">
+                                                <i class="fas fa-info-circle mr-1"></i>
+                                                Name of the person we can contact in an emergency.
+                                            </div>
+                                        </div>
+
+                                        <div class="field">
+                                            <label class="label-sm">Relationship to Driver <span class="req-star">*</span></label>
+                                            <select id="emergencyRelation" class="input-field" required>
+                                                <option value="">Select</option>
+                                                <option value="Mother">Mother</option>
+                                                <option value="Father">Father</option>
+                                                <option value="Spouse">Spouse</option>
+                                                <option value="Son">Son</option>
+                                                <option value="Daughter">Daughter</option>
+                                                <option value="Brother">Brother</option>
+                                                <option value="Sister">Sister</option>
+                                                <option value="Relative">Relative</option>
+                                                <option value="Friend">Friend</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="field">
+                                            <label class="label-sm">Emergency Contact Number <span class="req-star">*</span></label>
+                                            <input type="tel" id="emergencyNumber" class="input-field"
+                                                   placeholder="09XX-XXX-XXXX" required />
+                                            <div class="format-hint">
+                                                <i class="fas fa-info-circle mr-1"></i>
+                                                Phone number of your emergency contact.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section" data-section="5">
                                     <div class="section-title">
                                         <i class="fas fa-lock"></i>
                                         <span>Account Credentials</span>
@@ -356,6 +445,24 @@
                                     </div>
                                 </div>
 
+                                <div class="form-section" data-section="6" style="grid-column: 1 / -1;">
+                                    <div class="section-title">
+                                        <i class="fas fa-clipboard-check"></i>
+                                        <span>Review Information</span>
+                                    </div>
+                                    <p style="font-size:.7rem;color:#6B7280;margin-bottom:.6rem;">
+                                        Please check everything before submitting.
+                                    </p>
+                                    <div id="reviewBox"
+                                         style="font-size:.78rem;color:#1F2937;line-height:1.65;
+                                                background:rgba(255,255,255,.6);
+                                                border:1px solid rgba(200,16,46,.14);
+                                                border-radius:10px;padding:.75rem .9rem;
+                                                white-space:pre-line;">
+                                        Fill in the form above to see your review here.
+                                    </div>
+                                </div>
+
                             </div>
 
                             <div id="registerMsg" class="register-msg"></div>
@@ -367,9 +474,7 @@
 
                             <div class="register-footer">
                                 <span>Already have an account?</span>
-                                <a href="login.html" class="link-accent-red">
-                                    Sign in
-                                </a>
+                                <a href="login.html" class="link-accent-red">Sign in</a>
                             </div>
 
                         </form>
@@ -384,7 +489,7 @@
 
     </div>
 
-    <script src="assets/js/register.js?v=20261010"></script>
+    <script src="assets/js/register.js?v=20261011"></script>
 
     <script>
         (function bgParallax() {
@@ -399,39 +504,6 @@
                     bg.style.transform = `scale(1.06) translate(${x}px, ${y}px)`;
                 });
             });
-        })();
-
-        (function progress() {
-            const fill = document.getElementById('progressFill');
-            const label = document.getElementById('progressLabel');
-            const sections = document.querySelectorAll('.form-section');
-            if (!fill || !sections.length) return;
-
-            function update() {
-                let complete = 0;
-                sections.forEach((sec) => {
-                    const required = sec.querySelectorAll('[required]');
-                    let filled = 0;
-                    required.forEach((el) => {
-                        if (el.type === 'radio') return;
-                        if (el.value && el.value.trim()) filled++;
-                    });
-                    const radioNames = new Set();
-                    sec.querySelectorAll('input[type="radio"][required]').forEach(r => radioNames.add(r.name));
-                    const radioCount = radioNames.size;
-                    const total = required.length - sec.querySelectorAll('input[type="radio"][required]').length + radioCount;
-                    const done = filled + radioCount;
-                    if (total > 0 && done >= total) complete++;
-                });
-
-                const pct = (complete / sections.length) * 100;
-                fill.style.width = pct + '%';
-                label.textContent = `${complete} of ${sections.length} sections complete`;
-            }
-
-            document.getElementById('driverForm').addEventListener('input', update);
-            document.getElementById('driverForm').addEventListener('change', update);
-            update();
         })();
 
         (function bodyNumberInput() {
@@ -463,21 +535,6 @@
                 let digits = text.replace(/\D+/g, '').slice(0, 4);
                 this.value = digits;
                 this.dispatchEvent(new Event('input', { bubbles: true }));
-            });
-
-            bodyInput.addEventListener('blur', function () {
-                const err = document.getElementById('bodyNumberError');
-                if (!err) return;
-                if (!/^\d{4}$/.test(this.value)) {
-                    this.classList.add('input-error');
-                    err.textContent = this.value.length === 0
-                        ? 'Body number is required.'
-                        : 'Body number must be exactly 4 digits.';
-                    err.classList.add('show');
-                } else {
-                    this.classList.remove('input-error');
-                    err.classList.remove('show');
-                }
             });
         })();
     </script>
