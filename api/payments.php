@@ -63,7 +63,7 @@ function staffStationIsActive(PDO $pdo, ?string $stationCode): bool {
     }
 }
 
-if (method() === 'GET' && $action === 'verify') {
+ if (method() === 'GET' && $action === 'verify') {
     $driver = findDriver($pdo, (string)($_GET['driverId'] ?? ''));
     if (!$driver) {
         $stationCode = currentStaffStationCode($pdo, $actor);
@@ -132,7 +132,7 @@ if (method() === 'GET' && $action === 'verify') {
     ]);
 }
 
-if (method() === 'POST' && $action === 'collect') {
+ if (method() === 'POST' && $action === 'collect') {
     $driverId  = trim((string)(body()['driverId'] ?? ''));
     $confirmed = !empty(body()['confirmDuplicate']);
     if ($driverId === '') fail('Scan a driver QR code first.', 422);
@@ -146,10 +146,17 @@ if (method() === 'POST' && $action === 'collect') {
             'station_code' => $stationCode,
             'type'         => 'station_inactive',
             'title'        => 'Station Unavailable',
-            'message'      => "Your assigned station is inactive. Transaction processing is currently unavailable. Please contact the Administrator.",
+            'message'      => "Your assigned station is inactive.",
         ]);
-        fail('Your assigned station is inactive. Transaction processing is currently unavailable. Please contact the Administrator.', 403, null, 'STATION_INACTIVE');
+        fail('Your assigned station is inactive.', 403, null, 'STATION_INACTIVE');
     }
+
+     $driver = null;
+    $fee = 0.0;
+    $balance = 0.0;
+    $newBalance = 0.0;
+    $ref = '';
+    $row = null;
 
     try {
         $pdo->beginTransaction();
@@ -157,20 +164,16 @@ if (method() === 'POST' && $action === 'collect') {
         $driver = findDriver($pdo, $driverId, true);
         if (!$driver) {
             $pdo->rollBack();
-            pushStaffNotification($pdo, [
-                'staff_id'     => (string)$actor['id'],
-                'station_code' => $stationCode,
-                'type'         => 'qr_invalid',
-                'title'        => 'QR Validation Failed',
-                'message'      => "The scanned QR code could not be verified. Please check the driver's QR code and try again.",
-            ]);
             fail('No driver matches this QR code.', 404, null, 'NOT_FOUND');
         }
 
         assertDriverApproved($driver);
 
         $fee = getFee($pdo, (string)$driver['vehicle_type']);
-        if ($fee <= 0) { $pdo->rollBack(); fail('No terminal fee is set for vehicle type "' . $driver['vehicle_type'] . '". Ask the admin to set it.', 422, null, 'NO_FEE'); }
+        if ($fee <= 0) {
+            $pdo->rollBack();
+            fail('No terminal fee is set for vehicle type "' . $driver['vehicle_type'] . '".', 422, null, 'NO_FEE');
+        }
 
         if (!$confirmed) {
             $dupWindow = DUPLICATE_SCAN_SECONDS;
@@ -206,58 +209,73 @@ if (method() === 'POST' && $action === 'collect') {
         $balance = round((float)$driver['balance'], 2);
         if (cents($balance) < cents($fee)) {
             $pdo->rollBack();
-            pushStaffNotification($pdo, [
-                'staff_id'     => (string)$actor['id'],
-                'station_code' => $stationCode,
-                'type'         => 'insufficient',
-                'title'        => 'Insufficient Balance',
-                'message'      => "Driver {$driver['full_name']} has insufficient balance. No fee was deducted. Please direct the driver to the Cashier.",
-                'reference_id' => (string)$driver['driver_id'],
-            ]);
-            fail('Insufficient balance. ' . $driver['full_name'] . ' has ' . peso($balance) . ' but the fee is ' . peso($fee) . '.', 402, [
-                'driver'  => formatDriver($driver, $fee),
+            fail('Insufficient balance.', 402, [
                 'balance' => $balance,
                 'fee'     => $fee,
                 'shortBy' => round($fee - $balance, 2),
             ], 'INSUFFICIENT_BALANCE');
         }
 
-        $upd = $pdo->prepare('UPDATE drivers SET balance = balance - ? WHERE driver_id = ? RETURNING balance');
+         $upd = $pdo->prepare('UPDATE drivers SET balance = balance - ? WHERE driver_id = ? RETURNING balance');
         $upd->execute([$fee, $driver['driver_id']]);
         $newBalance = round((float)$upd->fetchColumn(), 2);
 
         $ref = newReference('TXN');
-        $ins = $pdo->prepare("INSERT INTO wallet_transactions
-            (reference_number, driver_id, type, fee_type, vehicle_type, amount, previous_balance, balance_after,
-             processed_by, processed_by_name, status)
-            VALUES (?, ?, 'FEE', 'Terminal Fee', ?, ?, ?, ?, ?, ?, 'SUCCESSFUL')
+
+         $ins = $pdo->prepare("INSERT INTO wallet_transactions
+            (reference_number, driver_id, type, fee_type, vehicle_type,
+             amount, previous_balance, balance_after,
+             processed_by, processed_by_name, status, station_id, created_at)
+            VALUES (?, ?, 'FEE', 'Terminal Fee', ?,
+                    ?, ?, ?,
+                    ?, ?, 'SUCCESSFUL', ?, now())
             RETURNING id, created_at");
-        $ins->execute([$ref, $driver['driver_id'], $driver['vehicle_type'], $fee, $balance, $newBalance,
-                       $actor['id'], $staffName]);
+        $ins->execute([
+            $ref,
+            $driver['driver_id'],
+            $driver['vehicle_type'],
+            $fee,
+            $balance,
+            $newBalance,
+            $actor['id'],
+            $staffName,
+            $stationCode,
+        ]);
         $row = $ins->fetch();
 
+         $pdo->commit();
+
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('fee collect: ' . $e->getMessage());
+        fail('The payment could not be completed: ' . $e->getMessage(), 500);
+    }
+
+     try {
         addNotification($pdo, (string)$driver['driver_id'], 'Terminal Fee Paid',
             peso($fee) . ' terminal fee was deducted. Remaining balance: ' . peso($newBalance) . '. Ref: ' . $ref,
             'TRANSPORT_FEE');
+    } catch (Throwable $e) { error_log('post-commit notif1: ' . $e->getMessage()); }
 
+    try {
         pushStaffNotification($pdo, [
             'staff_id'     => (string)$actor['id'],
             'station_code' => $stationCode,
             'type'         => 'transaction',
             'title'        => 'Transaction Successful',
-            'message'      => "Driver {$driver['full_name']}'s transaction was completed. " . peso($fee) . " was deducted at " . ($stationCode ?? 'your station') . ".",
+            'message'      => "Driver {$driver['full_name']}'s transaction completed. " . peso($fee) . " deducted at " . ($stationCode ?? 'your station') . ".",
             'reference_id' => $ref,
         ]);
+    } catch (Throwable $e) { error_log('post-commit notif2: ' . $e->getMessage()); }
 
-        $lowThreshold = LOW_BALANCE_THRESHOLD;
-        try {
-            $s = $pdo->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'low_balance_threshold'");
-            $s->execute();
-            $v = $s->fetchColumn();
-            if ($v !== false && is_numeric($v)) $lowThreshold = (float)$v;
-        } catch (Throwable $e) { }
+     $lowThresh = LOW_BALANCE_THRESHOLD;
+    try {
+        $s = $pdo->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'low_balance_threshold'");
+        $s->execute();
+        $v = $s->fetchColumn();
+        if ($v !== false && is_numeric($v)) $lowThresh = (float)$v;
 
-        if ($newBalance < $lowThreshold) {
+        if ($newBalance < $lowThresh) {
             pushStaffNotification($pdo, [
                 'staff_id'     => (string)$actor['id'],
                 'station_code' => $stationCode,
@@ -267,34 +285,35 @@ if (method() === 'POST' && $action === 'collect') {
                 'reference_id' => (string)$driver['driver_id'],
             ]);
         }
+    } catch (Throwable $e) { error_log('post-commit notif3: ' . $e->getMessage()); }
 
+    try {
         auditLog('Processed Terminal Fee', 'TRANSACTION', $ref,
             peso($fee) . ' from ' . $driver['full_name']);
+    } catch (Throwable $e) { error_log('post-commit audit: ' . $e->getMessage()); }
 
-        $pdo->commit();
-    } catch (Throwable $e) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
-        error_log('fee collect: ' . $e->getMessage());
-        fail('The payment could not be completed. No money was deducted. Please try again.', 500);
-    }
-
-    $receipt = formatTransaction([
-        'id' => $row['id'], 'reference_number' => $ref, 'type' => 'FEE', 'fee_type' => 'Terminal Fee',
-        'driver_id' => $driver['driver_id'], 'driver_name' => $driver['full_name'],
-        'plate_number' => $driver['plate_number'], 'vehicle_type' => $driver['vehicle_type'],
-        'amount' => $fee, 'previous_balance' => $balance, 'balance_after' => $newBalance,
-        'processed_by_name' => $staffName, 'status' => 'SUCCESSFUL', 'created_at' => $row['created_at'],
+     $receipt = formatTransaction([
+        'id' => $row['id'],
+        'reference_number' => $ref,
+        'type' => 'FEE',
+        'fee_type' => 'Terminal Fee',
+        'driver_id' => $driver['driver_id'],
+        'driver_name' => $driver['full_name'],
+        'plate_number' => $driver['plate_number'],
+        'vehicle_type' => $driver['vehicle_type'],
+        'body_number' => (string)($driver['body_number'] ?? ''),
+        'amount' => $fee,
+        'previous_balance' => $balance,
+        'balance_after' => $newBalance,
+        'processed_by_name' => $staffName,
+        'status' => 'SUCCESSFUL',
+        'created_at' => $row['created_at'],
+        'station_id' => $stationCode,
     ]);
     $receipt['bodyNumber'] = (string)($driver['body_number'] ?? '');
     $receipt['feeType']    = 'Terminal Fee';
-
-    $lowThresh = LOW_BALANCE_THRESHOLD;
-    try {
-        $s = $pdo->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'low_balance_threshold'");
-        $s->execute();
-        $v = $s->fetchColumn();
-        if ($v !== false && is_numeric($v)) $lowThresh = (float)$v;
-    } catch (Throwable $e) { }
+    $receipt['stationId']  = $stationCode;
+    $receipt['stationName']= $stationCode;
 
     ok([
         'receipt'             => $receipt,
@@ -303,7 +322,7 @@ if (method() === 'POST' && $action === 'collect') {
     ], 'Payment successful.');
 }
 
-if (method() === 'POST' && $action === 'load') {
+ if (method() === 'POST' && $action === 'load') {
     $role = strtolower((string)($actor['role'] ?? ''));
     if ($role === 'staff') {
         fail('Only cashiers and admins can process prepaid loads.', 403);
@@ -322,6 +341,12 @@ if (method() === 'POST' && $action === 'load') {
     $cashierName = $actor['fullName'] ?: $actor['username'];
     $stationCode = currentStaffStationCode($pdo, $actor);
 
+    $ref = '';
+    $row = null;
+    $driver = null;
+    $previous = 0.0;
+    $new = 0.0;
+
     try {
         $pdo->beginTransaction();
 
@@ -337,23 +362,34 @@ if (method() === 'POST' && $action === 'load') {
         $ins = $pdo->prepare("INSERT INTO wallet_transactions
             (reference_number, or_number, driver_id, type, amount,
              previous_balance, balance_after, payment_method,
-             processed_by, processed_by_name, status, created_at)
-            VALUES (?, ?, ?, 'LOAD', ?, ?, ?, ?, ?, ?, 'SUCCESSFUL', now())
+             processed_by, processed_by_name, status, station_id, created_at)
+            VALUES (?, ?, ?, 'LOAD', ?, ?, ?, ?, ?, ?, 'SUCCESSFUL', ?, now())
             RETURNING id, created_at");
         $ins->execute([
             $ref, $orNumber, $driverId, $amount,
             $previous, $new, $method_,
-            $actor['id'], $cashierName
+            $actor['id'], $cashierName, $stationCode,
         ]);
         $row = $ins->fetch();
 
         $pdo->prepare("UPDATE drivers SET balance = ? WHERE driver_id = ?")
             ->execute([$new, $driverId]);
 
+         $pdo->commit();
+
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('load process: ' . $e->getMessage());
+        fail('The load could not be processed. No balance was added.', 500);
+    }
+
+     try {
         addNotification($pdo, $driverId, 'Prepaid Load Successful',
             peso($amount) . ' loaded. New balance: ' . peso($new) . '. Ref: ' . $ref,
             'LOAD_SUCCESS');
+    } catch (Throwable $e) { error_log('post-commit load notif1: ' . $e->getMessage()); }
 
+    try {
         pushStaffNotification($pdo, [
             'staff_id'     => (string)$actor['id'],
             'station_code' => $stationCode,
@@ -362,33 +398,29 @@ if (method() === 'POST' && $action === 'load') {
             'message'      => "Driver {$driver['full_name']} loaded " . peso($amount) . ". New balance: " . peso($new) . ".",
             'reference_id' => $ref,
         ]);
+    } catch (Throwable $e) { error_log('post-commit load notif2: ' . $e->getMessage()); }
 
+    try {
         auditLog('Processed Prepaid Load', 'LOAD', $ref,
             peso($amount) . ' to ' . $driver['full_name'] . ' · New balance ' . peso($new));
+    } catch (Throwable $e) { error_log('post-commit load audit: ' . $e->getMessage()); }
 
-        $pdo->commit();
-
-        ok([
-            'reference'       => $ref,
-            'id'              => $row['id'],
-            'amount'          => $amount,
-            'previousBalance' => $previous,
-            'balanceAfter'    => $new,
-            'driverId'        => $driverId,
-            'driverName'      => $driver['full_name'],
-            'orNumber'        => $orNumber,
-            'paymentMethod'   => $method_,
-            'processedBy'     => $cashierName,
-            'createdAt'       => $row['created_at'],
-        ], 'Load processed successfully.', 201);
-    } catch (Throwable $e) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
-        error_log('load process: ' . $e->getMessage());
-        fail('The load could not be processed. No balance was added.', 500);
-    }
+    ok([
+        'reference'       => $ref,
+        'id'              => $row['id'],
+        'amount'          => $amount,
+        'previousBalance' => $previous,
+        'balanceAfter'    => $new,
+        'driverId'        => $driverId,
+        'driverName'      => $driver['full_name'],
+        'orNumber'        => $orNumber,
+        'paymentMethod'   => $method_,
+        'processedBy'     => $cashierName,
+        'createdAt'       => $row['created_at'],
+    ], 'Load processed successfully.', 201);
 }
 
-if (method() === 'GET' && $action === 'print') {
+ if (method() === 'GET' && $action === 'print') {
     requireRole('admin', 'cashier');
 
     $ref = trim((string)($_GET['reference'] ?? ''));
@@ -432,7 +464,7 @@ if (method() === 'GET' && $action === 'print') {
     ]]);
 }
 
-if (method() === 'GET' && $action === 'list') {
+ if (method() === 'GET' && $action === 'list') {
     $type  = strtoupper((string)($_GET['type'] ?? 'ALL'));
     $from  = (string)($_GET['from'] ?? '');
     $to    = (string)($_GET['to'] ?? '');
@@ -442,14 +474,16 @@ if (method() === 'GET' && $action === 'list') {
     $where = [];
     $args  = [];
     if (in_array($type, ['LOAD', 'FEE'], true)) { $where[] = 'wt.type = ?'; $args[] = $type; }
+
     if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
-        $where[] = 'wt.created_at >= ?';
-        $args[]  = (new DateTimeImmutable($from))->format(DATE_ATOM);
+        $where[] = 'wt.created_at >= ?::timestamptz';
+        $args[]  = $from . ' 00:00:00+08:00';
     }
     if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
-        $where[] = 'wt.created_at < ?';
-        $args[]  = (new DateTimeImmutable($to))->modify('+1 day')->format(DATE_ATOM);
+        $where[] = 'wt.created_at < ?::timestamptz';
+        $args[]  = (new DateTimeImmutable($to))->modify('+1 day')->format('Y-m-d') . ' 00:00:00+08:00';
     }
+
     if ($q !== '') {
         $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q) . '%';
         $where[] = '(wt.reference_number ILIKE ? OR wt.or_number ILIKE ? OR wt.driver_id ILIKE ? OR d.full_name ILIKE ? OR d.plate_number ILIKE ?)';
@@ -463,7 +497,8 @@ if (method() === 'GET' && $action === 'list') {
                 wt.driver_id,
                 wt.type,
                 wt.fee_type,
-                wt.vehicle_type,
+                COALESCE(wt.vehicle_type, d.vehicle_type) AS vehicle_type,
+                d.body_number AS body_number,
                 wt.amount,
                 wt.previous_balance,
                 wt.balance_after,
@@ -471,29 +506,33 @@ if (method() === 'GET' && $action === 'list') {
                 wt.processed_by,
                 wt.processed_by_name,
                 wt.status,
+                wt.station_id,
                 wt.created_at,
                 d.full_name      AS driver_name,
-                d.plate_number   AS plate_number,
-                d.body_number    AS body_number
+                d.plate_number   AS plate_number
             FROM wallet_transactions wt
             LEFT JOIN drivers d ON d.driver_id = wt.driver_id"
         . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
         . " ORDER BY wt.created_at DESC LIMIT {$limit}";
 
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($args);
-    $rows = array_map(function (array $row): array {
-        $formatted = formatTransaction($row);
-        $formatted['referenceNumber'] = $row['reference_number'] ?? '';
-        $formatted['orNumber']        = $row['or_number']        ?? null;
-        $formatted['bodyNumber']      = $row['body_number']      ?? null;
-        return $formatted;
-    }, $stmt->fetchAll());
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($args);
+        $rows = array_map(function (array $row): array {
+            $formatted = formatTransaction($row);
+            $formatted['referenceNumber'] = $row['reference_number'] ?? '';
+            $formatted['orNumber']        = $row['or_number']        ?? null;
+            $formatted['bodyNumber']      = $row['body_number']      ?? null;
+            return $formatted;
+        }, $stmt->fetchAll());
+    } catch (Throwable $e) {
+        error_log('list failed: ' . $e->getMessage());
+        fail('Could not load transactions.', 500);
+    }
 
     ok(['transactions' => $rows]);
 }
-
-if (method() === 'GET' && $action === 'stats') {
+ if (method() === 'GET' && $action === 'stats') {
     $stmt = $pdo->prepare("SELECT
             COALESCE(SUM(amount) FILTER (WHERE type = 'FEE'), 0)  AS fees_total,
             COUNT(*)              FILTER (WHERE type = 'FEE')     AS fees_count,
@@ -502,7 +541,7 @@ if (method() === 'GET' && $action === 'stats') {
             COUNT(DISTINCT driver_id)                             AS drivers_served,
             COUNT(*) FILTER (WHERE processed_by_name = ?)         AS mine_count
         FROM wallet_transactions
-        WHERE created_at >= ? AND upper(coalesce(status, 'SUCCESSFUL')) = 'SUCCESSFUL'");
+        WHERE created_at >= ?::timestamptz AND upper(coalesce(status, 'SUCCESSFUL')) = 'SUCCESSFUL'");
     $stmt->execute([$actor['fullName'] ?: $actor['username'], todayStart()]);
     $s = $stmt->fetch() ?: [];
 

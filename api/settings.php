@@ -1,11 +1,16 @@
 <?php
- declare(strict_types=1);
+declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 
-requireRole('admin');
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-if ($method === 'GET') {
+ if ($method === 'GET') {
+    requireRole('staff', 'admin');
+} else {
+    requireRole('admin');
+}
+
+ if ($method === 'GET') {
     $stmt = $pdo->query("SELECT setting_key, setting_value, updated_at FROM system_settings ORDER BY setting_key");
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $settings = [];
@@ -13,7 +18,7 @@ if ($method === 'GET') {
     ok(['settings' => $settings]);
 }
 
-if ($method === 'POST') {
+ if ($method === 'POST') {
     $body = body();
     if (!is_array($body) || empty($body)) fail('No settings provided.', 422);
 

@@ -171,10 +171,6 @@ async function loadDriverNotifications() {
     }
 }
 
-/* ==================================================================
-   MY REQUESTS — Load driver's own inquiries
-   ▲ ONLY CHANGE: query now explicitly passes { action: 'list' }
-   ================================================================== */
 async function loadDriverInquiries() {
     try {
         const data = await apiGet('inquiries.php', { action: 'list' });
@@ -675,7 +671,7 @@ function renderDriverInquiries(list) {
                         <div class="inq-driver-card__reply-text">${escapeHtml(inq.reply)}</div>
                         ${inq.repliedAt ? `
                             <div class="inq-driver-card__reply-time">
-                                <i class="far fa-clock"></i> ${escapeHtml(formatNotifTime(inq.repliedAt))}
+                                <i class="far fa-clock"></i> ${escapeHtml(formatNotifTimeShort(inq.repliedAt))}
                             </div>` : ''}
                     </div>
                 ` : `
@@ -876,38 +872,41 @@ async function requestInfoUpdate(kind) {
 }
 window.requestInfoUpdate = requestInfoUpdate;
 
-function generateQR() {
+ function generateQR() {
     const d = currentDriver;
     if (!d) return;
-    const qrText = d.qrPayload || JSON.stringify({
-        version: 1,
-        driverId: String(d.driverId || ''),
-        plateNumber: String(d.plateNumber || ''),
-        vehicleType: String(d.vehicleType || '')
-    });
+
+     const driverId = String(d.driverId || '').trim();
+    const qrText = driverId;
+
+     const QR_OPTS = {
+        width: 240,
+        height: 240,
+        colorDark: '#000000',
+        colorLight: '#FFFFFF',
+        correctLevel: QRCode.CorrectLevel.H
+    };
 
     const qrFull = document.getElementById('qrCodeFull');
     if (qrFull) {
         qrFull.innerHTML = '';
         try {
-            new QRCode(qrFull, {
-                text: qrText, width: 160, height: 160,
-                colorDark: '#8B1D2C', colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.H
-            });
-        } catch { qrFull.innerHTML = '<div>QR</div>'; }
+            new QRCode(qrFull, { ...QR_OPTS, text: qrText, width: 180, height: 180 });
+        } catch (e) {
+            console.error('QR render (full) failed:', e);
+            qrFull.innerHTML = '<div>QR</div>';
+        }
     }
 
     const qrPage = document.getElementById('qrCodePage');
     if (qrPage) {
         qrPage.innerHTML = '';
         try {
-            new QRCode(qrPage, {
-                text: qrText, width: 200, height: 200,
-                colorDark: '#8B1D2C', colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.H
-            });
-        } catch { qrPage.innerHTML = '<div>QR</div>'; }
+            new QRCode(qrPage, { ...QR_OPTS, text: qrText });
+        } catch (e) {
+            console.error('QR render (page) failed:', e);
+            qrPage.innerHTML = '<div>QR</div>';
+        }
     }
 }
 

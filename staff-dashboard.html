@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+
     <style>
         #stationBanner, #noStationWarning, #assignedNoStation {
             display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
@@ -48,195 +49,121 @@
         }
         .sidebar-badge[hidden] { display: none !important; }
 
-         #summaryPrintArea {
+        #summaryPrintArea {
             display: none;
             font-family: 'Inter', -apple-system, 'Segoe UI', Arial, sans-serif;
-            color: #111;
-            background: #fff;
-            padding: 0;
-            line-height: 1.4;
+            color: #111; background: #fff; padding: 0; line-height: 1.4;
         }
-
-        #summaryPrintArea .report-head {
-            text-align: center;
-            margin-bottom: 18px;
-        }
-        #summaryPrintArea .report-head .report-title {
-            font-size: 26px;
-            font-weight: 800;
-            letter-spacing: 2px;
-            color: #111;
-            margin: 0;
-        }
-        #summaryPrintArea .report-head .report-org {
-            font-size: 16px;
-            font-weight: 600;
-            color: #222;
-            margin-top: 6px;
-        }
-        #summaryPrintArea .report-head .report-sub {
-            font-style: italic;
-            font-size: 14px;
-            color: #444;
-            margin-top: 2px;
-        }
-        #summaryPrintArea .report-divider {
-            height: 3px;
-            background: #111;
-            margin: 14px 0 18px;
-        }
-
-        #summaryPrintArea .report-meta {
-            display: flex;
-            justify-content: space-between;
-            border: 1px solid #333;
-            padding: 10px 14px;
-            font-size: 12px;
-            margin-bottom: 14px;
-        }
+        #summaryPrintArea .report-head { text-align: center; margin-bottom: 18px; }
+        #summaryPrintArea .report-head .report-title { font-size: 26px; font-weight: 800; letter-spacing: 2px; color: #111; margin: 0; }
+        #summaryPrintArea .report-head .report-org { font-size: 16px; font-weight: 600; color: #222; margin-top: 6px; }
+        #summaryPrintArea .report-head .report-sub { font-style: italic; font-size: 14px; color: #444; margin-top: 2px; }
+        #summaryPrintArea .report-divider { height: 3px; background: #111; margin: 14px 0 18px; }
+        #summaryPrintArea .report-meta { display: flex; justify-content: space-between; border: 1px solid #333; padding: 10px 14px; font-size: 12px; margin-bottom: 14px; }
         #summaryPrintArea .report-meta .report-meta-left,
-        #summaryPrintArea .report-meta .report-meta-right {
-            display: flex;
-            gap: 6px;
-        }
-        #summaryPrintArea .report-meta strong {
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: .5px;
-        }
+        #summaryPrintArea .report-meta .report-meta-right { display: flex; gap: 6px; }
+        #summaryPrintArea .report-meta strong { font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+        #summaryPrintArea .report-totals { display: flex; justify-content: space-between; border: 1px solid #333; padding: 10px 14px; font-size: 12px; margin-bottom: 16px; }
+        #summaryPrintArea .report-totals strong { font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+        #summaryPrintArea .report-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 18px; }
+        #summaryPrintArea .report-table thead th { background: #e8e8e8; border: 1px solid #333; padding: 7px 9px; text-align: left; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; font-size: 10px; color: #111; }
+        #summaryPrintArea .report-table tbody td { border: 1px solid #888; padding: 6px 9px; color: #111; vertical-align: top; }
+        #summaryPrintArea .report-table tbody tr:nth-child(even) td { background: #fafafa; }
+        #summaryPrintArea .report-table .text-right { text-align: right; }
+        #summaryPrintArea .report-table .text-center { text-align: center; }
+        #summaryPrintArea .report-table tfoot td { border: 1px solid #333; padding: 7px 9px; font-weight: 800; background: #e8e8e8; }
+        #summaryPrintArea .report-table-empty { text-align: center; font-style: italic; color: #666; padding: 14px; }
+        #summaryPrintArea .report-section-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: #111; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #111; }
+        #summaryPrintArea .report-signatures { display: flex; justify-content: space-between; gap: 60px; margin-top: 40px; margin-bottom: 18px; }
+        #summaryPrintArea .report-signature { flex: 1; text-align: center; }
+        #summaryPrintArea .report-signature-line { border-top: 1px solid #111; margin-bottom: 4px; height: 0; }
+        #summaryPrintArea .report-signature-label { font-size: 11px; font-weight: 700; color: #222; }
+        #summaryPrintArea .report-footer { border-top: 1px solid #888; padding-top: 8px; text-align: center; font-size: 10px; color: #555; margin-top: 12px; }
 
-        #summaryPrintArea .report-totals {
-            display: flex;
-            justify-content: space-between;
-            border: 1px solid #333;
-            padding: 10px 14px;
-            font-size: 12px;
-            margin-bottom: 16px;
-        }
-        #summaryPrintArea .report-totals strong {
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: .5px;
-        }
-
-        #summaryPrintArea .report-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
-            margin-bottom: 18px;
-        }
-        #summaryPrintArea .report-table thead th {
-            background: #e8e8e8;
-            border: 1px solid #333;
-            padding: 7px 9px;
-            text-align: left;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: .4px;
-            font-size: 10px;
-            color: #111;
-        }
-        #summaryPrintArea .report-table tbody td {
-            border: 1px solid #888;
-            padding: 6px 9px;
-            color: #111;
-            vertical-align: top;
-        }
-        #summaryPrintArea .report-table tbody tr:nth-child(even) td {
-            background: #fafafa;
-        }
-        #summaryPrintArea .report-table .text-right {
-            text-align: right;
-        }
-        #summaryPrintArea .report-table .text-center {
-            text-align: center;
-        }
-        #summaryPrintArea .report-table tfoot td {
-            border: 1px solid #333;
-            padding: 7px 9px;
-            font-weight: 800;
-            background: #e8e8e8;
-        }
-        #summaryPrintArea .report-table-empty {
-            text-align: center;
-            font-style: italic;
-            color: #666;
-            padding: 14px;
-        }
-
-        #summaryPrintArea .report-section-title {
-            font-size: 12px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: .6px;
-            color: #111;
-            margin: 18px 0 8px;
-            padding-bottom: 4px;
-            border-bottom: 2px solid #111;
-        }
-
-        #summaryPrintArea .report-signatures {
-            display: flex;
-            justify-content: space-between;
-            gap: 60px;
-            margin-top: 40px;
-            margin-bottom: 18px;
-        }
-        #summaryPrintArea .report-signature {
-            flex: 1;
-            text-align: center;
-        }
-        #summaryPrintArea .report-signature-line {
-            border-top: 1px solid #111;
-            margin-bottom: 4px;
-            height: 0;
-        }
-        #summaryPrintArea .report-signature-label {
-            font-size: 11px;
-            font-weight: 700;
-            color: #222;
-        }
-
-        #summaryPrintArea .report-footer {
-            border-top: 1px solid #888;
-            padding-top: 8px;
-            text-align: center;
-            font-size: 10px;
-            color: #555;
-            margin-top: 12px;
-        }
-
-         @media print {
+        @media print {
             @page { size: A4 portrait; margin: 14mm 14mm; }
-
             body:not(.printing-summary) #summaryPrintArea { display: none !important; }
-
             body.printing-summary * { visibility: hidden !important; }
             body.printing-summary,
             body.printing-summary #summaryPrintArea,
             body.printing-summary #summaryPrintArea * { visibility: visible !important; }
-
             body.printing-summary #summaryPrintArea {
-                display: block !important;
-                position: absolute !important;
-                top: 0 !important; left: 0 !important;
-                width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                background: #fff !important;
-                color: #000 !important;
-                font-size: 11px !important;
+                display: block !important; position: absolute !important;
+                top: 0 !important; left: 0 !important; width: 100% !important;
+                margin: 0 !important; padding: 0 !important;
+                background: #fff !important; color: #000 !important; font-size: 11px !important;
             }
-
             body.printing-summary #receiptPrintArea,
             body.printing-summary .sidebar,
             body.printing-summary .topbar,
             body.printing-summary .toast-container,
             body.printing-summary .modal-overlay { display: none !important; visibility: hidden !important; }
-
             body.printing-summary .report-head .report-title { font-size: 22px !important; }
             body.printing-summary .report-head .report-org { font-size: 14px !important; }
             body.printing-summary .report-head .report-sub { font-size: 12px !important; }
+        }
+
+         #cameraPreviewWrap[hidden] { display: none !important; }
+        #qrCameraReader {
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto;
+            border-radius: .75rem;
+            overflow: hidden;
+            background: #000;
+            min-height: 260px;
+            position: relative;
+        }
+#cameraPreviewWrap[hidden] { display: none !important; }
+#qrDebugBox[hidden] { display: none !important; }
+
+#qrCameraReader video {
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    border-radius: .75rem;
+    background: #000;
+}
+
+#qrCameraReader img { display: none !important; }
+
+        #qrCameraReader img { display: none !important; }
+        .scan-method-bar {
+            display: flex; gap: .5rem; flex-wrap: wrap;
+            align-items: center; justify-content: flex-end;
+        }
+        .camera-status-pill {
+            display: inline-flex; align-items: center; gap: .35rem;
+            padding: .3rem .65rem; border-radius: 999px;
+            font-size: .7rem; font-weight: 700;
+            background: var(--bg-light, #f6f6f7); color: var(--text-mid, #6b7280);
+            border: 1px solid var(--border-soft, #e6e6e9);
+        }
+        .camera-status-pill.live {
+            background: #dcfce7; color: #15803d; border-color: #86efac;
+        }
+        .camera-status-pill.live .dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #16a34a; display: inline-block;
+            animation: pulseDot 1.4s ease-in-out infinite;
+        }
+        @keyframes pulseDot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .4; transform: scale(.75); }
+        }
+        #qrDebugBox {
+            max-width: 480px; margin: .5rem auto 0;
+            padding: .5rem .75rem;
+            background: #0f172a; color: #a7f3d0;
+            border-radius: .5rem;
+            font-family: 'Courier New', monospace;
+            font-size: .72rem; word-break: break-all;
+        }
+        #qrDebugBox[hidden] { display: none !important; }
+        #qrDebugBox .qr-debug-label {
+            color: #64748b; font-size: .6rem;
+            text-transform: uppercase; letter-spacing: .08em;
+            margin-bottom: .2rem;
         }
     </style>
 </head>
@@ -345,7 +272,7 @@
 
             <div class="notif-wrapper">
                 <button type="button" class="topbar-icon-btn" id="notifBellBtn" aria-label="Notifications">
-                    <i class="fa-solid fa-bel"></i>
+                    <i class="fa-solid fa-bell"></i>
                     <span class="notif-dot" id="notifBadge" hidden>0</span>
                 </button>
 
@@ -518,7 +445,7 @@
                     <button class="qa-btn" data-goto="scan">
                         <i class="fas fa-qrcode"></i>
                         <span class="qa-title">Scan Driver QR</span>
-                        <span class="qa-sub">Use scanner or type Driver ID</span>
+                        <span class="qa-sub">Use camera or scanner</span>
                     </button>
                     <button class="qa-btn" data-goto="assigned-station">
                         <i class="fas fa-location-dot"></i>
@@ -754,18 +681,44 @@
         <div class="page-header">
             <div>
                 <h1 class="page-title">Scan Driver QR</h1>
-                <p class="page-subtitle">Hardware scanner input. The terminal fee is calculated automatically.</p>
+                <p class="page-subtitle">Use the camera, a hardware scanner, or type the Driver ID. The terminal fee is calculated automatically.</p>
             </div>
         </div>
 
         <div class="card scanner-card">
             <div class="card-head">
-                <h3 class="card-title"><i class="fas fa-barcode"></i> Scanner Input</h3>
+                <h3 class="card-title"><i class="fas fa-qrcode"></i> Scan Driver QR</h3>
+                <div class="scan-method-bar">
+                    <span class="camera-status-pill" id="cameraStatusPill">
+                        <i class="fas fa-camera"></i> Camera off
+                    </span>
+                    <button class="btn-primary btn-sm" id="cameraToggleBtn" type="button">
+                        <i class="fas fa-camera"></i> <span id="cameraToggleLabel">Start Camera</span>
+                    </button>
+                    <label class="btn-outline btn-sm" for="qrImageInput" style="cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;">
+                        <i class="fas fa-image"></i> Upload QR
+                        <input type="file" id="qrImageInput" accept="image/*" hidden>
+                    </label>
+                </div>
             </div>
+
+<div id="cameraPreviewWrap" hidden style="margin-bottom:1rem;">
+    <div id="qrCameraReader" style="width:100%;max-width:480px;margin:0 auto;border-radius:.75rem;overflow:hidden;background:#000;min-height:280px;"></div>
+    <button id="captureQrBtn" class="btn-primary" style="display:block;margin:.75rem auto 0;">
+    <i class="fas fa-camera"></i> Capture &amp; Scan
+</button>
+    <div id="qrDebugBox" hidden style="max-width:480px;margin:.5rem auto 0;padding:.5rem .75rem;background:#0f172a;color:#a7f3d0;border-radius:.5rem;font-family:'Courier New',monospace;font-size:.72rem;word-break:break-all;">
+        <div style="color:#64748b;font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.2rem;">Last QR decoded (raw)</div>
+        <div id="qrDebugRaw">—</div>
+    </div>
+    <p class="form-hint" style="text-align:center;margin-top:.5rem;">
+        <i class="fas fa-camera"></i> Point the camera at the driver's QR code.
+    </p>
+</div>
 
             <div class="scanner-input-wrapper">
                 <label for="scannerInput" class="form-label">
-                    <i class="fas fa-barcode"></i> QR scanner device / Driver ID
+                    <i class="fas fa-barcode"></i> Hardware scanner / Driver ID
                 </label>
                 <div class="flex gap-2">
                     <input type="text" id="scannerInput" class="input-field input-mono flex-1"
@@ -781,9 +734,11 @@
                 <div class="hint-card mt-3">
                     <i class="fas fa-info-circle hint-card-icon"></i>
                     <div>
-                        <div class="hint-card-title">Hardware Scanner Active</div>
+                        <div class="hint-card-title">Three ways to scan</div>
                         <div class="hint-card-text">
-                            Scan the driver's QR code, or type the Driver ID manually and press Enter.
+                            <strong>Camera:</strong> Click "Start Camera" and point at the QR code.<br>
+                            <strong>Hardware scanner:</strong> Scan the QR, or type the Driver ID and press Enter.<br>
+                            <strong>Upload:</strong> Choose a photo of the QR code to decode it.
                         </div>
                     </div>
                 </div>
@@ -1553,8 +1508,13 @@
     </div>
 </div>
 
+ <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+ <script src="https://cdn.jsdelivr.net/npm/barcode-detector@3/dist/iife/polyfill.min.js"></script>
+
+ <script src="assets/js/qr-scanner.js?v=20261029"></script>
 <script src="assets/js/confirm-modal.js?v=20261005"></script>
-<script src="assets/js/staff-dashboard.js?v=20261026"></script>
+<script src="assets/js/staff-dashboard.js?v=20261029"></script>
 
 <script>
 (function () {
@@ -1639,7 +1599,6 @@
             const ok = rows.filter(function (t) {
                 return String(t.status).toUpperCase() === "SUCCESSFUL";
             }).length;
-            const fail = rows.length - ok;
             const totalFees = rows.reduce(function (a, t) { return a + Number(t.amount || 0); }, 0);
 
             const station = getAssignedStation();

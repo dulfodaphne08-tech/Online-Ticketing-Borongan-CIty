@@ -20,18 +20,14 @@ if (session_status() !== PHP_SESSION_ACTIVE && !headers_sent()) {
 
 require_once __DIR__ . '/env.php';
 
-/**
- * @return never
- */
+/** @return never */
 function ok($data = null, string $message = 'OK', int $status = 200): never {
     http_response_code($status);
     echo json_encode(['success' => true, 'message' => $message, 'data' => $data], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-/**
- * @return never
- */
+/** @return never */
 function fail(string $message, int $status = 400, $data = null, ?string $code = null): never {
     http_response_code($status);
     $out = ['success' => false, 'message' => $message, 'error' => $message, 'data' => $data];
@@ -40,9 +36,7 @@ function fail(string $message, int $status = 400, $data = null, ?string $code = 
     exit;
 }
 
-/**
- * @return never
- */
+/** @return never */
 function respond($data, $code = 200): never {
     http_response_code((int)$code);
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
@@ -71,6 +65,7 @@ try {
         PDO::ATTR_EMULATE_PREPARES   => true,
         PDO::ATTR_TIMEOUT            => 10,
     ]);
+     try { $pdo->exec("SET TIME ZONE 'Asia/Manila'"); } catch (Throwable $_) {}
 } catch (PDOException $e) {
     $why = $e->getMessage();
     error_log('DB connection failed: ' . $why);
@@ -265,11 +260,13 @@ function formatTransaction(array $r): array {
         'driverName'      => (string)($r['driver_name'] ?? ''),
         'plateNumber'     => (string)($r['plate_number'] ?? ''),
         'vehicleType'     => (string)($r['vehicle_type'] ?? ''),
-        'amount'          => round((float)($r['amount'] ?? 0), 2),
+'bodyNumber'      => (string)($r['body_number'] ?? ''),        'amount'          => round((float)($r['amount'] ?? 0), 2),
         'previousBalance' => round((float)($r['previous_balance'] ?? 0), 2),
         'balanceAfter'    => round((float)($r['balance_after'] ?? 0), 2),
         'paymentMethod'   => $r['payment_method'] ?? null,
         'processedBy'     => (string)($r['processed_by_name'] ?? ''),
+'stationId'       => (string)($r['station_id'] ?? ''),
+'stationName'     => (string)($r['station_id'] ?? ''),
         'status'          => strtoupper((string)($r['status'] ?? 'SUCCESSFUL')),
         'createdAt'       => $ts ? date(DATE_ATOM, $ts) : null,
         'date'            => $ts ? date('Y-m-d', $ts) : null,
@@ -279,8 +276,9 @@ function formatTransaction(array $r): array {
 
 const TRANSACTION_SELECT = 'SELECT wt.id, wt.reference_number, wt.or_number, wt.type, wt.fee_type, wt.driver_id,
         d.full_name AS driver_name, d.plate_number, COALESCE(wt.vehicle_type, d.vehicle_type) AS vehicle_type,
+        COALESCE(wt.body_number, d.body_number) AS body_number,
         wt.amount, wt.previous_balance, wt.balance_after, wt.payment_method,
-        wt.processed_by_name, wt.status, wt.created_at
+        wt.processed_by_name, wt.status, wt.created_at, wt.station_id
     FROM wallet_transactions wt
     LEFT JOIN drivers d ON d.driver_id = wt.driver_id';
 

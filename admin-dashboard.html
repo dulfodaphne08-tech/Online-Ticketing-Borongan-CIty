@@ -1272,7 +1272,7 @@
     <div class="card">
       <div class="card-head">
         <h3 class="card-title"><i class="fas fa-list"></i> Fee Transaction Records (QR Scans)</h3>
-        <span class="card-sub">Total Fees: <strong id="stTxnTotalFees">₱0.00</strong></span>
+        <span class="card-sub">Total Fees: <strong id="stTxnTotalFeesFooter">₱0.00</strong></span>
       </div>
       <div class="table-wrap">
         <table class="data-table">
@@ -2151,6 +2151,7 @@ async function viewStationTransactions() {
     set('stTxnTotalCount',   summary.totalCount   ?? 0);
     set('stTxnSuccessCount', summary.successCount ?? 0);
     set('stTxnTotalFees',    '₱' + Number(summary.totalFees || 0).toFixed(2));
+    set('stTxnTotalFeesFooter', '₱' + Number(summary.totalFees || 0).toFixed(2));
 
     if (!list.length) {
       if (tbody) tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state py-6"><i class="fas fa-receipt"></i><h3>No fee transactions yet</h3><p class="text-sm">No staff-scanned QR fee activity recorded at this station.</p></div></td></tr>';

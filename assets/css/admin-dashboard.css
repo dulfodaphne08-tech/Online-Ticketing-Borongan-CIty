@@ -1531,10 +1531,23 @@ td .flex.items-center.gap-1\.5 {
 
 .main-content {
   height: 100vh;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  margin-left: 260px;
+  padding: 1.1rem 1.5rem 2rem;
+  background: var(--bg-light);
 }
+
+.main-content::-webkit-scrollbar { width: 10px; }
+.main-content::-webkit-scrollbar-track { background: var(--bg-light); }
+.main-content::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 8px;
+  border: 2px solid var(--bg-light);
+}
+.main-content::-webkit-scrollbar-thumb:hover { background: var(--maroon); }
 
 .topbar { flex-shrink: 0; }
 
@@ -1543,7 +1556,6 @@ td .flex.items-center.gap-1\.5 {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
 }
 .page-section.active {
   display: flex;
@@ -1560,21 +1572,19 @@ td .flex.items-center.gap-1\.5 {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
-  margin-bottom: 0;
+  margin-bottom: 1.1rem;
 }
 
 .page-section > .two-col {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
 }
 
 .card-head {
   flex-shrink: 0;
 }
 
- .table-wrap {
+.table-wrap {
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -1612,7 +1622,7 @@ td .flex.items-center.gap-1\.5 {
   background: var(--bg-light);
 }
 
- .page-section > .kpi-row + .kpi-row + .card,
+.page-section > .kpi-row + .kpi-row + .card,
 .page-section > .kpi-row + .two-col + .card {
   flex: 1 1 auto;
   min-height: 200px;

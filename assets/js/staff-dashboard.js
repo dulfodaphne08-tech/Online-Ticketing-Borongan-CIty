@@ -56,6 +56,9 @@
     let staffNotifs = [];
     let notifCurrentFilter = "all";
 
+     let cameraScanActive = false;
+    let cameraWasOnBeforeScan = false;
+
     function setText(id, v) { const e = $(id); if (e) e.textContent = v; }
 
     function tickTopbarClock() {
@@ -109,6 +112,7 @@
             const res = await window.api("staff_station.php", { query: { action: "get-assigned" } });
             if (res && res.success && res.data && res.data.station) {
                 assignedStation = res.data.station;
+                window.assignedStation = assignedStation;
                 renderStationBanner();
                 const titleEl = $("stationTitle");
                 if (titleEl) titleEl.textContent = (assignedStation.name || "Staff") + " Dashboard";
@@ -149,6 +153,8 @@
         }
         const manualBtn = $("manualScanBtn");
         if (manualBtn) manualBtn.disabled = true;
+        const camBtn = $("cameraToggleBtn");
+        if (camBtn) camBtn.disabled = true;
     }
 
     async function loadAssignedStation() {
@@ -167,6 +173,7 @@
 
             const s = res.data.station;
             assignedStation = s;
+            window.assignedStation = assignedStation;
             renderStationBanner();
 
             if (noStation) noStation.hidden = true;
@@ -612,6 +619,10 @@
             }
         } catch (e) {}
 
+         if (page !== "scan" && (cameraScanActive || (window.QrScanner && window.QrScanner.isCameraOn()))) {
+            stopCameraScan(true);
+        }
+
         if (page === "dashboard") refreshDashboard();
         if (page === "assigned-station") {
             loadAssignedStation();
@@ -619,7 +630,12 @@
                 if (assignedStationMapInstance) assignedStationMapInstance.invalidateSize();
             }, 200);
         }
-        if (page === "scan") setTimeout(() => { const el = $("scannerInput"); if (el && !el.disabled) el.focus(); }, 100);
+        if (page === "scan") {
+            setTimeout(() => {
+                const el = $("scannerInput");
+                if (el && !el.disabled) el.focus();
+            }, 100);
+        }
         if (page === "today") loadToday();
         if (page === "history") loadHistory();
         if (page === "drivers") loadDrivers();
@@ -750,7 +766,183 @@
         el.className = "form-hint" + (tone ? " hint-" + tone : "");
     }
 
-    async function handleScan(raw) {
+     function qrLibReady() {
+        return !!(window.QrScanner && typeof window.QrScanner.startCamera === "function"
+                  && typeof window.Html5Qrcode === "function");
+    }
+
+    function setCameraPill(live) {
+        const pill = $("cameraStatusPill");
+        if (!pill) return;
+        if (live) {
+            pill.classList.add("live");
+            pill.innerHTML = '<span class="dot"></span> Camera live';
+        } else {
+            pill.classList.remove("live");
+            pill.innerHTML = '<i class="fas fa-camera"></i> Camera off';
+        }
+    }
+
+    function resetQrDebug() {
+        const dbgRaw = $("qrDebugRaw");
+        if (dbgRaw) {
+            dbgRaw.textContent = "—";
+            dbgRaw.style.color = "#a7f3d0";
+        }
+    }
+
+async function startCameraScan() {
+    const wrap   = $("cameraPreviewWrap");
+    const btn    = $("cameraToggleBtn");
+    const label  = $("cameraToggleLabel");
+    const dbgBox = $("qrDebugBox");
+
+    if (!window.QrScanner || !window.QrScanner.libReady()) {
+        toast("QR camera library not loaded. Check internet.", "error");
+        setScanStatus("Camera library unavailable.", "error");
+        return;
+    }
+    if (!assignedStation) {
+        openModal("noStationModal");
+        return;
+    }
+
+    if (wrap) wrap.hidden = false;
+    if (dbgBox) dbgBox.hidden = false;
+    resetQrDebug();
+
+    if (btn) btn.disabled = true;
+    if (label) label.textContent = "Starting…";
+    setScanStatus("Requesting camera permission…");
+
+    try {
+        await window.QrScanner.startCamera("qrCameraReader", function (payload, rawText) {
+            cameraWasOnBeforeScan = true;
+            cameraScanActive = false;
+
+            const lbl = $("cameraToggleLabel");
+            const ic  = $("cameraToggleBtn") ? $("cameraToggleBtn").querySelector("i") : null;
+            if (lbl) lbl.textContent = "Start Camera";
+            if (ic)  ic.className = "fas fa-camera";
+            setCameraPill(false);
+
+            const dbgRaw = $("qrDebugRaw");
+            if (dbgRaw) {
+                dbgRaw.textContent = rawText || "—";
+                dbgRaw.style.color = "#22c55e";
+            }
+
+            if (!payload || !payload.driverId) {
+                setScanStatus("QR detected but unreadable — try again.", "error");
+                openModal("unreadableModal");
+                return;
+            }
+
+            setScanStatus("QR detected — verifying " + payload.driverId + "…", "ok");
+
+            setTimeout(function () {
+                handleScan(rawText);
+            }, 250);
+        });
+
+        cameraScanActive = true;
+        if (btn) btn.disabled = false;
+        if (label) label.textContent = "Stop Camera";
+        const icon = btn ? btn.querySelector("i") : null;
+        if (icon) icon.className = "fas fa-camera-slash";
+        setCameraPill(true);
+        setScanStatus("Camera active — point at the driver's QR code.", "ok");
+    } catch (e) {
+        cameraScanActive = false;
+        if (wrap) wrap.hidden = true;
+        if (dbgBox) dbgBox.hidden = true;
+        if (btn) btn.disabled = false;
+        if (label) label.textContent = "Start Camera";
+        const icon = btn ? btn.querySelector("i") : null;
+        if (icon) icon.className = "fas fa-camera";
+        setCameraPill(false);
+        const msg = (e && e.message) || "Could not start camera.";
+        setScanStatus(msg, "error");
+        toast(msg, "error");
+    }
+}
+
+async function stopCameraScan(silent) {
+    try {
+        if (window.QrScanner && window.QrScanner.isCameraOn()) {
+            await window.QrScanner.stopCamera();
+        }
+    } catch (e) {  }
+
+    cameraScanActive = false;
+
+    const wrap   = $("cameraPreviewWrap");
+    const btn    = $("cameraToggleBtn");
+    const label  = $("cameraToggleLabel");
+    const dbgBox = $("qrDebugBox");
+    if (wrap) wrap.hidden = true;
+    if (dbgBox) dbgBox.hidden = true;
+    if (btn) btn.disabled = false;
+    if (label) label.textContent = "Start Camera";
+    const icon = btn ? btn.querySelector("i") : null;
+    if (icon) icon.className = "fas fa-camera";
+    setCameraPill(false);
+
+    if (!silent) setScanStatus("Camera stopped.");
+}
+
+    async function toggleCameraScan() {
+        if (cameraScanActive || (window.QrScanner && window.QrScanner.isCameraOn())) {
+            await stopCameraScan();
+        } else {
+            await startCameraScan();
+        }
+    }
+    window.toggleCameraScan = toggleCameraScan;
+    window.stopCameraScan = stopCameraScan;
+    window.startCameraScan = startCameraScan;
+
+async function handleQrImageUpload(file) {
+    if (!file) return;
+    if (!window.QrScanner || !window.QrScanner.libReady()) {
+        toast("QR library not loaded.", "error");
+        return;
+    }
+
+    await stopCameraScan(true);
+
+    const wrap = $("cameraPreviewWrap");
+    const dbgBox = $("qrDebugBox");
+    if (wrap) wrap.hidden = false;
+    if (dbgBox) dbgBox.hidden = false;
+    resetQrDebug();
+
+    setScanStatus("Reading QR from image…");
+
+    try {
+        const result = await window.QrScanner.scanImageFile("qrCameraReader", file);
+        if (!result || !result.payload || !result.payload.driverId) {
+            openModal("unreadableModal");
+            setScanStatus("No readable QR code in that image.", "error");
+            if (wrap) wrap.hidden = true;
+            if (dbgBox) dbgBox.hidden = true;
+            return;
+        }
+        setScanStatus("QR detected — verifying " + result.payload.driverId + "…", "ok");
+        if (wrap) wrap.hidden = true;
+        if (dbgBox) dbgBox.hidden = true;
+        handleScan(result.text);
+    } catch (e) {
+        const msg = (e && e.message) || "Could not read QR from image.";
+        setScanStatus(msg, "error");
+        toast(msg, "error");
+        if (wrap) wrap.hidden = true;
+        if (dbgBox) dbgBox.hidden = true;
+    }
+}
+    window.handleQrImageUpload = handleQrImageUpload;
+
+     async function handleScan(raw) {
         if (!assignedStation) {
             setScanStatus("No station assigned — cannot process.", "error");
             openModal("noStationModal");
@@ -995,17 +1187,35 @@
     window.confirmDuplicateScan = function () { processTransaction(true); };
 
     window.scanNextDriver = function () {
-        closeModal("successModal"); closeModal("lowBalanceModal");
-        resetScan(); navigateTo("scan");
+        const wasCameraOn = cameraWasOnBeforeScan || cameraScanActive
+            || (window.QrScanner && window.QrScanner.isCameraOn());
+        closeModal("successModal");
+        closeModal("lowBalanceModal");
+        resetScan();
+        navigateTo("scan");
+        if (wasCameraOn) {
+            cameraWasOnBeforeScan = false;
+            setTimeout(() => startCameraScan(), 350);
+        }
     };
     window.backToDashboardFromSuccess = function () {
-        closeModal("successModal"); closeModal("lowBalanceModal");
-        resetScan(); navigateTo("dashboard");
+        closeModal("successModal");
+        closeModal("lowBalanceModal");
+        resetScan();
+        navigateTo("dashboard");
     };
     window.closeInvalidModal = function () { closeModal("invalidModal"); resetScan(); };
     window.closeInactiveModal = function () { closeModal("inactiveModal"); resetScan(); };
     window.scanNextDriverFromInsufficient = function () {
-        closeModal("insufficientModal"); resetScan(); navigateTo("scan");
+        const wasCameraOn = cameraWasOnBeforeScan || cameraScanActive
+            || (window.QrScanner && window.QrScanner.isCameraOn());
+        closeModal("insufficientModal");
+        resetScan();
+        navigateTo("scan");
+        if (wasCameraOn) {
+            cameraWasOnBeforeScan = false;
+            setTimeout(() => startCameraScan(), 350);
+        }
     };
     window.closeNoStationModal = function () { closeModal("noStationModal"); navigateTo("dashboard"); };
 
@@ -1353,6 +1563,9 @@
 
         $("mobileToggle")?.addEventListener("click", () => $("sidebar")?.classList.toggle("open"));
         $("logoutBtn")?.addEventListener("click", () => {
+            if (cameraScanActive || (window.QrScanner && window.QrScanner.isCameraOn())) {
+                stopCameraScan(true);
+            }
             if (window.ConfirmModal) {
                 window.ConfirmModal.show({
                     title: "Log out?",
@@ -1416,6 +1629,13 @@
             if (e.key === "Enter") { e.preventDefault(); parseScanned(); }
         });
         $("manualScanBtn")?.addEventListener("click", parseScanned);
+
+         $("cameraToggleBtn")?.addEventListener("click", () => toggleCameraScan());
+        $("qrImageInput")?.addEventListener("change", (e) => {
+            const file = e.target.files && e.target.files[0];
+            e.target.value = "";
+            if (file) handleQrImageUpload(file);
+        });
 
         $("processTransactionBtn")?.addEventListener("click", () => processTransaction(false));
 
@@ -1501,6 +1721,40 @@
             msg.textContent = res.message || (res.success ? "Password updated." : "Failed.");
             if (res.success) $("passwordForm").reset();
         });
+
+        $("captureQrBtn")?.addEventListener("click", async () => {
+    const v = document.querySelector("#qrCameraReader video");
+    if (!v || v.readyState < 2) {
+        toast("Camera not ready yet.", "warning");
+        return;
+    }
+    
+    setScanStatus("Capturing frame…");
+    
+    try {
+        const d = new BarcodeDetector({ formats: ["qr_code"] });
+        const codes = await d.detect(v);
+        
+        if (!codes || codes.length === 0) {
+            setScanStatus("No QR detected in frame. Try again.", "error");
+            toast("No QR in frame", "warning");
+            return;
+        }
+        
+        const raw = codes[0].rawValue;
+        console.log("[QR MANUAL CAPTURE]", raw);
+        
+        const dbgRaw = $("qrDebugRaw");
+        if (dbgRaw) { dbgRaw.textContent = raw; dbgRaw.style.color = "#22c55e"; }
+        
+        setScanStatus("QR detected — verifying…", "ok");
+        
+         await stopCameraScan(true);
+        handleScan(raw);
+    } catch (e) {
+        setScanStatus("Capture error: " + e.message, "error");
+    }
+});
     }
 
     window.authReady.then(async (u) => {
@@ -1552,7 +1806,7 @@
     });
 
     document.addEventListener("click", (e) => {
-        if (currentPage === "scan" && !e.target.closest("input, button, select, textarea, a")) {
+        if (currentPage === "scan" && !e.target.closest("input, button, select, textarea, a, label")) {
             const el = $("scannerInput");
             if (el && !el.disabled) setTimeout(() => el.focus(), 100);
         }
