@@ -1,8 +1,10 @@
 const LOW_BALANCE = 50;
 const LARGE_AMOUNT_THRESHOLD = 500;
 const TERMINAL_OFFLINE_MINUTES = 30;
-const NOTIFICATION_REFRESH_MS = 30000;
+const NOTIFICATION_REFRESH_MS = 60000;
 const NOTIFICATION_DEDUP_HOURS = 6;
+
+const VEHICLE_FEES = { Tricycle: 5, Jeepney: 60, Multicab: 60, Bus: 100 };
 
 let drivers = [];
 let transactions = [];
@@ -11,9 +13,16 @@ let auditLogs = [];
 let notifications = [];
 let feeHistory = [];
 let fees = { Tricycle: 5, Jeepney: 60, Multicab: 60, Bus: 100 };
-let chartInstance = null;
 let currentAdminUser = null;
 let __notificationPollTimer = null;
+let __liveStatusTimer = null;
+let __stationActivityTimer = null;
+let __recentMovementsTimer = null;
+let liveStatusData = null;
+let stationActivityData = [];
+let recentMovementsData = [];
+let cashierActivityData = [];
+let driverBalanceChart = null;
 
 function $(id) { return document.getElementById(id); }
 function escapeHtml(v) {
@@ -22,6 +31,10 @@ function escapeHtml(v) {
   }[c]));
 }
 function setText(id, v) { const e = $(id); if (e) e.textContent = v; }
+
+function peso(n) {
+  return "₱" + Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 function showToast(msg, type) {
   const c = $("toastContainer");
@@ -51,6 +64,15 @@ function syncIndicator(state) {
   else if (state === "error") { el.className = "sync-indicator error"; el.innerHTML = '<span class="dot"></span> Offline'; }
 }
 window.syncIndicator = syncIndicator;
+
+function isFeeSuccess(t) {
+  const s = String(t.status || "").toLowerCase();
+  return t.type === "FEE" && (s === "successful" || s === "completed" || s === "success");
+}
+function isLoadSuccess(t) {
+  const s = String(t.status || "").toLowerCase();
+  return t.type === "LOAD" && (s === "successful" || s === "completed" || s === "success");
+}
 
 function navigateTo(page) {
   if (!page) return;
@@ -84,10 +106,14 @@ function navigateTo(page) {
           adminMap.fitBounds(group.getBounds().pad(0.15));
         }
       }
-    }, 120);
-    setTimeout(() => { if (adminMap) adminMap.invalidateSize(); }, 350);
+    }, 50);
+    setTimeout(() => { if (adminMap) adminMap.invalidateSize(); }, 150);
   } else if (page === "dashboard") {
-    setTimeout(() => { if (dashboardMiniMap) dashboardMiniMap.invalidateSize(); }, 120);
+    setTimeout(() => { if (dashboardMiniMap) dashboardMiniMap.invalidateSize(); }, 50);
+    refreshLiveStatus();
+    refreshStationActivity();
+    refreshRecentMovements();
+    refreshCashierActivity();
   }
 }
 window.navigateTo = navigateTo;
@@ -110,20 +136,34 @@ function initSidebar() {
       e.stopPropagation();
       const page = this.dataset.page;
       if (!page) return;
+
       navigateTo(page);
-      loadAllDataFromDB().then(() => refreshCurrentPage(page));
+      refreshCurrentPage(page);
+
+      const dataPages = ['dashboard', 'wallet', 'transactions', 'verifications', 'references', 'report-terminal', 'report-daily', 'users', 'drivers', 'vehicles'];
+      if (dataPages.includes(page)) {
+        loadAllDataFromDB().then(() => refreshCurrentPage(page));
+      }
     });
   });
 }
 
 function refreshCurrentPage(page) {
   switch (page) {
-    case "dashboard":            updateDashboard(); break;
+    case "dashboard":
+      updateDashboard();
+      loadActivityFeed();
+      refreshLiveStatus();
+      refreshStationActivity();
+      refreshRecentMovements();
+      refreshCashierActivity();
+      break;
     case "users":                renderUsers(); break;
     case "drivers":              renderDrivers(); break;
     case "vehicles":             renderVehicles(); break;
     case "wallet":               renderWalletPage(); break;
     case "transactions":         renderTransactions(); break;
+    case "verifications":        renderVerifications(); break; 
     case "references":           renderReferences(); break;
     case "report-transactions":  break;
     case "report-terminal":      renderTerminalReport(); break;
@@ -143,26 +183,411 @@ function refreshCurrentPage(page) {
   }
 }
 
-async function loadAllDataFromDB() {
-  syncIndicator("warning");
-  try {
-    const [d, p, f, u] = await Promise.all([
-      window.api("drivers.php"),
-      window.api("payments.php", { query: { action: "list", type: "ALL", limit: 2000 } }),
-      window.api("fees.php"),
-      window.api("users.php"),
-    ]);
-    if (d && d.success) drivers = d.data.drivers || [];
-    if (p && p.success) transactions = (p.data.transactions || []).map(normalizeTransaction).reverse();
-    if (f && f.success) fees = f.data.fees || fees;
-    if (u && u.success) users = u.data.users || [];
+let __dataCache = {
+  drivers: null,
+  transactions: null,
+  fees: null,
+  users: null,
+  lastFetch: 0
+};
+const CACHE_TTL = 15000;
+let __loadingPromise = null;
+
+async function loadAllDataFromDB(forceRefresh = false) {
+  const now = Date.now();
+  const cacheValid = !forceRefresh && (now - __dataCache.lastFetch) < CACHE_TTL && __dataCache.drivers !== null;
+
+  if (cacheValid) {
     syncIndicator("ok");
-    if (typeof loadNotifications === "function") loadNotifications();
-  } catch (err) {
-    console.error("Data load failed:", err);
-    syncIndicator("error");
+    return;
+  }
+
+  if (__loadingPromise) return __loadingPromise;
+
+  syncIndicator("warning");
+
+  const today = new Date();
+  const from = new Date(today);
+  from.setDate(from.getDate() - 90);
+  const fromStr = from.toLocaleDateString("en-CA");
+  const toStr = today.toLocaleDateString("en-CA");
+
+  __loadingPromise = (async () => {
+    const results = await Promise.allSettled([
+      window.api("drivers.php").catch(e => ({ success: false, _err: e })),
+      window.api("payments.php", {
+        query: { action: "list", type: "ALL", from: fromStr, to: toStr, limit: 1000 }  
+      }).catch(e => ({ success: false, _err: e })),
+      window.api("fees.php").catch(e => ({ success: false, _err: e })),
+      window.api("users.php").catch(e => ({ success: false, _err: e })),
+    ]);
+
+    const [d, p, f, u] = results.map(r => r.status === "fulfilled" ? r.value : null);
+
+    if (d && d.success && d.data) {
+      drivers = d.data.drivers || [];
+      __dataCache.drivers = drivers;
+    } else if (d && d._err) console.error("[drivers.php] ERROR:", d._err);
+
+    if (p && p.success && p.data) {
+      transactions = (p.data.transactions || []).map(normalizeTransaction).reverse();
+      __dataCache.transactions = transactions;
+    } else if (p && p._err) console.error("[payments.php] ERROR:", p._err);
+
+    if (f && f.success && f.data) {
+      fees = f.data.fees || fees;
+      __dataCache.fees = fees;
+    } else if (f && f._err) console.error("[fees.php] ERROR:", f._err);
+
+    if (u && u.success && u.data) {
+      users = u.data.users || [];
+      __dataCache.users = users;
+    } else if (u && u._err) console.error("[users.php] ERROR:", u._err);
+
+    __dataCache.lastFetch = Date.now();
+    syncIndicator("ok");
+
+    if (typeof loadNotifications === "function") {
+      loadNotifications().catch(e => console.warn("notifications failed:", e));
+    }
+  })();
+
+  try {
+    await __loadingPromise;
+  } finally {
+    __loadingPromise = null;
   }
 }
+window.loadAllDataFromDB = loadAllDataFromDB;
+
+async function refreshLiveStatus(btn = null) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+  try {
+    const res = await window.api("payments.php", { query: { action: "live_status" } });
+    if (!res || !res.success) {
+      console.warn("live_status failed:", res && res.message);
+      return;
+    }
+    liveStatusData = res.data || {};
+    renderLiveStatus();
+  } catch (e) {
+    console.warn("Live status fetch failed:", e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i>'; }
+  }
+}
+window.refreshLiveStatus = refreshLiveStatus;
+
+function renderLiveStatus() {
+  const online   = Number(liveStatusData?.onlineStaff    ?? 0);
+  const stations = Number(liveStatusData?.activeStations ?? 0);
+  const entries  = Number(liveStatusData?.recentEntries  ?? 0);
+  const exits    = Number(liveStatusData?.recentExits    ?? 0);
+
+  setText("liveOnlineStaff",    online);
+  setText("liveActiveStations", stations);
+  setText("liveRecentEntries",  entries);
+  setText("liveRecentExits",    exits);
+
+  const list = $("liveStaffList");
+  if (!list) return;
+
+  const staff = Array.isArray(liveStatusData?.staffList) ? liveStatusData.staffList : [];
+  if (!staff.length) {
+    list.innerHTML = '<div class="empty-inline">No staff activity in the last 15 minutes</div>';
+    return;
+  }
+
+  list.innerHTML = staff.map(s => {
+    const initial = (s.name || "S").charAt(0).toUpperCase();
+    return `
+      <div class="live-staff-item">
+        <div class="live-staff-avatar">${escapeHtml(initial)}</div>
+        <div class="live-staff-info">
+          <div class="live-staff-name">${escapeHtml(s.name || "Staff")}</div>
+          <div class="live-staff-station">${escapeHtml(s.station || "—")}${s.lastSeen ? ' · ' + formatRelativeTime(s.lastSeen) : ''}</div>
+        </div>
+        <div class="live-staff-dot"></div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function refreshStationActivity(btn = null) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+  try {
+    const res = await window.api("payments.php", { query: { action: "station_activity", hours: 24 } });
+    if (!res || !res.success) {
+      console.warn("station_activity failed:", res && res.message);
+      return;
+    }
+    stationActivityData = Array.isArray(res.data?.stations) ? res.data.stations : [];
+    renderStationActivity();
+  } catch (e) {
+    console.warn("Station activity fetch failed:", e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i>'; }
+  }
+}
+window.refreshStationActivity = refreshStationActivity;
+
+function renderStationActivity() {
+  const tbody = $("stationActivityTable");
+  if (!tbody) return;
+
+  if (!stationActivityData.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-inline">No station data available</div></td></tr>';
+    setText("stationActivityTotalFees", "₱0.00");
+    setText("stationActivityActiveCount", "0 active");
+    return;
+  }
+
+  const now = Date.now();
+  let totalFees = 0;
+  let activeCount = 0;
+
+  const rowsHtml = stationActivityData.map(s => {
+    totalFees += Number(s.feeTotal || 0);
+    if (String(s.status || "").toLowerCase() === "active") activeCount++;
+
+    const lastMs = s.lastActivity ? new Date(s.lastActivity).getTime() : 0;
+    const minutes = lastMs ? (now - lastMs) / 60000 : Infinity;
+
+    let dotCls = "offline";
+    if (s.status === "active") {
+      if (minutes <= 15) dotCls = "online";
+      else if (minutes <= 30) dotCls = "idle";
+    }
+
+    const lastText = s.lastActivity ? formatRelativeTime(s.lastActivity) : "No activity";
+    
+    const staffText = Number(s.feeStaffCount || 0) > 0
+      ? `<span class="staff-count">${s.feeStaffCount}</span>`
+      : `<span class="staff-count empty">—</span>`;
+
+    return `<tr>
+      <td>
+        <div class="station-cell">
+          <span class="live-dot ${dotCls}"></span>
+          <span class="station-code">${escapeHtml(s.code)}</span>
+        </div>
+        <div class="station-name-sub">${escapeHtml(s.name)}</div>
+      </td>
+      <td class="text-center"><span class="metric-pill fee">${s.feeCount || 0}</span></td>
+      <td class="text-right font-bold text-primary">₱${Number(s.feeTotal || 0).toFixed(2)}</td>
+      <td class="text-center">${staffText}</td>
+      <td class="text-sm text-gray-500">${lastText}</td>
+    </tr>`;
+  }).join("");
+
+  tbody.innerHTML = rowsHtml;
+  setText("stationActivityTotalFees", "₱" + totalFees.toFixed(2));
+  setText("stationActivityActiveCount", activeCount + " active");
+}
+
+async function refreshCashierActivity(btn = null) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+  try {
+    const res = await window.api("payments.php", { query: { action: "cashier_activity" } });
+    if (!res || !res.success) return;
+    cashierActivityData = Array.isArray(res.data?.cashiers) ? res.data.cashiers : [];
+    renderCashierActivity();
+  } catch (e) {
+    console.warn("Cashier activity fetch failed:", e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i>'; }
+  }
+}
+window.refreshCashierActivity = refreshCashierActivity;
+
+function renderCashierActivity() {
+  const list = $("cashierActivityList");
+  if (!list) return;
+
+  if (!cashierActivityData.length) {
+    list.innerHTML = '<div class="empty-inline">No wallet loads processed today.</div>';
+    return;
+  }
+
+  list.innerHTML = cashierActivityData.map(c => `
+    <div class="live-staff-item" style="margin-bottom:.5rem;">
+      <div class="live-staff-avatar" style="background:#059669;">${escapeHtml((c.name || 'C').charAt(0).toUpperCase())}</div>
+      <div class="live-staff-info">
+        <div class="live-staff-name">${escapeHtml(c.name)}</div>
+        <div class="live-staff-station">
+          <strong style="color:var(--green);">₱${Number(c.totalLoaded).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong> 
+          · ${c.loadCount} load${c.loadCount === 1 ? '' : 's'}
+        </div>
+      </div>
+      <div style="font-size:.65rem; color:var(--text-soft);">${formatRelativeTime(c.lastActive)}</div>
+    </div>
+  `).join("");
+}
+
+async function refreshRecentMovements(btn = null) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+  try {
+    const res = await window.api("payments.php", { query: { action: "recent_movements", limit: 30 } });
+    if (!res || !res.success) {
+      console.warn("recent_movements failed:", res && res.message);
+      return;
+    }
+    recentMovementsData = Array.isArray(res.data?.movements) ? res.data.movements : [];
+    renderRecentMovements();
+  } catch (e) {
+    console.warn("Recent movements fetch failed:", e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i>'; }
+  }
+}
+window.refreshRecentMovements = refreshRecentMovements;
+
+function renderRecentMovements() {
+  const container = $("recentMovementsList");
+  if (!container) return;
+
+  if (!recentMovementsData.length) {
+    container.innerHTML = '<div class="empty-inline">No vehicle movements recorded yet</div>';
+    return;
+  }
+
+  container.innerHTML = recentMovementsData.map(m => {
+    const isEntry = m.movementType === "ENTRY";
+    const color   = isEntry ? "entry" : "exit";
+    const icon    = isEntry ? "fa-arrow-right-to-bracket" : "fa-arrow-right-from-bracket";
+    const label   = isEntry ? "ENTRY" : "EXIT";
+    return `
+      <div class="movement-item ${color}">
+        <div class="movement-icon ${color}"><i class="fas ${icon}"></i></div>
+        <div class="movement-body">
+          <div class="movement-header">
+            <span class="movement-type ${color}">${label}</span>
+            <span class="movement-station">${escapeHtml(m.stationName || m.stationCode || "—")}</span>
+          </div>
+          <div class="movement-driver">
+            <strong>${escapeHtml(m.driverName || "Unknown")}</strong>
+            <span class="movement-vehicle">${escapeHtml(m.vehicleType || "—")} · ${escapeHtml(m.plateNumber || "—")}</span>
+          </div>
+          <div class="movement-meta">
+            <span><i class="fas fa-user"></i> ${escapeHtml(m.processedBy || "System")}</span>
+            <span><i class="fas fa-clock"></i> ${m.createdAt ? formatRelativeTime(m.createdAt) : "—"}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function initDriverBalanceChart() {
+  const canvas = $("driverBalanceChart");
+  if (!canvas || typeof Chart === 'undefined') return;
+  if (driverBalanceChart) driverBalanceChart.destroy();
+
+  const brackets = { "₱0-50": 0, "₱51-200": 0, "₱201-500": 0, "₱500+": 0 };
+  drivers.forEach(d => {
+    const bal = Number(d.balance || 0);
+    if (bal <= 50) brackets["₱0-50"]++;
+    else if (bal <= 200) brackets["₱51-200"]++;
+    else if (bal <= 500) brackets["₱201-500"]++;
+    else brackets["₱500+"]++;
+  });
+
+  const ctx = canvas.getContext("2d");
+  driverBalanceChart = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: Object.keys(brackets),
+      datasets: [{
+        data: Object.values(brackets),
+        backgroundColor: ["#DC2626", "#CA8A04", "#2563EB", "#16A34A"],
+        borderWidth: 2,
+        borderColor: "#fff",
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "65%",
+      plugins: {
+        legend: { position: "bottom", labels: { boxWidth: 12, font: { family: "Inter", size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: (c) => ` ${c.parsed} driver${c.parsed === 1 ? '' : 's'}`
+          }
+        }
+      }
+    }
+  });
+}
+
+function checkEndOfDaySummary() {
+  const lastShown = localStorage.getItem("bctt_eod_date");
+  const todayStr = new Date().toLocaleDateString("en-CA");
+  
+  if (lastShown === todayStr) return;
+  if (new Date().getHours() < 18) return;  
+
+  const todayFees = transactions.filter(t => isFeeSuccess(t) && t.date === todayStr);
+  const todayLoads = transactions.filter(t => isLoadSuccess(t) && t.date === todayStr);
+  const feeTotal = todayFees.reduce((s, t) => s + t.amount, 0);
+  const loadTotal = todayLoads.reduce((s, t) => s + t.amount, 0);
+  const lowBal = drivers.filter(d => Number(d.balance || 0) < LOW_BALANCE).length;
+
+  if (todayFees.length === 0 && todayLoads.length === 0) return;
+
+  setText("eodScans", todayFees.length);
+  setText("eodFees", peso(feeTotal));
+  setText("eodLoads", peso(loadTotal));
+  setText("eodAlerts", lowBal);
+  
+  openModal("eodSummaryModal");
+  localStorage.setItem("bctt_eod_date", todayStr);
+}
+
+function startLiveMonitoring() {
+  stopLiveMonitoring();
+  refreshLiveStatus();
+  refreshStationActivity();
+  refreshRecentMovements();
+  refreshCashierActivity();
+
+  __liveStatusTimer = setInterval(() => {
+    if (document.visibilityState === "visible") refreshLiveStatus();
+  }, 15000);
+
+  __stationActivityTimer = setInterval(() => {
+    if (document.visibilityState === "visible") refreshStationActivity();
+  }, 30000);
+
+  __recentMovementsTimer = setInterval(() => {
+    if (document.visibilityState === "visible") refreshRecentMovements();
+  }, 20000);
+  
+  setInterval(() => {
+    if (document.visibilityState === "visible") refreshCashierActivity();
+  }, 30000);
+}
+
+function stopLiveMonitoring() {
+  if (__liveStatusTimer) clearInterval(__liveStatusTimer);
+  if (__stationActivityTimer) clearInterval(__stationActivityTimer);
+  if (__recentMovementsTimer) clearInterval(__recentMovementsTimer);
+  __liveStatusTimer = null;
+  __stationActivityTimer = null;
+  __recentMovementsTimer = null;
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    if ((location.hash || "").includes("dashboard")) {
+      refreshLiveStatus();
+      refreshStationActivity();
+      refreshRecentMovements();
+      refreshCashierActivity();
+    }
+  }
+});
 
 function normalizeTransaction(t) {
   const created = t.created_at || t.createdAt;
@@ -174,8 +599,12 @@ function normalizeTransaction(t) {
       time = d.toTimeString().slice(0, 8);
     }
   }
-  const rawType = (t.type || "FEE").toUpperCase();
+
+  const rawType = String(t.type || "FEE").toUpperCase();
   const status = String(t.status || "SUCCESSFUL");
+  
+   const movementType = t.movementType || null;
+
   return {
     ...t,
     id: t.referenceNumber || t.id,
@@ -184,7 +613,8 @@ function normalizeTransaction(t) {
     driverId: t.driverId || "",
     driverName: t.driverName || "Unknown driver",
     amount: Number(t.amount || 0),
-    type: rawType,
+    type: rawType,  
+    movementType: movementType,  
     status: status.charAt(0).toUpperCase() + status.slice(1).toLowerCase(),
     balance: t.balanceAfter != null ? Number(t.balanceAfter) : null,
     balanceBefore: t.balanceBefore != null ? Number(t.balanceBefore) : null,
@@ -222,10 +652,6 @@ function approvalBadge(approval) {
   else if (a === "inactive") cls = "inactive";
   return '<span class="approval-badge ' + cls + '">' + escapeHtml(approval || "Active") + '</span>';
 }
-
-/* ============================================================
-   SUPABASE NOTIFICATION SYSTEM
-   ============================================================ */
 
 async function loadNotifications() {
   let loaded = null;
@@ -488,7 +914,7 @@ function renderNotificationPanel() {
             method: "PATCH",
             body: { id: n.id, is_read: true }
           });
-        } catch (e) { /* silent */ }
+        } catch (e) {}
       }
       item.classList.remove("is-unread");
       updateNotificationBadge();
@@ -666,108 +1092,995 @@ window.addEventListener("focus", () => {
   if (document.visibilityState === "visible") loadNotifications();
 });
 
-async function updateDashboard() {
-  try {
-    const res = await window.api("admin_stats.php");
-    if (res.success) {
-      const s = res.data.stats;
-      setText("statActiveToday", s.activeToday);
-      setText("statDrivers", s.totalDrivers);
-      setText("statActiveDrivers", s.activeDrivers);
-      setText("statInactiveDrivers", s.inactiveDrivers);
-      setText("statPendingDrivers", s.pendingDrivers);
-      setText("statVehicles", s.totalVehicles);
-      setText("statActiveVehicles", s.activeVehicles);
-      setText("statTodayFees", "₱" + Number(s.todayFees).toLocaleString());
-      setText("todayFeesTransCount", s.todayFeesCount);
-      setText("statMonthlyFees", "₱" + Number(s.monthFees).toLocaleString());
-      setText("monthlyFeesTransCount", s.monthFeesCount);
-      setText("statTodayLoads", "₱" + Number(s.todayLoads).toLocaleString());
-      setText("todayLoadsCount", s.todayLoadsCount);
-      setText("statLowBalance", s.lowBalance);
-      setText("statQR", s.qrActive);
-      setText("statActiveCashiers", s.activeCashiers);
-      setText("statActiveStaff", s.activeStaff);
-      setText("statActiveStations", s.activeStations || 0);
-      setText("statTotalStations", s.totalStations || 0);
-    }
-  } catch (e) {}
-
-  setText("lastUpdatedTime", new Date().toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" }));
-
-  const rb = $("recentTable");
-  if (rb) {
-    const recent = transactions.slice(-5).reverse();
-    if (!recent.length) {
-      rb.innerHTML = '<tr><td colspan="6"><div class="empty-state py-3"><i class="fas fa-inbox"></i><p class="text-sm">No transactions</p></div></td></tr>';
-    } else {
-      rb.innerHTML = recent.map(t => '<tr>' +
-        '<td class="py-2">' + escapeHtml(t.driverName) + '</td>' +
-        '<td class="py-2">' + escapeHtml(t.vehicleType) + '</td>' +
-        '<td class="py-2">' + typeBadge(t.type) + '</td>' +
-        '<td class="py-2 font-bold text-primary">₱' + t.amount.toFixed(2) + '</td>' +
-        '<td class="py-2">' + statusBadge(t.status) + '</td>' +
-        '<td class="py-2 text-sm text-gray-500">' + escapeHtml(t.time || "") + '</td>' +
-        '</tr>').join("");
-    }
-  }
-  updateChartData();
-}
+let chartRange = 30;
+let chartInstance = null;
+let vehicleFeesChart = null;
+let distributionRadar = null;
+let revenueRing = null;
 
 function initChart() {
-  const ctx = $("collectionChart");
-  if (!ctx) return;
+  initMainAreaChart();
+  initVehicleFeesChart();
+  initDistributionRadar();
+  initRevenueRing();
+  initDriverBalanceChart();
+}
+
+function initMainAreaChart() {
+  const canvas = $("collectionChart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  const feeGrad = ctx.createLinearGradient(0, 0, 0, 300);
+  feeGrad.addColorStop(0, "rgba(107, 21, 32, 0.15)"); 
+  feeGrad.addColorStop(1, "rgba(107, 21, 32, 0.0)");
+
+  const loadGrad = ctx.createLinearGradient(0, 0, 0, 300);
+  loadGrad.addColorStop(0, "rgba(74, 200, 130, 0.15)");
+  loadGrad.addColorStop(1, "rgba(74, 200, 130, 0.0)");
+
   if (chartInstance) chartInstance.destroy();
+
   chartInstance = new Chart(ctx, {
-    type: "bar",
+    type: "line",
     data: {
       labels: [],
-      datasets: [{
-        label: "Fee (₱)", data: [],
-        backgroundColor: "rgba(107,21,32,0.7)",
-        borderColor: "#6B1520", borderWidth: 2, borderRadius: 4,
-      }],
+      datasets: [
+        {
+          label: "Fee Collections",
+          data: [],
+          borderColor: "#6B1520", 
+          borderWidth: 2,
+          backgroundColor: feeGrad,
+          fill: true,
+          tension: 0, 
+          pointBackgroundColor: "#FFFFFF",
+          pointBorderColor: "#6B1520",
+          pointBorderWidth: 2,
+          pointRadius: 0, 
+          pointHoverRadius: 5, 
+          pointHoverBackgroundColor: "#6B1520",
+          pointHoverBorderColor: "#FFFFFF",
+          pointHoverBorderWidth: 2,
+          pointHitRadius: 20,
+        },
+        {
+          label: "Wallet Loads",
+          data: [],
+          borderColor: "#4AC882", 
+          borderWidth: 2,
+          backgroundColor: loadGrad,
+          fill: true,
+          tension: 0, 
+          pointBackgroundColor: "#FFFFFF",
+          pointBorderColor: "#4AC882",
+          pointBorderWidth: 2,
+          pointRadius: 0, 
+          pointHoverRadius: 5, 
+          pointHoverBackgroundColor: "#4AC882",
+          pointHoverBorderColor: "#FFFFFF",
+          pointHoverBorderWidth: 2,
+          pointHitRadius: 20,
+        }
+      ]
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, ticks: { callback: v => "₱" + v } },
-        x: { grid: { display: false } },
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 20, right: 10, bottom: 0, left: 0 } },
+      interaction: { mode: "index", intersect: false },
+      animation: { duration: 800, easing: "easeOutQuart" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#1F2937",
+          titleColor: "#FFFFFF",
+          titleFont: { family: "Inter", size: 11, weight: "700" },
+          bodyColor: "#E5E7EB",
+          bodyFont: { family: "Inter", size: 11, weight: "600" },
+          padding: { top: 10, right: 14, bottom: 10, left: 14 },
+          cornerRadius: 8,
+          displayColors: true,
+          boxWidth: 8,
+          boxHeight: 8,
+          boxPadding: 4,
+          callbacks: {
+            label: (c) => {
+              const v = Number(c.parsed.y) || 0;
+              return ` ${c.dataset.label}: ₱${v.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            }
+          }
+        }
       },
-    },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            font: { family: "Inter", size: 11, weight: "500" },
+            color: "#94A3B8", 
+            padding: 12,
+            maxTicksLimit: 4, 
+            callback: (v) => v >= 1000 ? "₱" + (v / 1000).toFixed(1) + "k" : "₱" + Number(v)
+          },
+          grid: {
+            color: "#F1F5F9", 
+            drawBorder: false,
+            drawTicks: false,
+          },
+          border: { display: false }
+        },
+        x: {
+          ticks: {
+            font: { family: "Inter", size: 11, weight: "500" },
+            color: "#94A3B8",
+            padding: 12,
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 7 
+          },
+          grid: { display: false },
+          border: { display: false }
+        }
+      }
+    }
   });
+
   updateChartData();
 }
 
 function updateChartData() {
   if (!chartInstance) return;
-  const labels = [], data = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
+
+  const today = new Date();
+  const days = chartRange === 7 ? 7 : chartRange === 30 ? 30 : new Date().getDate();
+  const labels = [];
+  const feeData = [];
+  const loadData = [];
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
     const ds = d.toLocaleDateString("en-CA");
-    const total = transactions.filter(t => t.date === ds && t.type === "FEE")
-      .reduce((s, t) => s + t.amount, 0);
-    labels.push(d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
-    data.push(total);
+
+    const feeTotal = transactions
+      .filter(t => t.date === ds && isFeeSuccess(t))
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+
+    const loadTotal = transactions
+      .filter(t => t.date === ds && isLoadSuccess(t))
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+
+    if (days <= 7) {
+      labels.push(d.toLocaleDateString("en-US", { weekday: "short" }));
+    } else if (days <= 30) {
+      labels.push(d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
+    } else {
+      labels.push(d.getDate() === 1 || i === 0 ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "");
+    }
+
+    feeData.push(Number(feeTotal.toFixed(2)));
+    loadData.push(Number(loadTotal.toFixed(2)));
   }
+
+  const maxVal = Math.max(...feeData, ...loadData, 0);
+
+  let yMax;
+  if (maxVal <= 10)         yMax = 10;
+  else if (maxVal <= 25)    yMax = 25;
+  else if (maxVal <= 50)    yMax = 50;
+  else if (maxVal <= 100)   yMax = 100;
+  else if (maxVal <= 250)   yMax = 250;
+  else if (maxVal <= 500)   yMax = 500;
+  else if (maxVal <= 1000)  yMax = 1000;
+  else if (maxVal <= 2000)  yMax = 2000;
+  else if (maxVal <= 3000)  yMax = 3000;
+  else if (maxVal <= 5000)  yMax = 5000;
+  else if (maxVal <= 10000) yMax = 10000;
+  else                      yMax = Math.ceil(maxVal / 5000) * 5000;
+
   chartInstance.data.labels = labels;
-  chartInstance.data.datasets[0].data = data;
+  chartInstance.data.datasets[0].data = feeData;
+  chartInstance.data.datasets[1].data = loadData;
+  chartInstance.options.scales.y.max = yMax;
+  chartInstance.options.scales.x.ticks.maxTicksLimit = days <= 7 ? 7 : days <= 30 ? 10 : 12;
   chartInstance.update();
+  updateChartRangeButtons();
 }
 
-function updateChart(type) {
-  if (chartInstance) {
-    chartInstance.config.type = type;
-    chartInstance.update();
-    showToast("Chart: " + type, "success");
+function updateChartRangeButtons() {
+  ["chartRange7", "chartRange30", "chartRangeMonth"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const isActive =
+      (id === "chartRange7" && chartRange === 7) ||
+      (id === "chartRange30" && chartRange === 30) ||
+      (id === "chartRangeMonth" && chartRange === "month");
+    el.classList.toggle("active", isActive);
+  });
+}
+
+window.updateChartRange = function (range) {
+  chartRange = range === "month" ? "month" : Number(range) || 7;
+  updateChartData();
+};
+
+function initVehicleFeesChart() {
+  const canvas = $("vehicleFeesChart");
+  if (!canvas) return;
+  if (vehicleFeesChart) vehicleFeesChart.destroy();
+
+  const types  = ["Tricycle", "Jeepney", "Multicab", "Bus"];
+  const colors = ["#A83244", "#4A6B7C", "#E89B5A", "#8B7BC7"];
+
+  const stats = types.map(type => {
+    const completed = transactions.filter(t =>
+      isFeeSuccess(t) &&
+      String(t.vehicleType || "").toLowerCase() === type.toLowerCase()
+    );
+    const revenue = completed.reduce((s, t) => s + Number(t.amount || 0), 0);
+    return { type, revenue, count: completed.length };
+  });
+
+  const maxRevenue = Math.max(...stats.map(s => s.revenue), 0);
+
+  let yMax;
+  if (maxRevenue <= 50)         yMax = 50;
+  else if (maxRevenue <= 100)   yMax = 100;
+  else if (maxRevenue <= 200)   yMax = 200;
+  else if (maxRevenue <= 500)   yMax = 500;
+  else if (maxRevenue <= 1000)  yMax = 1000;
+  else if (maxRevenue <= 2000)  yMax = Math.ceil(maxRevenue / 500) * 500;
+  else if (maxRevenue <= 5000)  yMax = Math.ceil(maxRevenue / 1000) * 1000;
+  else                          yMax = Math.ceil(maxRevenue / 5000) * 5000;
+
+  vehicleFeesChart = new Chart(canvas.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: types,
+      datasets: [{
+        label: "Total Fee Revenue",
+        data: stats.map(s => s.revenue),
+        backgroundColor: colors,
+        borderRadius: 8,
+        borderSkipped: false,
+        maxBarThickness: 44
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 12, right: 8, bottom: 4, left: 4 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#1F2937",
+          padding: 10,
+          cornerRadius: 8,
+          titleFont: { family: "Inter", size: 11, weight: "700" },
+          bodyFont: { family: "Inter", size: 11, weight: "600" },
+          displayColors: false,
+          callbacks: {
+            label: (c) => {
+              const s = stats[c.dataIndex];
+              return [
+                `Revenue: ₱${s.revenue.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                `Transactions: ${s.count}`
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: yMax,
+          ticks: {
+            color: "#B0BAC7",
+            font: { family: "Inter", size: 10, weight: "600" },
+            padding: 8,
+            maxTicksLimit: 5,
+            callback: (v) => v >= 1000 ? "₱" + (v / 1000).toFixed(0) + "k" : "₱" + Number(v).toLocaleString()
+          },
+          grid: { color: "rgba(228, 234, 238, 0.5)", drawBorder: false, drawTicks: false },
+          border: { display: false }
+        },
+        x: {
+          ticks: { color: "#6B7C87", font: { family: "Inter", size: 11, weight: "700" }, padding: 6 },
+          grid: { display: false },
+          border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function initDistributionRadar() {
+  const canvas = $("distributionRadar");
+  if (!canvas) return;
+  if (distributionRadar) distributionRadar.destroy();
+
+  const types = ["Tricycle", "Jeepney", "Multicab", "Bus"];
+  const colors = ["#A83244", "#4A6B7C", "#E89B5A", "#8B7BC7"];
+
+  const counts = types.map(type =>
+    transactions.filter(t =>
+      isFeeSuccess(t) &&
+      String(t.vehicleType || "").toLowerCase() === type.toLowerCase()
+    ).length
+  );
+
+  const maxCount = Math.max(...counts, 0);
+
+  let xMax;
+  if (maxCount <= 5)        xMax = 5;
+  else if (maxCount <= 10)  xMax = 10;
+  else if (maxCount <= 20)  xMax = 20;
+  else if (maxCount <= 50)  xMax = 50;
+  else if (maxCount <= 100) xMax = 100;
+  else                      xMax = Math.ceil(maxCount / 100) * 100;
+
+  distributionRadar = new Chart(canvas.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: types,
+      datasets: [{
+        label: "Completed Transactions",
+        data: counts,
+        backgroundColor: colors,
+        borderRadius: 8,
+        borderSkipped: false,
+        maxBarThickness: 24
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 6, right: 12, bottom: 6, left: 6 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#1F2937",
+          padding: 10,
+          cornerRadius: 8,
+          titleFont: { family: "Inter", size: 11, weight: "700" },
+          bodyFont: { family: "Inter", size: 11, weight: "600" },
+          displayColors: false,
+          callbacks: {
+            label: (c) => ` ${c.parsed.x} completed transaction${c.parsed.x === 1 ? "" : "s"}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          max: xMax,
+          ticks: {
+            color: "#B0BAC7",
+            font: { family: "Inter", size: 10, weight: "600" },
+            padding: 6,
+            precision: 0
+          },
+          grid: { color: "rgba(228, 234, 238, 0.5)", drawBorder: false, drawTicks: false },
+          border: { display: false }
+        },
+        y: {
+          ticks: { color: "#6B7C87", font: { family: "Inter", size: 11, weight: "700" }, padding: 6 },
+          grid: { display: false },
+          border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function initRevenueRing() {
+  const canvas = $("revenueRing");
+  if (!canvas) return;
+  if (revenueRing) revenueRing.destroy();
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString("en-CA");
+
+  const monthFeeRevenue = transactions
+    .filter(t => isFeeSuccess(t) && t.date >= monthStart)
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+
+  const target = Number(localStorage.getItem("bctt_revenue_target") || 50000);
+  const pct = Math.min(100, target > 0 ? (monthFeeRevenue / target) * 100 : 0);
+
+  const pctEl = $("revenuePct");
+  const labelEl = $("revenueLabel");
+  const periodEl = $("revenuePeriodLabel");
+  if (pctEl) pctEl.textContent = Math.round(pct) + "%";
+  if (labelEl) labelEl.textContent = `₱${monthFeeRevenue.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / ₱${target.toLocaleString()}`;
+  if (periodEl) periodEl.textContent = now.toLocaleString("en-US", { month: "long", year: "numeric" });
+
+  revenueRing = new Chart(canvas.getContext("2d"), {
+    type: "doughnut",
+    data: {
+      labels: ["Collected", "Remaining"],
+      datasets: [{
+        data: [monthFeeRevenue || 0.01, Math.max(target - monthFeeRevenue, 0.01)],
+        backgroundColor: ["#6B1520", "#EEF3F8"],
+        borderWidth: 0,
+        borderRadius: 10,
+        spacing: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "78%",
+      animation: { animateRotate: true, duration: 800, easing: "easeOutQuart" },
+      plugins: { legend: { display: false }, tooltip: { enabled: false } }
+    }
+  });
+}
+
+window.updateChart = function () {
+  updateChartData();
+  initVehicleFeesChart();
+  initDistributionRadar();
+  initRevenueRing();
+  initDriverBalanceChart();
+};
+
+window.openRevenueTargetModal = function () {
+  const current = Number(localStorage.getItem("bctt_revenue_target") || 50000);
+  const val = prompt("Set monthly revenue target (₱):", String(current));
+  if (val === null) return;
+  const n = Number(String(val).replace(/[^0-9.]/g, ""));
+  if (!n || n <= 0) { showToast("Please enter a valid amount", "error"); return; }
+  localStorage.setItem("bctt_revenue_target", String(n));
+  initRevenueRing();
+  showToast("Revenue target updated to ₱" + n.toLocaleString(), "success");
+};
+
+const ACTIVITY_ICONS = {
+  login:       { icon: "fa-right-to-bracket",     color: "#2563EB", bg: "#EFF6FF" },
+  logout:      { icon: "fa-right-from-bracket",   color: "#6B7280", bg: "#F3F4F6" },
+  load:        { icon: "fa-wallet",               color: "#16A34A", bg: "#F0FDF4" },
+  fee:         { icon: "fa-receipt",              color: "#8B1D2C", bg: "#F5E8EA" },
+  low_balance: { icon: "fa-triangle-exclamation", color: "#DC2626", bg: "#FEE2E2" },
+  driver:      { icon: "fa-id-card",              color: "#7C3AED", bg: "#F5F3FF" },
+  vehicle:     { icon: "fa-car",                  color: "#0D9488", bg: "#F0FDFA" },
+  user:        { icon: "fa-user-gear",            color: "#EA580C", bg: "#FFF7ED" },
+  reference:   { icon: "fa-file-invoice",         color: "#CA8A04", bg: "#FEFCE8" },
+  system:      { icon: "fa-gear",                 color: "#6B7280", bg: "#F3F4F6" }
+};
+
+function classifyActivity(log) {
+  const action = String(log.action || log.Action || "").toLowerCase();
+  if (action.includes("login")) return "login";
+  if (action.includes("logout")) return "logout";
+  if (action.includes("load")) return "load";
+  if (action.includes("low") || action.includes("insufficient")) return "low_balance";
+  if (action.includes("fee") || action.includes("collect") || action.includes("payment") || action.includes("transaction")) return "fee";
+  if (action.includes("driver")) return "driver";
+  if (action.includes("vehicle") || action.includes("plate")) return "vehicle";
+  if (action.includes("user") || action.includes("account")) return "user";
+  if (action.includes("reference") || action.includes("or number")) return "reference";
+  return "system";
+}
+
+function formatActivityTime(iso) {
+  if (!iso) return "—";
+  const d = new Date(String(iso).replace(" ", "T"));
+  if (isNaN(d)) return String(iso);
+  const diffMs = Date.now() - d.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return diffMin + " min ago";
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return diffHr + " hr ago";
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return diffDay + " day" + (diffDay === 1 ? "" : "s") + " ago";
+  return d.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+}
+
+function buildLocalActivityFeed() {
+  const feed = [];
+  const now = new Date();
+
+  transactions.slice(-8).forEach(t => {
+    const ts = t.date ? (t.date + "T" + (t.time || "00:00:00")) : now.toISOString();
+    const kind = t.type === "LOAD" ? "load" : "fee";
+    const verb = t.type === "LOAD" ? "loaded" : "collected fee from";
+    const amt = "₱" + Number(t.amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+    feed.push({
+      kind,
+      title: kind === "load" ? "Wallet Load Processed" : "Terminal Fee Collected",
+      message: `${t.recordedBy || "System"} ${verb} ${t.driverName || "driver"} — ${amt}`,
+      time: ts
+    });
+  });
+
+  drivers.slice(-4).forEach(d => {
+    feed.push({
+      kind: "driver",
+      title: "Driver Registered",
+      message: `${d.fullName || "New driver"}${d.vehicleType ? " · " + d.vehicleType : ""}${d.plateNumber ? " (" + d.plateNumber + ")" : ""}`,
+      time: d.registrationDate || d.createdAt || now.toISOString()
+    });
+  });
+
+  users.slice(-3).forEach(u => {
+    feed.push({
+      kind: "user",
+      title: "Account Created",
+      message: `${u.fullName || u.username} added as ${u.roleLabel || u.role}`,
+      time: u.createdAt || u.registrationDate || now.toISOString()
+    });
+  });
+
+  feed.sort((a, b) => new Date(b.time) - new Date(a.time));
+  return feed.slice(0, 10);
+}
+
+function renderActivityFeed(container, activities) {
+  container.innerHTML = activities.map(a => {
+    const meta = ACTIVITY_ICONS[a.kind] || ACTIVITY_ICONS.system;
+    return `
+      <div style="display:flex;gap:.65rem;padding:.65rem .8rem;border-bottom:1px solid #F1F5F9;transition:background .15s;" onmouseover="this.style.background='#FDF2F4'" onmouseout="this.style.background='transparent'">
+        <div style="flex-shrink:0;width:32px;height:32px;border-radius:8px;background:${meta.bg};color:${meta.color};display:flex;align-items:center;justify-content:center;font-size:.8rem;">
+          <i class="fas ${meta.icon}"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:.5rem;">
+            <div style="font-size:.75rem;font-weight:700;color:#1F2937;">${escapeHtml(a.title)}</div>
+            <div style="font-size:.65rem;color:#9CA3AF;white-space:nowrap;">${escapeHtml(formatActivityTime(a.time))}</div>
+          </div>
+          <div style="font-size:.72rem;color:#6B7280;margin-top:.15rem;line-height:1.4;">${escapeHtml(a.message)}</div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+async function loadActivityFeed(showToastFlag = false) {
+  const container = $("recentActivities");
+  if (!container) return;
+
+  const local = buildLocalActivityFeed();
+
+  if (local.length) {
+    renderActivityFeed(container, local);
+  } else {
+    container.innerHTML = '<div class="empty-inline"><i class="fas fa-spinner fa-spin"></i> Loading activities…</div>';
+  }
+
+  try {
+    const res = await window.api("audit_logs.php", { query: { limit: 30 } });
+    if (res && res.success && res.data && Array.isArray(res.data.logs) && res.data.logs.length) {
+      const activities = res.data.logs.map(log => ({
+        kind: classifyActivity(log),
+        title: log.action || "Activity",
+        message: `${log.user || "System"}${log.recordRef ? " · " + log.recordRef : ""}${log.details ? " · " + log.details : ""}`,
+        time: log.createdAt || log.timestamp || new Date().toISOString()
+      }));
+      renderActivityFeed(container, activities);
+    } else if (!local.length) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:1.5rem 1rem;">
+          <div style="width:48px;height:48px;border-radius:50%;background:#F3F4F6;display:inline-flex;align-items:center;justify-content:center;margin-bottom:.5rem;">
+            <i class="fas fa-clock" style="color:#9CA3AF;font-size:1.1rem;"></i>
+          </div>
+          <div style="font-size:.85rem;font-weight:700;color:#6B7280;">No activities yet</div>
+          <div style="font-size:.75rem;color:#9CA3AF;margin-top:.15rem;">Recent actions will appear here</div>
+        </div>`;
+    }
+  } catch (e) {
+    if (!local.length) {
+      container.innerHTML = '<div class="empty-inline">No activities yet</div>';
+    }
+  }
+
+  if (showToastFlag) showToast("Activity feed refreshed", "success");
+}
+
+window.loadActivityFeed = loadActivityFeed;
+
+function computeDashboardAlerts() {
+  const alerts = [];
+
+  const lowBal = drivers.filter(d => Number(d.balance || 0) < LOW_BALANCE);
+  if (lowBal.length > 0) {
+    const sorted = lowBal.slice().sort((a, b) => Number(a.balance || 0) - Number(b.balance || 0));
+    alerts.push({
+      severity: 'warning',
+      icon: 'fa-triangle-exclamation',
+      title: lowBal.length + ' driver' + (lowBal.length > 1 ? 's' : '') + ' below ₱' + LOW_BALANCE,
+      message: 'Lowest: ' + (sorted[0].fullName || 'Unknown') + ' — ₱' + Number(sorted[0].balance || 0).toFixed(2),
+      actionLabel: 'View Drivers',
+      actionPage: 'drivers'
+    });
+  }
+
+  const cutoff24 = Date.now() - 24 * 60 * 60 * 1000;
+  const failed = transactions.filter(t => {
+    if (!t.date) return false;
+    const d = new Date(t.date + 'T' + (t.time || '00:00:00'));
+    return d.getTime() >= cutoff24 && /fail|error|declined|insufficient/i.test(String(t.status || ''));
+  });
+  if (failed.length > 0) {
+    const last = failed[failed.length - 1];
+    alerts.push({
+      severity: 'critical',
+      icon: 'fa-circle-exclamation',
+      title: failed.length + ' failed transaction' + (failed.length > 1 ? 's' : '') + ' (last 24h)',
+      message: 'Most recent: ' + (last.driverName || 'Unknown') + ' — ₱' + Number(last.amount || 0).toFixed(2),
+      actionLabel: 'Review Transactions',
+      actionPage: 'transactions'
+    });
+  }
+
+  const pending = drivers.filter(d => String(d.approvalStatus || '').toLowerCase() === 'pending');
+  if (pending.length > 0) {
+    alerts.push({
+      severity: 'info',
+      icon: 'fa-id-card',
+      title: pending.length + ' driver registration' + (pending.length > 1 ? 's' : '') + ' pending',
+      message: 'Awaiting admin review and approval',
+      actionLabel: 'Review Now',
+      actionPage: 'drivers'
+    });
+  }
+
+  if (typeof terminals !== 'undefined' && Array.isArray(terminals) && terminals.length > 0) {
+    const now = Date.now();
+    const offline = terminals.filter(t => {
+      if ((t.status || '').toLowerCase() !== 'active') return false;
+      if (!t.last_activity_at) return true;
+      return (now - new Date(t.last_activity_at).getTime()) / 60000 > TERMINAL_OFFLINE_MINUTES;
+    });
+    if (offline.length > 0) {
+      alerts.push({
+        severity: 'warning',
+        icon: 'fa-map-location-dot',
+        title: offline.length + ' terminal' + (offline.length > 1 ? 's' : '') + ' may be offline',
+        message: 'No activity in ' + TERMINAL_OFFLINE_MINUTES + ' min: ' + offline.slice(0, 3).map(t => t.code).join(', '),
+        actionLabel: 'View Map',
+        actionPage: 'terminals-map'
+      });
+    }
+  }
+
+  if (typeof __inqList !== 'undefined' && Array.isArray(__inqList)) {
+    const newInq = __inqList.filter(i => String(i.status || '').toLowerCase() === 'new');
+    if (newInq.length > 0) {
+      alerts.push({
+        severity: 'info',
+        icon: 'fa-envelope',
+        title: newInq.length + ' new inquir' + (newInq.length > 1 ? 'ies' : 'y'),
+        message: 'Awaiting response from admin',
+        actionLabel: 'Read Messages',
+        actionPage: 'inquiries'
+      });
+    }
+  }
+
+  return alerts;
+}
+
+function renderDashboardAlerts() {
+  const container = $('dashboardAlerts');
+  if (!container) return;
+
+  const alerts = computeDashboardAlerts();
+
+  if (!alerts.length) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:1.5rem 1rem;">
+        <div style="width:48px;height:48px;border-radius:50%;background:var(--green-soft);display:inline-flex;align-items:center;justify-content:center;margin-bottom:.5rem;">
+          <i class="fas fa-check-circle" style="color:var(--green);font-size:1.2rem;"></i>
+        </div>
+        <div style="font-size:.88rem;font-weight:700;color:var(--text-dark);">All systems normal</div>
+        <div style="font-size:.74rem;color:var(--text-soft);margin-top:.15rem;">No alerts need your attention right now</div>
+      </div>`;
+    return;
+  }
+
+  const colors = {
+    critical: { bg: '#FEE2E2', border: '#DC2626', icon: '#DC2626' },
+    warning:  { bg: '#FEFCE8', border: '#CA8A04', icon: '#CA8A04' },
+    info:     { bg: '#EFF6FF', border: '#2563EB', icon: '#2563EB' }
+  };
+
+  container.innerHTML = alerts.map(a => {
+    const c = colors[a.severity] || colors.info;
+    return `<div style="display:flex;gap:.7rem;padding:.7rem .85rem;margin-bottom:.55rem;background:${c.bg};border-left:4px solid ${c.border};border-radius:.55rem;">
+      <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;">
+        <i class="fas ${a.icon}" style="color:${c.icon};font-size:.85rem;"></i>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.82rem;font-weight:700;color:var(--text-dark);">${escapeHtml(a.title)}</div>
+        <div style="font-size:.73rem;color:var(--text-mid);margin-top:.15rem;line-height:1.45;">${escapeHtml(a.message)}</div>
+        ${a.actionPage ? `<button type="button" class="btn-outline btn-sm" style="margin-top:.45rem;" onclick="navigateTo('${escapeHtml(a.actionPage)}')">${escapeHtml(a.actionLabel)} <i class="fas fa-arrow-right"></i></button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+window.renderDashboardAlerts = renderDashboardAlerts;
+
+function buildSystemInsights() {
+  const insights = [];
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('en-CA');
+
+  const cutoff = new Date(today);
+  cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffStr = cutoff.toLocaleDateString('en-CA');
+  const vehicleCounts = {};
+  transactions.forEach(t => {
+    if (!isFeeSuccess(t) || !t.date || t.date < cutoffStr) return;
+    const v = t.vehicleType || 'Unknown';
+    vehicleCounts[v] = (vehicleCounts[v] || 0) + 1;
+  });
+  const topVehicle = Object.entries(vehicleCounts).sort((a, b) => b[1] - a[1])[0];
+  if (topVehicle) {
+    insights.push({
+      icon: 'fa-trophy',
+      color: '#7C3AED',
+      bg: '#F5F3FF',
+      text: '<strong>' + escapeHtml(topVehicle[0]) + '</strong> has the highest fee transactions (' + topVehicle[1] + ') over the last 30 days.'
+    });
+  }
+
+  const yest = new Date(today);
+  yest.setDate(today.getDate() - 1);
+  const yestStr = yest.toLocaleDateString('en-CA');
+  const todayFees = transactions.filter(t => isFeeSuccess(t) && t.date === todayStr).reduce((s, t) => s + Number(t.amount || 0), 0);
+  const yestFees  = transactions.filter(t => isFeeSuccess(t) && t.date === yestStr).reduce((s, t) => s + Number(t.amount || 0), 0);
+
+   if (yestFees > 0) {
+    const pct = ((todayFees - yestFees) / yestFees) * 100;
+    const up = pct >= 0;
+    
+    let text = "";
+    if (pct > 500) {
+       text = 'Fee collections are <strong>up significantly</strong> today (₱' + yestFees.toFixed(2) + ' → ₱' + todayFees.toFixed(2) + ').';
+    } else if (pct > 0) {
+       text = 'Fee collections are <strong>up ' + Math.abs(pct).toFixed(1) + '%</strong> versus yesterday (₱' + yestFees.toFixed(2) + ' → ₱' + todayFees.toFixed(2) + ').';
+    } else {
+       text = 'Fee collections are <strong>down ' + Math.abs(pct).toFixed(1) + '%</strong> versus yesterday (₱' + yestFees.toFixed(2) + ' → ₱' + todayFees.toFixed(2) + ').';
+    }
+
+    insights.push({
+      icon: up ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down',
+      color: up ? '#16A34A' : '#DC2626',
+      bg: up ? '#F0FDF4' : '#FEE2E2',
+      text: text
+    });
+  }
+
+  const lowBal = drivers.filter(d => Number(d.balance || 0) < LOW_BALANCE);
+  if (lowBal.length > 0) {
+    insights.push({
+      icon: 'fa-wallet',
+      color: '#CA8A04',
+      bg: '#FEFCE8',
+      text: '<strong>' + lowBal.length + ' driver' + (lowBal.length > 1 ? 's' : '') + '</strong> need wallet replenishment (below ₱' + LOW_BALANCE + '). Cashiers should notify them.'
+    });
+  }
+
+  const totalTerm = typeof terminals !== 'undefined' ? terminals.length : 0;
+  
+   const currentHour = today.getHours();
+  const isShiftOver = currentHour >= 17;  
+  
+  let activeTerm = 0;
+  if (!isShiftOver && Array.isArray(stationActivityData)) {
+    activeTerm = stationActivityData.filter(s => {
+      if (!s.lastActivity) return false;
+      const activityDate = new Date(s.lastActivity).toLocaleDateString("en-CA");
+      return activityDate === todayStr;
+    }).length;
+  } else if (!isShiftOver) {
+    activeTerm = terminals.filter(t => (t.status || 'active').toLowerCase() === 'active').length;
+  }
+
+  if (totalTerm > 0) {
+    const statusText = isShiftOver 
+      ? 'The terminal shift has ended (past 5:00 PM). All stations are offline.'
+      : '<strong>' + activeTerm + '</strong> of <strong>' + totalTerm + '</strong> terminal stations are currently online.';
+      
+    insights.push({
+      icon: isShiftOver ? 'fa-moon' : 'fa-map-location-dot',
+      color: isShiftOver ? '#6B7280' : '#2563EB',
+      bg: isShiftOver ? '#F3F4F6' : '#EFF6FF',
+      text: statusText
+    });
+  }
+
+  const todayLoads = transactions.filter(t => isLoadSuccess(t) && t.date === todayStr);
+  if (todayLoads.length > 0) {
+    const cashiers = new Set(todayLoads.map(t => t.recordedBy).filter(Boolean));
+    const todayLoadsTotal = todayLoads.reduce((s, t) => s + Number(t.amount || 0), 0);
+    insights.push({
+      icon: 'fa-user-tie',
+      color: '#0D9488',
+      bg: '#F0FDFA',
+      text: '<strong>' + cashiers.size + '</strong> cashier' + (cashiers.size !== 1 ? 's' : '') + ' processed ₱' + todayLoadsTotal.toFixed(2) + ' in wallet loads today.'
+    });
+  }
+
+  const todayStaff = transactions.filter(t => isFeeSuccess(t) && t.date === todayStr);
+  if (todayStaff.length > 0) {
+    const staff = new Set(todayStaff.map(t => t.recordedBy || t.staffName).filter(Boolean));
+    insights.push({
+      icon: 'fa-qrcode',
+      color: '#8B1D2C',
+      bg: '#F5E8EA',
+      text: '<strong>' + todayStaff.length + '</strong> QR fee scans collected today by <strong>' + staff.size + '</strong> terminal staff member' + (staff.size !== 1 ? 's' : '') + '.'
+    });
+  }
+
+  return insights;
+}
+
+function renderSystemInsights() {
+  const container = $('systemInsights');
+  if (!container) return;
+
+  const insights = buildSystemInsights();
+
+  if (!insights.length) {
+    container.innerHTML = '<div class="empty-inline">No insights yet. Data will appear as transactions are recorded.</div>';
+    return;
+  }
+
+  container.innerHTML = insights.map(i => `
+    <div style="display:flex;gap:.7rem;padding:.7rem .85rem;margin-bottom:.55rem;background:${i.bg};border-radius:.55rem;">
+      <div style="flex-shrink:0;width:32px;height:32px;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;">
+        <i class="fas ${i.icon}" style="color:${i.color};font-size:.85rem;"></i>
+      </div>
+      <div style="flex:1;font-size:.78rem;color:var(--text-dark);line-height:1.5;">${i.text}</div>
+    </div>
+  `).join('');
+}
+window.renderSystemInsights = renderSystemInsights;
+
+async function hardRefreshDashboard() {
+  const btn = event ? event.currentTarget : null;
+  const orig = btn ? btn.innerHTML : "";
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing…'; }
+
+  __dataCache.lastFetch = 0;
+
+  try {
+    await loadAllDataFromDB(true);
+    await updateDashboard(true);
+    await loadActivityFeed(false);
+    await refreshLiveStatus();
+    await refreshStationActivity();
+    await refreshRecentMovements();
+    await refreshCashierActivity();
+    showToast("Dashboard refreshed", "success");
+  } catch (err) {
+    console.error("hardRefreshDashboard failed:", err);
+    showToast("Refresh failed — see console", "error");
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = orig; }
   }
 }
-window.updateChart = updateChart;
+window.hardRefreshDashboard = hardRefreshDashboard;
 
-function renderUsers() {
+async function updateDashboard(forceFresh = false) {
+  try {
+    const url = forceFresh ? "dashboard_stats.php?fresh=1" : "dashboard_stats.php";
+    const res = await window.api(url);
+
+    if (!res || !res.success || !res.data) {
+      console.warn("dashboard_stats.php failed, falling back to client-side compute");
+      return updateDashboardLocal();
+    }
+
+    const s = res.data;
+
+    setText("statTodayFees",       "₱" + Number(s.today.fees).toLocaleString("en-PH", { minimumFractionDigits: 2 }));
+    setText("statMonthlyFees",     "₱" + Number(s.month.fees).toLocaleString("en-PH", { minimumFractionDigits: 2 }));
+    setText("statTodayLoads",      "₱" + Number(s.today.loads).toLocaleString("en-PH", { minimumFractionDigits: 2 }));
+    setText("statCompletedFees",   s.completedFees);
+    setText("statActiveDrivers",   s.drivers.active);
+    setText("statDrivers",         s.drivers.total);
+    setText("statVehicles",        s.vehicles.total);
+    setText("statActiveVehicles",  s.vehicles.active);
+    setText("statLowBalance",      s.drivers.lowBalance);
+    setText("statActiveStations",  s.stations.active);
+    setText("statTotalStations",   s.stations.total);
+    setText("todayFeesTransCount", s.today.feesCount);
+    setText("monthlyFeesTransCount", s.month.feesCount);
+    setText("todayLoadsCount",     s.today.loadsCount);
+
+    setText("lastUpdatedTime", new Date().toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" }));
+
+    const rb = $("recentTable");
+    if (rb) {
+      const recent = transactions.slice(-5).reverse();
+      if (!recent.length) {
+        rb.innerHTML = '<tr><td colspan="6"><div class="empty-state py-3"><i class="fas fa-inbox"></i><p class="text-sm">No transactions</p></div></td></tr>';
+      } else {
+        rb.innerHTML = recent.map(t => '<tr>' +
+          '<td class="py-2 text-sm">' + escapeHtml(t.date || "") + '</td>' +
+          '<td class="py-2">' + typeBadge(t.type) + '</td>' +
+          '<td class="py-2">' + escapeHtml(t.driverName) + '</td>' +
+          '<td class="py-2 text-sm">' + escapeHtml(t.vehicleType) + '</td>' +
+          '<td class="py-2 font-bold text-primary">₱' + t.amount.toFixed(2) + '</td>' +
+          '<td class="py-2">' + statusBadge(t.status) + '</td>' +
+          '</tr>').join("");
+      }
+    }
+
+    updateChartData();
+    initVehicleFeesChart();
+    initDistributionRadar();
+    initRevenueRing();
+    initDriverBalanceChart();
+    loadActivityFeed();
+    renderDashboardAlerts();
+    renderSystemInsights();
+  } catch (err) {
+    console.error("dashboard_stats.php exception, falling back:", err);
+    return updateDashboardLocal();
+  }
+}
+
+function updateDashboardLocal() {
+  const todayStr = new Date().toLocaleDateString("en-CA");
+  const monthStr = todayStr.slice(0, 7);
+
+  const todayFees  = transactions.filter(t => isFeeSuccess(t) && t.date === todayStr);
+  const monthFees  = transactions.filter(t => isFeeSuccess(t) && (t.date || "").startsWith(monthStr));
+  const todayLoads = transactions.filter(t => isLoadSuccess(t) && t.date === todayStr);
+
+  const todayFeesTotal  = todayFees.reduce((s, t) => s + Number(t.amount || 0), 0);
+  const monthFeesTotal  = monthFees.reduce((s, t) => s + Number(t.amount || 0), 0);
+  const todayLoadsTotal = todayLoads.reduce((s, t) => s + Number(t.amount || 0), 0);
+
+  const activeDrivers  = drivers.filter(d => /^active$/i.test(d.status || "")).length;
+  const activeVehicles = drivers.filter(d => d.plateNumber && /^active$/i.test(d.status || "")).length;
+  const totalVehicles  = drivers.filter(d => d.plateNumber).length;
+  const lowBalance     = drivers.filter(d => Number(d.balance || 0) < LOW_BALANCE).length;
+  const activeStations = typeof terminals !== "undefined" ? terminals.filter(t => /^active$/i.test(t.status || "")).length : 0;
+  const totalStations  = typeof terminals !== "undefined" ? terminals.length : 0;
+
+  setText("statTodayFees",        "₱" + todayFeesTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 }));
+  setText("statMonthlyFees",      "₱" + monthFeesTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 }));
+  setText("statTodayLoads",       "₱" + todayLoadsTotal.toLocaleString("en-PH", { minimumFractionDigits: 2 }));
+  setText("statCompletedFees",    transactions.filter(isFeeSuccess).length);
+  setText("statActiveDrivers",    activeDrivers);
+  setText("statDrivers",          drivers.length);
+  setText("statVehicles",         totalVehicles);
+  setText("statActiveVehicles",   activeVehicles);
+  setText("statLowBalance",       lowBalance);
+  setText("statActiveStations",   activeStations);
+  setText("statTotalStations",    totalStations);
+  setText("todayFeesTransCount",  todayFees.length);
+  setText("monthlyFeesTransCount", monthFees.length);
+  setText("todayLoadsCount",      todayLoads.length);
+
+  setText("lastUpdatedTime", new Date().toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" }));
+
+  updateChartData();
+  initVehicleFeesChart();
+  initDistributionRadar();
+  initRevenueRing();
+  initDriverBalanceChart();
+  loadActivityFeed();
+  renderDashboardAlerts();
+  renderSystemInsights();
+}
+
+async function renderUsers() {
   const tb = $("userTable");
   if (!tb) return;
+
+  if (!__stationMapLoaded) {
+    tb.innerHTML = '<tr><td colspan="7"><div class="empty-inline"><i class="fas fa-spinner fa-spin"></i> Loading assignments…</div></td></tr>';
+    await __loadUserStationMap();
+  }
+
   const filterRole = $("userRoleFilter")?.value || "";
   const search = ($("userSearch")?.value || "").toLowerCase();
 
@@ -839,7 +2152,9 @@ async function __loadUserStationMap() {
       });
       __stationMapLoaded = true;
     }
-  } catch (e) {}
+  } catch (e) { 
+    console.warn("Failed to load station map", e); 
+  }
   return __userStationMap;
 }
 
@@ -850,17 +2165,19 @@ function __fillStationCells() {
     if (tr.querySelector('td[colspan]')) return;
     const cell = tr.querySelector('.station-cell');
     if (!cell) return;
+    
     const tds = tr.querySelectorAll('td');
     if (tds.length < 6) return;
-    const userId = (tds[0]?.textContent || '').trim();
+    
+     const userId = (tds[0]?.textContent || '').trim();
     const info = __userStationMap[userId];
+    const roleText = (tds[3]?.textContent || '').trim().toLowerCase();
 
     if (info && info.code) {
       cell.innerHTML =
         '<span class="font-mono font-bold">' + escapeHtml(info.code) + '</span>' +
         '<div class="text-[11px] text-gray-500">' + escapeHtml(info.name) + '</div>';
     } else {
-      const roleText = (tds[3]?.textContent || '').trim().toLowerCase();
       if (roleText.includes('admin')) {
         cell.innerHTML = '<span class="text-[11px] text-gray-400 italic">System-wide</span>';
       } else {
@@ -919,7 +2236,7 @@ window.editUser = async function (id) {
   const u = users.find(x => String(x.id) === String(id));
   if (!u) { showToast("User not found", "error"); return; }
 
-  if ($("userId")) $("userId").value = String(u.id);
+   if ($("userId")) $("userId").value = String(u.id);
   if ($("uFullName")) $("uFullName").value = u.fullName || "";
   if ($("uUsername")) $("uUsername").value = u.username || "";
   if ($("uEmail")) $("uEmail").value = u.email || "";
@@ -956,32 +2273,38 @@ window.editUser = async function (id) {
   const myId = currentAdminUser?.id || window.CURRENT_USER?.id;
   if (delBtn) delBtn.style.display = (myId && String(u.id) === String(myId)) ? "none" : "";
 
-  try {
+   openModal("userModal");
+
+   try {
+     const stationSel = $("uStationId");
+    if (stationSel && roleSelect.value !== 'admin') {
+        stationSel.innerHTML = '<option value="">Loading stations...</option>';
+    }
+
     if (typeof __loadStationsForUserForm === "function") {
       await __loadStationsForUserForm();
     }
+    
     let existingStationId = '';
     try {
       const res = await window.api('station_assignments.php');
       if (res && res.success && Array.isArray(res.data.assignments)) {
-        const row = res.data.assignments.find(a => String(a.staffId) === String(id));
+         const row = res.data.assignments.find(a => String(a.staffId) === String(id));
         if (row) existingStationId = String(row.stationId || '');
       }
     } catch (e) {}
 
-    if (typeof __populateStationDropdown === "function") {
-      __populateStationDropdown(existingStationId);
-    }
     if (typeof onUserRoleChange === "function") {
       await onUserRoleChange();
     }
-    const sel = $("uStationId");
-    if (sel && existingStationId) sel.value = existingStationId;
+    
+    if (typeof __populateStationDropdown === "function") {
+      __populateStationDropdown(existingStationId);
+    }
+
   } catch (e) {
     console.warn("Station preload failed:", e);
   }
-
-  openModal("userModal");
 };
 
 window.toggleUserStatus = async function (id) {
@@ -997,7 +2320,7 @@ window.toggleUserStatus = async function (id) {
     });
     if (res && res.success) {
       showToast(res.message || ("Account " + next.toLowerCase()), "success");
-      await loadAllDataFromDB();
+      await loadAllDataFromDB(true);
       renderUsers();
     } else {
       showToast(res?.message || "Update failed", "error");
@@ -1036,7 +2359,7 @@ window.deleteUser = async function (id) {
       if (res && res.success) {
         showToast("Account " + (u.username || "") + " deleted successfully.", "success");
         closeModal("userModal");
-        await loadAllDataFromDB();
+        await loadAllDataFromDB(true);
         renderUsers();
       } else {
         showToast(res?.message || "Failed to delete account.", "error");
@@ -1084,11 +2407,28 @@ async function __loadStationsForUserForm() {
 function __populateStationDropdown(selectedId = '') {
   const sel = document.getElementById('uStationId');
   if (!sel) return;
+  
+  const role = (document.getElementById('uRole')?.value || '').toLowerCase();
+  
+   let availableStations = __adminStations;
+  if (role === 'cashier') {
+    availableStations = __adminStations.filter(s => 
+      s.code.toUpperCase().includes('BCTT')
+    );
+  }
+
   const current = selectedId || sel.value || '';
+  
+  if (availableStations.length === 0) {
+    sel.innerHTML = '<option value="">No BCTT Office found. Please add it in the GIS Map.</option>';
+    return;
+  }
+
   sel.innerHTML = '<option value="">— Select station —</option>' +
-    __adminStations.map(s =>
+    availableStations.map(s =>
       `<option value="${escapeHtml(s.id)}">${escapeHtml(s.code)} — ${escapeHtml(s.name)}</option>`
     ).join('');
+    
   if (current) sel.value = current;
 }
 
@@ -1115,11 +2455,15 @@ async function onUserRoleChange() {
     await __loadStationsForUserForm();
     __populateStationDropdown();
     wrap.style.display = '';
-    label.textContent = 'Assign Cashier Booth / Office (Optional)';
-    required.style.display = 'none';
-    sel.required = false;
-    hint.textContent = 'Optional. Set this if the cashier works at a specific booth; leave blank for a central cashier office.';
+    label.textContent = 'Assign Cashier Office';
+    required.style.display = '';
+    sel.required = true;
+    hint.textContent = 'Required for Cashiers. They will be restricted to this office.';
     adminNote.style.display = 'none';
+    
+     const bcttOption = Array.from(sel.options).find(o => o.text.includes('BCTT'));
+    if (bcttOption) sel.value = bcttOption.value;
+    
   } else if (role === 'admin') {
     wrap.style.display = 'none';
     sel.required = false;
@@ -1204,8 +2548,8 @@ function initUserForm() {
         return;
       }
     }
-    if (role === 'staff' && !stationId) {
-      showToast('Please select a station for this staff member.', 'error');
+        if ((role === 'staff' || role === 'cashier') && !stationId) {
+      showToast('Please select a station/office for this account.', 'error');
       return;
     }
     if (role !== 'admin' && stationId) {
@@ -1231,7 +2575,7 @@ function initUserForm() {
         const note = document.getElementById('adminRoleNotice');
         if (note) note.style.display = 'none';
 
-        await loadAllDataFromDB();
+        await loadAllDataFromDB(true);
         await __loadUserStationMap();
         renderUsers();
       } else {
@@ -1266,14 +2610,18 @@ function renderDrivers() {
   const tb = $("driverTable");
   if (!tb) return;
   if (!filtered.length) {
-    tb.innerHTML = '<tr><td colspan="9"><div class="empty-state py-4"><i class="fas fa-user-slash"></i><h3>No drivers</h3></div></td></tr>';
+    tb.innerHTML = '<tr><td colspan="10"><div class="empty-state py-4"><i class="fas fa-user-slash"></i><h3>No drivers</h3></div></td></tr>';
     return;
   }
+  
   tb.innerHTML = filtered.map(d => {
     const bal = Number(d.balance || 0);
     const balCls = bal < LOW_BALANCE ? "balance-low" : "balance-amount";
     const approval = String(d.approvalStatus || 'Active');
     const isPending = approval.toLowerCase() === 'pending';
+    
+    const designatedTerminal = d.toda || d.designatedTerminal || d.station || "Not Assigned";
+
     return '<tr>' +
       '<td class="py-2"><div class="profile-photo">' +
         (d.photo ? '<img src="' + d.photo + '" alt="">' : '<span>' + escapeHtml((d.fullName || '?').charAt(0).toUpperCase()) + '</span>') +
@@ -1283,6 +2631,7 @@ function renderDrivers() {
       '<td class="py-2 text-sm">' + escapeHtml((d.vehicleType || "N/A") + " - " + (d.plateNumber || "N/A")) + '</td>' +
       '<td class="py-2 text-sm">' + escapeHtml(d.contact || "N/A") + '</td>' +
       '<td class="py-2 text-sm">' + escapeHtml(d.licenseNo || "N/A") + '</td>' +
+      '<td class="py-2 text-sm"><strong>' + escapeHtml(designatedTerminal) + '</strong></td>' +
       '<td class="py-2"><span class="' + balCls + '">₱' + bal.toFixed(2) + '</span></td>' +
       '<td class="py-2">' + approvalBadge(approval) + '</td>' +
       '<td class="py-2">' +
@@ -1351,7 +2700,7 @@ window.toggleDriverStatus = async function (id) {
     });
     if (res && res.success) {
       showToast(res.message || ("Driver " + d.fullName + " " + next.toLowerCase()), "success");
-      await loadAllDataFromDB();
+      await loadAllDataFromDB(true);
       renderDrivers();
       renderVehicles();
     } else showToast(res?.message || "Failed to update driver status", "error");
@@ -1371,7 +2720,7 @@ window.approveDriver = function (driverId) {
     });
     if (res && res.success) {
       showToast("Driver approved and activated", "success");
-      await loadAllDataFromDB(); renderDrivers();
+      await loadAllDataFromDB(true); renderDrivers();
     } else showToast(res?.message || "Approval failed", "error");
   };
   if (window.ConfirmModal) {
@@ -1391,7 +2740,7 @@ window.returnForCorrection = function (driverId) {
     });
     if (res && res.success) {
       showToast("Driver marked as Needs Correction", "warning");
-      await loadAllDataFromDB(); renderDrivers();
+      await loadAllDataFromDB(true); renderDrivers();
     } else showToast(res?.message || "Action failed", "error");
   })();
 };
@@ -1405,7 +2754,7 @@ window.deleteDriver = async function (id) {
       if (res && res.success) {
         showToast("Driver " + d.fullName + " and vehicle deleted", "success");
         closeModal("driverModal");
-        await loadAllDataFromDB(); renderDrivers(); renderVehicles();
+        await loadAllDataFromDB(true); renderDrivers(); renderVehicles();
       } else showToast(res?.message || "Failed to delete driver", "error");
     } catch (err) { showToast("Error deleting driver", "error"); }
   };
@@ -1451,7 +2800,7 @@ function initDriverForm() {
       closeModal("driverModal"); form.reset();
       $("editDriverId").value = "";
       setText("driverModalTitle", "Add Driver");
-      await loadAllDataFromDB(); renderDrivers();
+      await loadAllDataFromDB(true); renderDrivers();
     } else showToast(res.message || "Save failed", "error");
   });
 }
@@ -1493,7 +2842,7 @@ function renderVehicles() {
 }
 window.renderVehicles = renderVehicles;
 window.syncVehiclesFromDrivers = async () => {
-  await loadAllDataFromDB(); renderVehicles();
+  await loadAllDataFromDB(true); renderVehicles();
   showToast("Vehicles refreshed", "success");
 };
 
@@ -1519,8 +2868,17 @@ function renderWalletLoads() {
     (t.recordedBy || "").toLowerCase().includes(search));
   const tb = $("walletTable");
   if (!tb) return;
-  if (!data.length) {
-    tb.innerHTML = '<tr><td colspan="7"><div class="empty-state py-4"><i class="fas fa-wallet"></i><h3>No load transactions</h3></div></td></tr>';
+    if (!data.length) {
+    tb.innerHTML = `
+      <tr>
+        <td colspan="9">
+          <div class="empty-state">
+            <div class="empty-state-icon"><i class="fas fa-receipt"></i></div>
+            <h3>No Transactions Found</h3>
+            <p>There are no fee collections or wallet loads recorded for this period.</p>
+          </div>
+        </td>
+      </tr>`;
     return;
   }
   tb.innerHTML = data.slice().reverse().slice(0, 200).map(t => '<tr>' +
@@ -1535,11 +2893,12 @@ function renderWalletLoads() {
 }
 window.renderWalletLoads = renderWalletLoads;
 
-function renderTransactions() {
+window.renderTransactions = function () {
   const search = ($("transSearch")?.value || "").toLowerCase();
   const dateF = $("transDate")?.value || "";
   const typeF = $("transType")?.value || "";
-  let data = transactions;
+  
+   let data = transactions.filter(t => t.type === 'FEE' || t.type === 'LOAD');
 
   if (search) data = data.filter(t =>
     (t.driverName || "").toLowerCase().includes(search) ||
@@ -1547,14 +2906,16 @@ function renderTransactions() {
     (t.stationName || "").toLowerCase().includes(search) ||
     (t.staffName || "").toLowerCase().includes(search) ||
     (t.plateNumber || "").toLowerCase().includes(search));
+    
   if (dateF) data = data.filter(t => t.date === dateF);
   if (typeF) data = data.filter(t => t.type === typeF);
 
   window.__currentTransactionList = data;
   const tb = $("transTable");
   if (!tb) return;
+  
   if (!data.length) {
-    tb.innerHTML = '<tr><td colspan="9"><div class="empty-state py-4"><i class="fas fa-receipt"></i><h3>No transactions</h3></div></td></tr>';
+    tb.innerHTML = '<tr><td colspan="9"><div class="empty-state py-4"><i class="fas fa-receipt"></i><h3>No financial transactions</h3></div></td></tr>';
     return;
   }
 
@@ -1562,12 +2923,12 @@ function renderTransactions() {
     const printAction = t.type === "LOAD"
       ? `printLoadRecord('${escapeHtml(String(t.reference || t.id))}')`
       : `printReceiptById('${escapeHtml(String(t.id))}')`;
-
     const printTitle = t.type === "LOAD" ? "Print Load Record" : "Print Terminal Fee Receipt";
+    
     const amountSign = t.type === "LOAD" ? "+" : "−";
     const amountCls = t.type === "LOAD" ? "text-green" : "text-primary";
 
-    const stationInfo = t.type === "FEE" && t.stationName
+    const stationInfo = t.stationName
       ? `<div class="text-[10px] text-gray-400 mt-0.5"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(t.stationName)}</div>`
       : '';
 
@@ -1577,19 +2938,55 @@ function renderTransactions() {
       '<td class="py-2 text-sm">' + escapeHtml(t.vehicleType) +
         (t.plateNumber && t.plateNumber !== "Not recorded" ? '<br><span class="text-[10px] text-gray-400 font-mono">' + escapeHtml(t.plateNumber) + '</span>' : '') + '</td>' +
       '<td class="py-2">' + typeBadge(t.type) + '</td>' +
-      '<td class="py-2 font-bold ' + amountCls + '">' + amountSign + '₱' + t.amount.toFixed(2) + '</td>' +
+      '<td class="py-2"><span class="' + amountCls + ' font-bold">' + amountSign + '₱' + t.amount.toFixed(2) + '</span></td>' +
       '<td class="py-2 text-sm">' + (t.balance != null ? "₱" + t.balance.toFixed(2) : "—") + '</td>' +
       '<td class="py-2 text-sm">' + escapeHtml(t.recordedBy || "System") + '</td>' +
       '<td class="py-2">' + statusBadge(t.status) + '</td>' +
-      '<td class="py-2">' +
-        '<button type="button" class="btn-primary btn-sm" onclick="' + printAction + '" title="' + printTitle + '">' +
-          '<i class="fas fa-print"></i>' +
-        '</button>' +
-      '</td>' +
+      '<td class="py-2"><button type="button" class="btn-primary btn-sm" onclick="' + printAction + '" title="' + printTitle + '"><i class="fas fa-print"></i></button></td>' +
       '</tr>';
   }).join("");
 }
 window.renderTransactions = renderTransactions;
+
+window.renderVerifications = function () {
+  const search = ($("verifySearch")?.value || "").toLowerCase();
+  const dateF = $("verifyDate")?.value || "";
+  
+   let data = transactions.filter(t => t.type === 'VERIFY');
+
+  if (search) data = data.filter(t =>
+    (t.driverName || "").toLowerCase().includes(search) ||
+    (t.plateNumber || "").toLowerCase().includes(search) ||
+    (t.stationName || "").toLowerCase().includes(search) ||
+    (t.recordedBy || "").toLowerCase().includes(search));
+    
+  if (dateF) data = data.filter(t => t.date === dateF);
+
+  const tb = $("verifyTable");
+  if (!tb) return;
+  
+  if (!data.length) {
+    tb.innerHTML = '<tr><td colspan="7"><div class="empty-state py-4"><i class="fas fa-check-double"></i><h3>No verification logs</h3></div></td></tr>';
+    return;
+  }
+
+  tb.innerHTML = data.slice().reverse().slice(0, 500).map(t => {
+    const isExit = t.movementType === 'EXIT';
+    const badgeStyle = isExit ? 'background:#FCE7F3; color:#BE185D;' : 'background:#E0F2FE; color:#0369A1;';
+    const badgeText = isExit ? 'VERIFY (EXIT)' : 'VERIFY (ENTRY)';
+
+    return '<tr>' +
+      '<td class="py-2 text-sm">' + escapeHtml(t.date) + ' <span class="text-gray-400 text-xs ml-1">' + escapeHtml(t.time) + '</span></td>' +
+      '<td class="py-2">' + escapeHtml(t.driverName) + '</td>' +
+      '<td class="py-2 text-sm">' + escapeHtml(t.vehicleType) +
+        (t.plateNumber && t.plateNumber !== "Not recorded" ? '<br><span class="text-[10px] text-gray-400 font-mono">' + escapeHtml(t.plateNumber) + '</span>' : '') + '</td>' +
+      '<td class="py-2"><span class="type-badge" style="' + badgeStyle + ' font-weight:800; font-size:0.62rem; padding:0.2rem 0.55rem; border-radius:999px;">' + badgeText + '</span></td>' +
+      '<td class="py-2 text-sm"><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>' + escapeHtml(t.stationName || "—") + '</td>' +
+      '<td class="py-2 text-sm">' + escapeHtml(t.recordedBy || "System") + '</td>' +
+     '<td class="py-2"><button type="button" class="btn-primary btn-sm" onclick="printVerificationLog(\'' + escapeHtml(String(t.id)) + '\')" title="Print Verify Log"><i class="fas fa-print"></i></button></td>' +
+      '</tr>';
+  }).join("");
+}
 
 window.exportTransactionsExcel = function () {
   if (!transactions.length) { showToast("Nothing to export", "warning"); return; }
@@ -1639,14 +3036,25 @@ window.generateTransactionReport = function () {
   const from = $("rptTransFrom")?.value || "";
   const to = $("rptTransTo")?.value || "";
   const type = $("rptTransType")?.value || "";
+  const driverQ = ($("rptTransDriver")?.value || "").toLowerCase().trim();
+  const plateQ = ($("rptTransPlate")?.value || "").toLowerCase().trim();
+  const stationQ = ($("rptTransStation")?.value || "").toLowerCase().trim();
+  const statusQ = ($("rptTransStatus")?.value || "").toUpperCase().trim();
+  
   const container = $("rptTransData");
   if (!container) return;
   let data = transactions;
+  
   if (from) data = data.filter(t => t.date >= from);
   if (to) data = data.filter(t => t.date <= to);
   if (type) data = data.filter(t => t.type === type);
+  if (driverQ) data = data.filter(t => (t.driverName || "").toLowerCase().includes(driverQ) || (t.driverId || "").toLowerCase().includes(driverQ));
+  if (plateQ) data = data.filter(t => (t.plateNumber || "").toLowerCase().includes(plateQ));
+  if (stationQ) data = data.filter(t => (t.stationName || "").toLowerCase().includes(stationQ) || (t.stationCode || "").toLowerCase().includes(stationQ));
+  if (statusQ) data = data.filter(t => (t.status || "").toUpperCase() === statusQ);
+
   if (!data.length) {
-    container.innerHTML = '<p class="text-gray-400 text-center py-8">No transactions in this range.</p>';
+    container.innerHTML = '<p class="text-gray-400 text-center py-8">No transactions match your filters.</p>';
     return;
   }
   const total = data.reduce((s, t) => s + t.amount, 0);
@@ -1687,52 +3095,88 @@ function renderTerminalReport() {
 }
 window.renderTerminalReport = renderTerminalReport;
 
-window.generateReport = function (type) {
+function getSafeDateKey(dateStr) {
+  if (!dateStr) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, '0'),
+      String(d.getDate()).padStart(2, '0')
+    ].join('-');
+  }
+  return String(dateStr).slice(0, 10);
+}
+
+window.generateReport = async function (type) {
   window.currentSummaryType = type;
   const container = $("reportData");
   if (!container) return;
+
+  if (!transactions || transactions.length === 0) {
+    container.innerHTML = '<p class="text-gray-500 text-center py-8"><i class="fas fa-spinner fa-spin"></i> Fetching transaction records...</p>';
+    await loadAllDataFromDB(true);
+  }
+
   const now = new Date();
   const todayStr = now.toLocaleDateString("en-CA");
   const monthStr = todayStr.slice(0, 7);
   const yearStr = todayStr.slice(0, 4);
+  
   let filtered = [], label = "";
+  
   if (type === "daily") {
-    filtered = transactions.filter(t => t.date === todayStr && t.type === "FEE");
+    filtered = transactions.filter(t => getSafeDateKey(t.date) === todayStr && t.type === "FEE");
     label = "Daily · " + todayStr;
   } else if (type === "weekly") {
     const s = new Date(now); s.setDate(now.getDate() - now.getDay());
     const e = new Date(s); e.setDate(s.getDate() + 6);
     const ss = s.toLocaleDateString("en-CA"), ee = e.toLocaleDateString("en-CA");
-    filtered = transactions.filter(t => t.type === "FEE" && t.date >= ss && t.date <= ee);
+    filtered = transactions.filter(t => {
+      const dk = getSafeDateKey(t.date);
+      return t.type === "FEE" && dk >= ss && dk <= ee;
+    });
     label = "Weekly · " + ss + " to " + ee;
   } else if (type === "monthly") {
-    filtered = transactions.filter(t => t.type === "FEE" && (t.date || "").startsWith(monthStr));
+    filtered = transactions.filter(t => t.type === "FEE" && getSafeDateKey(t.date).startsWith(monthStr));
     label = "Monthly · " + now.toLocaleString("default", { month: "long", year: "numeric" });
   } else if (type === "yearly") {
-    filtered = transactions.filter(t => t.type === "FEE" && (t.date || "").startsWith(yearStr));
+    filtered = transactions.filter(t => t.type === "FEE" && getSafeDateKey(t.date).startsWith(yearStr));
     label = "Yearly · " + yearStr;
   }
+
   if (!filtered.length) {
-    container.innerHTML = '<p class="text-gray-500 text-center py-8">No fee collections for this period</p>';
-    showToast("No data", "warning");
+    container.innerHTML = `
+      <div class="text-center py-10">
+        <div class="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
+          <i class="fas fa-folder-open text-2xl text-gray-300"></i>
+        </div>
+        <h4 class="text-gray-700 font-bold mb-1">No fee collections for this period</h4>
+        <p class="text-xs text-gray-400">There are no successful FEE transactions recorded for <strong>${label}</strong>.</p>
+      </div>`;
+    showToast("No data for this period", "warning");
     return;
   }
-  const total = filtered.reduce((s, t) => s + t.amount, 0);
+
+  const total = filtered.reduce((s, t) => s + Number(t.amount || 0), 0);
+  window.currentReportData = { list: filtered.slice().reverse(), label, total };
+  
   container.innerHTML = '<div class="flex justify-between items-center mb-3">' +
-    '<span class="font-semibold">' + label + '</span>' +
+    '<span class="font-semibold">' + filtered.length + ' transactions · Total ₱' + total.toFixed(2) + '</span>' +
     '<button type="button" class="btn-outline btn-sm" onclick="printSummaryReport(\'' + type + '\')">' +
       '<i class="fas fa-print"></i> Print</button></div>' +
-    '<p class="text-sm mb-3">' + filtered.length + ' transactions · Total ₱' + total.toFixed(2) + '</p>' +
     '<table class="w-full text-sm"><thead><tr class="border-b">' +
     '<th class="py-2 text-left">Reference</th><th class="py-2 text-left">Driver</th>' +
     '<th class="py-2 text-left">Amount</th><th class="py-2 text-left">Date</th></tr></thead><tbody>' +
     filtered.slice().reverse().map(t => '<tr>' +
-      '<td class="py-2">' + escapeHtml(t.reference) + '</td>' +
+      '<td class="py-2 font-mono text-xs">' + escapeHtml(t.reference || t.id) + '</td>' +
       '<td class="py-2">' + escapeHtml(t.driverName) + '</td>' +
-      '<td class="py-2">₱' + t.amount.toFixed(2) + '</td>' +
-      '<td class="py-2">' + escapeHtml(t.date) + '</td>' +
+      '<td class="py-2 font-bold text-primary">₱' + t.amount.toFixed(2) + '</td>' +
+      '<td class="py-2 text-gray-500">' + getSafeDateKey(t.date) + '</td>' +
     '</tr>').join("") + '</tbody></table>';
-  showToast("Report generated", "success");
+    
+  showToast("Report generated successfully", "success");
 };
 
 async function loadAttendance() {
@@ -1806,20 +3250,32 @@ function loadFees() {
 window.loadFees = loadFees;
 
 window.saveFees = async function () {
+  const feeTricycle = parseFloat($("feeTricycle").value) || 0;
+  const feeJeepney = parseFloat($("feeJeepney").value) || 0;
+  const feeMulticab = parseFloat($("feeMulticab").value) || 0;
+  const feeBus = parseFloat($("feeBus").value) || 0;
+
+   if (feeTricycle <= 0 || feeJeepney <= 0 || feeMulticab <= 0 || feeBus <= 0) {
+    showToast("Fee amounts must be greater than ₱0.00", "error");
+    return;
+  }
+
   const next = {
-    Tricycle: parseFloat($("feeTricycle").value) || 5,
-    Jeepney: parseFloat($("feeJeepney").value) || 60,
-    Multicab: parseFloat($("feeMulticab").value) || 60,
-    Bus: parseFloat($("feeBus").value) || 100,
+    Tricycle: feeTricycle,
+    Jeepney: feeJeepney,
+    Multicab: feeMulticab,
+    Bus: feeBus,
   };
+
   const res = await window.api("fees.php", { method: "POST", body: next });
   if (res.success) {
     fees = res.data.fees || next;
-    showToast("Fee rates saved", "success");
+    showToast("Fee rates saved successfully", "success");
     if (typeof loadFeeHistory === "function") loadFeeHistory();
-  } else showToast(res.message || "Save failed", "error");
+  } else {
+    showToast(res.message || "Save failed", "error");
+  }
 };
-
 async function loadFeeHistory() {
   const tb = $("feeHistoryTable");
   if (!tb) return;
@@ -1879,27 +3335,73 @@ window.openLowBalanceModal = function () {
 window.globalSearch = function () {
   const q = ($("globalSearch")?.value || "").trim();
   if (!q) { showToast("Enter a search term", "warning"); return; }
-  const found = drivers.filter(d =>
-    (d.fullName || "").toLowerCase().includes(q.toLowerCase()) ||
-    (d.driverId || "").toLowerCase().includes(q.toLowerCase()) ||
-    (d.plateNumber || "").toLowerCase().includes(q.toLowerCase()));
-  if (found.length) {
-    navigateTo("drivers");
-    if ($("driverSearch")) $("driverSearch").value = q;
-    renderDrivers();
-    showToast("Found " + found.length + " driver(s)", "success");
-  } else showToast("No results found", "warning");
+
+   const searchBtn = document.querySelector(".unified-search button");
+  const origHtml = searchBtn ? searchBtn.innerHTML : "";
+  if (searchBtn) {
+    searchBtn.disabled = true;
+    searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
+  }
+
+   setTimeout(() => {
+    const found = drivers.filter(d =>
+      (d.fullName || "").toLowerCase().includes(q.toLowerCase()) ||
+      (d.driverId || "").toLowerCase().includes(q.toLowerCase()) ||
+      (d.plateNumber || "").toLowerCase().includes(q.toLowerCase()));
+      
+    if (found.length) {
+      navigateTo("drivers");
+      if ($("driverSearch")) $("driverSearch").value = q;
+      renderDrivers();
+      showToast("Found " + found.length + " driver(s)", "success");
+    } else {
+      showToast("No drivers found matching: " + q, "warning");
+    }
+
+     if (searchBtn) {
+      searchBtn.disabled = false;
+      searchBtn.innerHTML = origHtml;
+    }
+  }, 300); 
 };
 
 window.logout = function () {
+  const doLogout = () => {
+    try {
+      if (typeof window.logoutAndRedirect === "function") {
+        window.logoutAndRedirect();
+        return;
+      }
+    } catch (e) {
+      console.warn("logoutAndRedirect failed:", e);
+    }
+
+    try {
+      sessionStorage.clear();
+      localStorage.removeItem("user");
+      localStorage.removeItem("auth_user");
+      localStorage.removeItem("bctt_user");
+      localStorage.removeItem("admin_active_page");
+      localStorage.removeItem("CURRENT_USER");
+    } catch (e) {}
+
+    fetch("api/logout.php", { method: "POST", credentials: "include" })
+      .catch(() => {})
+      .finally(() => {
+        window.location.replace("login.html");
+      });
+  };
+
   if (window.ConfirmModal) {
     window.ConfirmModal.show({
-      title: "Logout?", message: "Log out of the admin panel?",
+      title: "Logout?",
+      message: "Log out of the admin panel?",
       confirmText: "Yes, logout",
-      onConfirm: () => window.logoutAndRedirect(),
+      cancelText: "Cancel",
+      onConfirm: doLogout,
     });
-  } else if (confirm("Log out?")) {
-    window.logoutAndRedirect();
+  } else if (confirm("Log out of the admin panel?")) {
+    doLogout();
   }
 };
 
@@ -1938,12 +3440,7 @@ window.updateAdmin = async function () {
     const res = await window.api("users.php", {
       method: "PATCH",
       query: { me: 1 },
-      body: {
-        fullName,
-        email,
-        currentPassword,
-        newPassword: p,
-      },
+      body: { fullName, email, currentPassword, newPassword: p },
     });
 
     if (!res.success) {
@@ -2154,6 +3651,8 @@ async function loadTerminalsData(forceRefresh = false) {
   renderMiniMapTerminals();
   renderTerminalsList();
   updateGisStats();
+  renderDashboardAlerts();
+  renderSystemInsights();
   if (forceRefresh) showToast("GIS Terminals updated", "success");
 }
 window.loadTerminalsData = loadTerminalsData;
@@ -2408,7 +3907,14 @@ window.openAddTerminalModal = openAddTerminalModal;
 
 async function editSelectedTerminal() {
   if (!selectedTerminal) return;
+  
+   if (selectedTerminal.code.toUpperCase() === 'BCTT' || selectedTerminal.name.toUpperCase().includes('MAIN OFFICE')) {
+      showToast("The BCTT Main Office is a protected system station and cannot be edited or deleted.", "warning");
+      return; 
+  }
+  
   await loadStaffPickerData();
+  
   $("terminalModalTitle").textContent = "Edit Terminal Station";
   $("termId").value = selectedTerminal.id;
   $("termName").value = selectedTerminal.name;
@@ -2419,8 +3925,11 @@ async function editSelectedTerminal() {
   $("termHours").value = selectedTerminal.operating_hours || "5:00 AM - 8:00 PM";
   $("termCapacity").value = selectedTerminal.capacity || 50;
   $("termStatus").value = selectedTerminal.status || "Active";
+  
   setStaffPickerValue(selectedTerminal.assigned_staff_name || '', selectedTerminal.assigned_staff_role || '');
+  $("termStaffUserId").value = selectedTerminal.assigned_staff_id || '';
   $("termRoutes").value = selectedTerminal.routes_covered || "";
+  
   openModal("terminalModal");
 }
 window.editSelectedTerminal = editSelectedTerminal;
@@ -2439,6 +3948,7 @@ async function saveTerminalForm(e) {
     status: $("termStatus").value,
     assigned_staff_name: $("termStaffName").value.trim(),
     assigned_staff_role: $("termStaffRole").value.trim(),
+    assigned_staff_id: $("termStaffUserId").value.trim(),
     routes_covered: $("termRoutes").value.trim()
   };
   try {
@@ -3291,11 +4801,6 @@ window.authReady.then(async (me) => {
   initNotificationBell();
   initUserChip();
 
-  const earlyPage = (location.hash || "").replace("#", "").trim() || sessionStorage.getItem("admin_active_page");
-  if (earlyPage && earlyPage !== "dashboard" && $("page-" + earlyPage)) {
-    navigateTo(earlyPage);
-  }
-
   document.querySelectorAll(".modal-overlay").forEach(m => {
     m.addEventListener("click", e => { if (e.target === m) m.classList.remove("active"); });
   });
@@ -3312,7 +4817,9 @@ window.authReady.then(async (me) => {
   $("walletSearch")?.addEventListener("input", renderWalletLoads);
   $("transSearch")?.addEventListener("input", renderTransactions);
   $("transDate")?.addEventListener("change", renderTransactions);
-  $("transType")?.addEventListener("change", renderTransactions);
+   $("transType")?.addEventListener("change", renderTransactions);
+  $("verifySearch")?.addEventListener("input", renderVerifications);    
+  $("verifyDate")?.addEventListener("change", renderVerifications);    
   $("auditSearch")?.addEventListener("input", renderAuditLogs);
   $("auditDate")?.addEventListener("change", renderAuditLogs);
   $("attendanceDate")?.addEventListener("change", loadAttendance);
@@ -3341,8 +4848,31 @@ window.authReady.then(async (me) => {
   if ($("adminName")) $("adminName").value = me.fullName || me.username;
   if ($("profileLastLogin")) $("profileLastLogin").textContent = new Date().toLocaleString("en-PH");
 
-  await loadAllDataFromDB();
-  await __loadUserStationMap();
+  const finalTarget = (location.hash || "").replace("#", "").trim() || sessionStorage.getItem("admin_active_page") || "dashboard";
+  if (finalTarget && $("page-" + finalTarget)) {
+    navigateTo(finalTarget);
+  } else {
+    navigateTo("dashboard");
+  }
+
+  initChart();
+  loadFees();
+  refreshCurrentPage(finalTarget || "dashboard");
+
+  loadAllDataFromDB().then(() => {
+    refreshCurrentPage(finalTarget || "dashboard");
+    loadTerminalsData();
+    loadActivityFeed();
+    refreshLiveStatus();
+    refreshStationActivity();
+    refreshRecentMovements();
+    refreshCashierActivity();
+  });
+
+  loadActivityFeed();
+  __refreshInquiries();
+  startLiveMonitoring();
+  setTimeout(checkEndOfDaySummary, 2000);
 
   const profile = await window.api("users.php", { query: { me: 1 } });
   if (profile.success && profile.data && profile.data.user) {
@@ -3352,22 +4882,262 @@ window.authReady.then(async (me) => {
     setText("sidebarUser", profile.data.user.fullName || profile.data.user.username || "Admin");
     const chip = $("userNameChip"); if (chip) chip.textContent = profile.data.user.fullName || profile.data.user.username || "Admin";
     const av = $("userAvatarChip"); if (av) av.textContent = (profile.data.user.fullName || "A").charAt(0).toUpperCase();
-  } else {
-    showToast(profile.message || "Profile could not be loaded", "error");
   }
 
-  initChart();
-  loadFees();
-  loadTerminalsData();
-
-  const finalTarget = (location.hash || "").replace("#", "").trim() || sessionStorage.getItem("admin_active_page") || "dashboard";
-  if (finalTarget && $("page-" + finalTarget)) {
-    navigateTo(finalTarget);
-    refreshCurrentPage(finalTarget);
-  } else {
-    navigateTo("dashboard");
-    updateDashboard();
-  }
-
-  __refreshInquiries();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      refreshLiveStatus();
+      refreshStationActivity();
+      refreshRecentMovements();
+      refreshCashierActivity();
+      startLiveMonitoring();
+    } else {
+      stopLiveMonitoring();
+    }
+  });
 });
+
+
+window.generateAttendanceReport = async function() {
+  const from = $('attReportFrom')?.value;
+  const to = $('attReportTo')?.value;
+  const table = $('attendanceReportTable');
+  if (!table) return;
+
+  if (!from || !to) {
+      showToast('Please select both From and To dates.', 'warning');
+      return;
+  }
+
+  table.innerHTML = '<tr><td colspan="6"><div class="empty-inline"><i class="fas fa-spinner fa-spin"></i> Loading records...</div></td></tr>';
+
+  try {
+      const res = await window.api('attendance.php', { query: { action: 'list', from, to } });
+      if (!res.success) throw new Error(res.message || 'Failed to load data');
+
+      let records = res.data.records || [];
+      
+      records = records.filter(r => {
+          const dateStr = r.date || (r.timeIn ? r.timeIn.slice(0, 10) : '');
+          return dateStr >= from && dateStr <= to;
+      });
+
+      if (!records.length) {
+          table.innerHTML = '<tr><td colspan="6"><div class="empty-state py-6"><i class="fas fa-user-clock"></i><h3>No records found</h3><p class="text-sm">No attendance data for the selected period.</p></div></td></tr>';
+          $('attReportSummary').style.display = 'none';
+          return;
+      }
+
+      records.sort((a, b) => {
+          const d1 = a.date || a.timeIn || '';
+          const d2 = b.date || b.timeIn || '';
+          return d2.localeCompare(d1);
+      });
+
+      let presentCount = 0, lateCount = 0;
+
+      table.innerHTML = records.map(r => {
+          const statusStr = String(r.status || 'UNKNOWN').toUpperCase();
+          if (statusStr.includes('ON TIME') || statusStr.includes('PRESENT')) presentCount++;
+          else if (statusStr.includes('LATE')) lateCount++;
+
+          const badgeCls = statusStr.includes('ON TIME') ? 'successful' : statusStr.includes('LATE') ? 'pending' : 'failed';
+          const dateStr = r.date || (r.timeIn ? r.timeIn.slice(0, 10) : '—');
+
+          return `<tr>
+            <td class="text-sm">${escapeHtml(dateStr)}</td>
+            <td class="font-medium">${escapeHtml(r.name || '—')}</td>
+            <td class="text-sm">${escapeHtml(r.role || '—')}</td>
+            <td>${escapeHtml(r.timeIn || '—')}</td>
+            <td>${escapeHtml(r.timeOut || '—')}</td>
+            <td><span class="status-badge ${badgeCls}">${escapeHtml(statusStr)}</span></td>
+          </tr>`;
+      }).join('');
+
+      const summaryEl = $('attReportSummary');
+      summaryEl.style.display = 'grid';
+      summaryEl.innerHTML = `
+          <div class="kpi-tile">
+              <div class="kpi-body"><div class="kpi-label">Total Records</div><div class="kpi-value">${records.length}</div></div>
+              <div class="kpi-icon kpi-icon-blue"><i class="fas fa-list"></i></div>
+          </div>
+          <div class="kpi-tile">
+              <div class="kpi-body"><div class="kpi-label">On Time</div><div class="kpi-value text-green">${presentCount}</div></div>
+              <div class="kpi-icon kpi-icon-green"><i class="fas fa-check"></i></div>
+          </div>
+          <div class="kpi-tile">
+              <div class="kpi-body"><div class="kpi-label">Late</div><div class="kpi-value text-yellow">${lateCount}</div></div>
+              <div class="kpi-icon kpi-icon-yellow"><i class="fas fa-clock"></i></div>
+          </div>
+      `;
+
+      window.__currentAttendanceData = { list: records, from, to };
+      showToast('Attendance report generated.', 'success');
+
+  } catch (err) {
+      console.error(err);
+      table.innerHTML = `<tr><td colspan="6"><div class="empty-inline text-red">${escapeHtml(err.message)}</div></td></tr>`;
+  }
+};
+
+window.printAttendanceReport = function() {
+  if (!window.__currentAttendanceData) {
+      showToast('Generate a report first.', 'warning');
+      return;
+  }
+  const { list, from, to } = window.__currentAttendanceData;
+  
+  const rows = list.map(r => `
+    <tr>
+      <td>${escapeHtml(r.date || '—')}</td>
+      <td>${escapeHtml(r.name || '—')}</td>
+      <td>${escapeHtml(r.role || '—')}</td>
+      <td>${escapeHtml(r.timeIn || '—')}</td>
+      <td>${escapeHtml(r.timeOut || '—')}</td>
+      <td>${escapeHtml(String(r.status || '—').toUpperCase())}</td>
+    </tr>
+  `).join('');
+
+  const html = `
+    <div class="header"><h1>BORONGAN TRANSPORT</h1><p>Borongan City Transport Terminal</p><p>ATTENDANCE REPORT</p></div>
+    <div class="meta">
+      <span><strong>Period:</strong> ${escapeHtml(from)} to ${escapeHtml(to)}</span>
+      <span><strong>Generated:</strong> ${new Date().toLocaleString("en-PH")}</span>
+    </div>
+    <div class="meta">
+      <span><strong>Total Records:</strong> ${list.length}</span>
+    </div>
+    <table>
+      <thead><tr><th>Date</th><th>Employee</th><th>Role</th><th>Time In</th><th>Time Out</th><th>Status</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" style="text-align:center;">No records</td></tr>'}</tbody>
+    </table>
+    <div class="signature"><div>Prepared by</div><div>Approved by</div></div>
+    <div class="footer">This report was generated from saved attendance records.</div>
+  `;
+  __adminPrint(html, `Attendance Report — ${from} to ${to}`);
+};
+
+   const scrollTopBtn = document.getElementById('scrollToTopBtn');
+  const mainContent = document.querySelector('.main-content');
+  
+  if (mainContent && scrollTopBtn) {
+    mainContent.addEventListener('scroll', () => {
+      if (mainContent.scrollTop > 300) {
+        scrollTopBtn.classList.add('show');
+      } else {
+        scrollTopBtn.classList.remove('show');
+      }
+    });
+
+    scrollTopBtn.addEventListener('click', () => {
+      mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  window.printVerificationLog = function (id) {
+  const t = transactions.find(x => String(x.id) === String(id));
+  if (!t) { showToast("Verification log not found", "error"); return; }
+  
+  const isExit = t.movementType === 'EXIT';
+  const logType = isExit ? "VEHICLE EXIT VERIFICATION" : "VEHICLE ENTRY VERIFICATION";
+  
+  const html = `
+    <div class="header">
+      <h1>BORONGAN TRANSPORT</h1>
+      <p>Borongan City Transport Terminal</p>
+      <p>${logType}</p>
+    </div>
+    <div class="receipt">
+      <div class="row"><span>Reference No.</span><strong>${escapeHtml(t.reference || "—")}</strong></div>
+      <div class="row"><span>Date / Time</span><strong>${escapeHtml((t.date || "") + " " + (t.time || ""))}</strong></div>
+      <div class="row"><span>Driver Name</span><strong>${escapeHtml(t.driverName || "—")}</strong></div>
+      <div class="row"><span>Driver ID</span><strong>${escapeHtml(t.driverId || "—")}</strong></div>
+      <div class="row"><span>Vehicle Type</span><strong>${escapeHtml(t.vehicleType || "—")}</strong></div>
+      <div class="row"><span>Plate Number</span><strong>${escapeHtml(t.plateNumber || "—")}</strong></div>
+      <div class="row"><span>Station</span><strong>${escapeHtml(t.stationName || "—")}</strong></div>
+      
+      <div class="total" style="justify-content:center; margin-top:20px;">
+        <span style="font-size:14pt;">${isExit ? 'EXIT AUTHORIZED' : 'ENTRY LOGGED'}</span>
+      </div>
+      
+      <div class="row"><span>Processed By</span><strong>${escapeHtml(t.recordedBy || "System")}</strong></div>
+      <div class="status">VERIFIED</div>
+      
+      <div class="footer">
+        This is a system-generated verification log.<br>
+        Gate pass is valid for the current shift only.<br>
+        Printed: ${new Date().toLocaleString("en-PH")}
+      </div>
+    </div>`;
+    
+  __adminPrint(html, `Verification Log — ${t.reference}`);
+};
+
+ window.printVerificationReport = function () {
+   const table = document.getElementById("verifyTable");
+  if (!table) return;
+  
+  const rows = Array.from(table.querySelectorAll("tr")).map(tr => {
+    const tds = tr.querySelectorAll("td");
+    if (tds.length < 6) return "";
+    return `
+      <tr>
+        <td>${escapeHtml(tds[0].textContent.trim())}</td>
+        <td>${escapeHtml(tds[1].textContent.trim())}</td>
+        <td>${escapeHtml(tds[2].textContent.trim())}</td>
+        <td>${escapeHtml(tds[3].textContent.trim())}</td>
+        <td>${escapeHtml(tds[4].textContent.trim())}</td>
+        <td>${escapeHtml(tds[5].textContent.trim())}</td>
+      </tr>`;
+  }).filter(r => r).join("");
+
+  const html = `
+    <div class="header"><h1>BORONGAN TRANSPORT</h1><p>Borongan City Transport Terminal</p><p>VEHICLE VERIFICATION & EXIT LOGS</p></div>
+    <div class="meta"><span><strong>Generated:</strong> ${new Date().toLocaleString("en-PH")}</span></div>
+    <table>
+      <thead><tr><th>Date & Time</th><th>Driver</th><th>Vehicle</th><th>Movement</th><th>Station</th><th>Processed By</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" style="text-align:center;">No records found</td></tr>'}</tbody>
+    </table>
+    <div class="signature"><div>Prepared by</div><div>Approved by</div></div>
+  `;
+  __adminPrint(html, "Verification Logs");
+};
+
+ window.printVerificationLog = function (id) {
+  const t = transactions.find(x => String(x.id) === String(id));
+  if (!t) { showToast("Verification log not found", "error"); return; }
+  
+  const isExit = t.movementType === 'EXIT';
+  const logType = isExit ? "VEHICLE EXIT VERIFICATION" : "VEHICLE ENTRY VERIFICATION";
+  
+  const html = `
+    <div class="header">
+      <h1>BORONGAN TRANSPORT</h1>
+      <p>Borongan City Transport Terminal</p>
+      <p>${logType}</p>
+    </div>
+    <div class="receipt">
+      <div class="row"><span>Reference No.</span><strong>${escapeHtml(t.reference || "—")}</strong></div>
+      <div class="row"><span>Date / Time</span><strong>${escapeHtml((t.date || "") + " " + (t.time || ""))}</strong></div>
+      <div class="row"><span>Driver Name</span><strong>${escapeHtml(t.driverName || "—")}</strong></div>
+      <div class="row"><span>Driver ID</span><strong>${escapeHtml(t.driverId || "—")}</strong></div>
+      <div class="row"><span>Vehicle Type</span><strong>${escapeHtml(t.vehicleType || "—")}</strong></div>
+      <div class="row"><span>Plate Number</span><strong>${escapeHtml(t.plateNumber || "—")}</strong></div>
+      <div class="row"><span>Station</span><strong>${escapeHtml(t.stationName || "—")}</strong></div>
+      
+      <div class="total" style="justify-content:center; margin-top:20px;">
+        <span style="font-size:14pt;">${isExit ? 'EXIT AUTHORIZED' : 'ENTRY LOGGED'}</span>
+      </div>
+      
+      <div class="row"><span>Processed By</span><strong>${escapeHtml(t.recordedBy || "System")}</strong></div>
+      <div class="status">VERIFIED</div>
+      
+      <div class="footer">
+        This is a system-generated verification log.<br>
+        Gate pass is valid for the current shift only.<br>
+        Printed: ${new Date().toLocaleString("en-PH")}
+      </div>
+    </div>`;
+    
+  __adminPrint(html, `Verification Log — ${t.reference}`);
+};

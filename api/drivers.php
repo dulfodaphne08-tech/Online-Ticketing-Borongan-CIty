@@ -22,7 +22,12 @@ if (method() === 'GET' && isset($_GET['me'])) {
     ok(['driver' => $profile]);
 }
 
-$admin = requireRole('admin');
+$actor = requireRole('admin', 'cashier', 'staff');
+$role  = strtolower((string)($actor['role'] ?? ''));
+
+if ($role === 'staff' && method() !== 'GET') {
+    fail('Staff can only view driver records, not modify them.', 403);
+}
 
 if (method() === 'GET') {
     if ($id !== '') {

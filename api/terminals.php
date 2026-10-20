@@ -3,7 +3,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 
- function getDefaultTerminals(): array {
+function getDefaultTerminals(): array {
     return [
         [
             'id' => 'TRM-TS01',
@@ -12,7 +12,7 @@ require_once __DIR__ . '/config.php';
             'latitude' => 11.606148,
             'longitude' => 125.428801,
             'address' => 'Borongan City Transport Terminal - Borongan Public Market',
-            'operating_hours' => '5:00 AM - 8:00 PM',
+            'operating_hours' => '7:00 AM - 5:00 PM',
             'capacity' => 60,
             'status' => 'Active',
             'assigned_staff_name' => 'Staff Roberto Cruz',
@@ -29,7 +29,7 @@ require_once __DIR__ . '/config.php';
             'latitude' => 11.606264,
             'longitude' => 125.427693,
             'address' => 'Borongan City Transport Terminal - Borongan Public Market',
-            'operating_hours' => '5:00 AM - 8:30 PM',
+            'operating_hours' => '7:00 AM - 5:00 PM',
             'capacity' => 80,
             'status' => 'Active',
             'assigned_staff_name' => 'Cashier Juan Reyes',
@@ -46,7 +46,7 @@ require_once __DIR__ . '/config.php';
             'latitude' => 11.627110,
             'longitude' => 125.446210,
             'address' => 'Brgy. Pepelitan, Borongan City Eastern Samar',
-            'operating_hours' => '5:00 AM - 7:00 PM',
+            'operating_hours' => '7:00 AM - 5:00 PM',
             'capacity' => 40,
             'status' => 'Active',
             'assigned_staff_name' => 'Officer Ramon Vega',
@@ -63,7 +63,7 @@ require_once __DIR__ . '/config.php';
             'latitude' => 11.708800,
             'longitude' => 125.470541,
             'address' => 'Brgy. Bugas, Borongan City Eastern Samar',
-            'operating_hours' => '4:00 AM - 9:00 PM',
+            'operating_hours' => '7:00 AM - 5:00 PM',
             'capacity' => 100,
             'status' => 'Active',
             'assigned_staff_name' => 'Officer Carlos Diaz',
@@ -80,7 +80,7 @@ require_once __DIR__ . '/config.php';
             'latitude' => 11.594917,
             'longitude' => 125.440078,
             'address' => 'Brgy. Can-abong, Borongan City Eastern Samar',
-            'operating_hours' => '5:00 AM - 7:00 PM',
+            'operating_hours' => '7:00 AM - 5:00 PM',
             'capacity' => 40,
             'status' => 'Active',
             'assigned_staff_name' => 'Officer Elena Gomez',
@@ -97,7 +97,7 @@ require_once __DIR__ . '/config.php';
             'latitude' => 11.540820,
             'longitude' => 125.459647,
             'address' => 'Brgy. Camada, Borongan City Eastern Samar',
-            'operating_hours' => '4:00 AM - 9:00 PM',
+            'operating_hours' => '7:00 AM - 5:00 PM',
             'capacity' => 100,
             'status' => 'Active',
             'assigned_staff_name' => 'Officer Dante Morales',
@@ -114,7 +114,7 @@ require_once __DIR__ . '/config.php';
             'latitude' => 11.605942,
             'longitude' => 125.428028,
             'address' => 'Borongan City Transport Terminal - Borongan Public Market',
-            'operating_hours' => '4:00 AM - 9:00 PM',
+            'operating_hours' => '7:00 AM - 5:00 PM',
             'capacity' => 150,
             'status' => 'Active',
             'assigned_staff_name' => 'Staff Maria Santos',
@@ -123,6 +123,23 @@ require_once __DIR__ . '/config.php';
             'today_collections' => 2450.00,
             'today_tickets' => 310,
             'active_drivers_count' => 50
+        ],
+         [
+            'id' => 'TRM-BCTT',
+            'code' => 'BCTT',
+            'name' => 'BCTT Main Office',
+            'latitude' => 11.605854,
+            'longitude' => 125.427907,
+            'address' => 'Borongan City Transport Terminal - Main Office',
+            'operating_hours' => '7:00 AM - 5:00 PM',
+            'capacity' => 20,
+            'status' => 'Active',
+            'assigned_staff_name' => 'Unassigned',
+            'assigned_staff_role' => 'Main Office',
+            'routes_covered' => 'Administrative / Cashiering',
+            'today_collections' => 0.00,
+            'today_tickets' => 0,
+            'active_drivers_count' => 0
         ]
     ];
 }
@@ -136,7 +153,7 @@ require_once __DIR__ . '/config.php';
             latitude            numeric(10,6) NOT NULL,
             longitude           numeric(10,6) NOT NULL,
             address             text,
-            operating_hours     text DEFAULT '5:00 AM - 8:00 PM',
+            operating_hours     text DEFAULT '7:00 AM - 5:00 PM',
             capacity            integer DEFAULT 50,
             status              text DEFAULT 'Active',
             assigned_staff_name text,
@@ -176,10 +193,33 @@ require_once __DIR__ . '/config.php';
  function getTerminalsList(PDO $pdo): array {
     ensureTerminalsTable($pdo);
     try {
-        $rows = $pdo->query("SELECT * FROM public.terminals ORDER BY code ASC")->fetchAll();
+         $sql = "
+            SELECT 
+                t.*,
+                CASE 
+                    WHEN latest_ss.staff_id IS NULL THEN 'Unassigned'
+                    ELSE COALESCE(u.full_name, 'Unassigned')
+                END AS dynamic_staff_name,
+                CASE 
+                    WHEN latest_ss.staff_id IS NULL THEN '—'
+                    ELSE COALESCE(u.role, '—')
+                END AS dynamic_staff_role,
+                COALESCE(u.id::text, '') AS dynamic_staff_id
+            FROM public.terminals t
+            LEFT JOIN LATERAL (
+                SELECT ss.staff_id
+                FROM public.staff_stations ss
+                WHERE ss.station_id::text = t.id::text
+                ORDER BY ss.assigned_at DESC
+                LIMIT 1
+            ) latest_ss ON true
+            LEFT JOIN public.users u ON latest_ss.staff_id = u.id::text AND lower(u.status) = 'active'
+            ORDER BY t.code ASC
+        ";
+        
+        $rows = $pdo->query($sql)->fetchAll();
         if ($rows && count($rows) > 0) {
-             $today = todayStart();
-            $terminals = [];
+             $terminals = [];
             foreach ($rows as $r) {
                 $t = [
                     'id' => (string)$r['id'],
@@ -188,11 +228,12 @@ require_once __DIR__ . '/config.php';
                     'latitude' => (float)$r['latitude'],
                     'longitude' => (float)$r['longitude'],
                     'address' => (string)($r['address'] ?? ''),
-                    'operating_hours' => (string)($r['operating_hours'] ?? '5:00 AM - 8:00 PM'),
+                     'operating_hours' => '7:00 AM - 5:00 PM',
                     'capacity' => (int)($r['capacity'] ?? 50),
                     'status' => (string)($r['status'] ?? 'Active'),
-                    'assigned_staff_name' => (string)($r['assigned_staff_name'] ?? 'Unassigned'),
-                    'assigned_staff_role' => (string)($r['assigned_staff_role'] ?? 'Ticketer'),
+                    'assigned_staff_name' => (string)($r['dynamic_staff_name'] ?? 'Unassigned'),
+                    'assigned_staff_role' => (string)($r['dynamic_staff_role'] ?? '—'),
+                    'assigned_staff_id' => (string)($r['dynamic_staff_id'] ?? ''),
                     'routes_covered' => (string)($r['routes_covered'] ?? 'Borongan City Lines'),
                     'geojson_data' => $r['geojson_data'] ? json_decode((string)$r['geojson_data'], true) : null,
                     'today_collections' => 0.00,
@@ -330,7 +371,7 @@ $action = $_GET['action'] ?? '';
             $code = (string)($props['code'] ?? ('QGIS-' . ($index + 1)));
             $name = (string)($props['name'] ?? ('Terminal ' . ($index + 1)));
             $addr = (string)($props['address'] ?? 'Borongan City');
-            $hours = (string)($props['operating_hours'] ?? '5:00 AM - 8:00 PM');
+            $hours = (string)($props['operating_hours'] ?? '7:00 AM - 5:00 PM');
             $cap = (int)($props['capacity'] ?? 50);
             $status = (string)($props['status'] ?? 'Active');
             $staff = (string)($props['assigned_staff'] ?? 'Unassigned');
@@ -365,11 +406,12 @@ $action = $_GET['action'] ?? '';
     $lat = (float)($data['latitude'] ?? 0);
     $lng = (float)($data['longitude'] ?? 0);
     $address = trim((string)($data['address'] ?? ''));
-    $hours = trim((string)($data['operating_hours'] ?? '5:00 AM - 8:00 PM'));
+    $hours = '7:00 AM - 5:00 PM';  
     $capacity = (int)($data['capacity'] ?? 50);
     $status = trim((string)($data['status'] ?? 'Active'));
     $staff = trim((string)($data['assigned_staff_name'] ?? 'Unassigned'));
     $role = trim((string)($data['assigned_staff_role'] ?? 'Ticketer'));
+    $staffId = trim((string)($data['assigned_staff_id'] ?? ''));
     $routes = trim((string)($data['routes_covered'] ?? 'Borongan City Routes'));
 
     if ($name === '') fail('Terminal Name is required.', 422);
@@ -400,6 +442,25 @@ $action = $_GET['action'] ?? '';
             updated_at = now()");
 
     $save->execute([$id, $code, $name, $lat, $lng, $address, $hours, $capacity, $status, $staff, $role, $routes]);
+
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS public.staff_stations (
+            id serial PRIMARY KEY,
+            staff_id text NOT NULL,
+            station_id text NOT NULL,
+            assigned_at timestamptz DEFAULT now(),
+            UNIQUE (staff_id, station_id)
+        )");
+        
+        if ($staffId !== '') {
+            $pdo->prepare("DELETE FROM public.staff_stations WHERE station_id::text = ?")->execute([$id]);
+            $pdo->prepare("INSERT INTO public.staff_stations (staff_id, station_id) VALUES (?, ?) ON CONFLICT DO NOTHING")->execute([$staffId, $id]);
+        } else if ($staff === 'Unassigned' || $staff === '') {
+            $pdo->prepare("DELETE FROM public.staff_stations WHERE station_id::text = ?")->execute([$id]);
+        }
+    } catch (Throwable $e) {
+        error_log('terminals POST sync staff_stations: ' . $e->getMessage());
+    }
 
     auditLog('Saved Terminal', 'TERMINALS', $id, "Saved terminal $name ($code)");
     ok(['terminal_id' => $id, 'terminals' => getTerminalsList($pdo)], 'Terminal saved successfully.');

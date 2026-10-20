@@ -21,7 +21,7 @@ function ensureStaffStationsTable(PDO $pdo): void {
     }
 }
 
- if (method() === 'GET' && $action === 'get-assigned') {
+if (method() === 'GET' && $action === 'get-assigned') {
     $user = requireRole('staff', 'admin');
     ensureStaffStationsTable($pdo);
 
@@ -29,7 +29,7 @@ function ensureStaffStationsTable(PDO $pdo): void {
         $stmt = $pdo->prepare("
             SELECT t.id, t.code, t.name, t.address, t.status,
                    t.latitude, t.longitude, t.operating_hours,
-                   t.routes_covered, t.assigned_staff_name, t.assigned_staff_role
+                   t.routes_covered
             FROM public.staff_stations ss
             INNER JOIN public.terminals t ON t.id = ss.station_id
             WHERE ss.staff_id = ?
@@ -43,7 +43,7 @@ function ensureStaffStationsTable(PDO $pdo): void {
             $fallback = $pdo->query("
                 SELECT id, code, name, address, status,
                        latitude, longitude, operating_hours,
-                       routes_covered, assigned_staff_name, assigned_staff_role
+                       routes_covered
                 FROM public.terminals
                 WHERE lower(status) = 'active'
                 ORDER BY code ASC
@@ -59,7 +59,7 @@ function ensureStaffStationsTable(PDO $pdo): void {
             ]);
         }
 
-         $stats = ['todayTransactions' => 0, 'todayFees' => 0.0];
+        $stats = ['todayTransactions' => 0, 'todayFees' => 0.0];
         try {
             try {
                 $pdo->exec("ALTER TABLE public.wallet_transactions
@@ -84,6 +84,12 @@ function ensureStaffStationsTable(PDO $pdo): void {
             error_log('staff_station today stats: ' . $e->getMessage());
         }
 
+         $roleName = match(normalizeRole((string)$user['role'])) {
+            'admin'   => 'Administrator',
+            'cashier' => 'Cashier',
+            default   => 'Terminal Staff',
+        };
+
         ok([
             'station' => [
                 'id'                => (string)$station['id'],
@@ -93,10 +99,10 @@ function ensureStaffStationsTable(PDO $pdo): void {
                 'status'            => (string)($station['status'] ?? 'Active'),
                 'latitude'          => (float)$station['latitude'],
                 'longitude'         => (float)$station['longitude'],
-                'operatingHours'    => (string)($station['operating_hours'] ?? '5:00 AM - 8:00 PM'),
+                 'operatingHours'    => '7:00 AM - 5:00 PM',
                 'routesCovered'     => (string)($station['routes_covered'] ?? 'Borongan Lines'),
-                'assignedStaff'     => (string)($station['assigned_staff_name'] ?? ''),
-                'assignedRole'      => (string)($station['assigned_staff_role'] ?? ''),
+                 'assignedStaff'     => (string)($user['fullName'] ?: $user['username']),
+                'assignedRole'      => $roleName,
                 'todayTransactions' => $stats['todayTransactions'],
                 'todayFees'         => $stats['todayFees'],
             ]
@@ -107,7 +113,7 @@ function ensureStaffStationsTable(PDO $pdo): void {
     }
 }
 
- if (method() === 'POST' && $action === 'assign') {
+if (method() === 'POST' && $action === 'assign') {
     requireRole('admin');
     ensureStaffStationsTable($pdo);
 
@@ -136,7 +142,7 @@ function ensureStaffStationsTable(PDO $pdo): void {
     }
 }
 
- if (method() === 'DELETE' && $action === 'unassign') {
+if (method() === 'DELETE' && $action === 'unassign') {
     requireRole('admin');
 
     $staffId   = trim((string)($_GET['staffId']   ?? ''));

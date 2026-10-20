@@ -55,6 +55,7 @@
     let assignedStationMarker = null;
     let staffNotifs = [];
     let notifCurrentFilter = "all";
+    let currentClientTxnId = null;
 
      let cameraScanActive = false;
     let cameraWasOnBeforeScan = false;
@@ -619,7 +620,7 @@
             }
         } catch (e) {}
 
-         if (page !== "scan" && (cameraScanActive || (window.QrScanner && window.QrScanner.isCameraOn()))) {
+        if (page !== "scan" && (cameraScanActive || (window.QrScanner && window.QrScanner.isCameraOn()))) {
             stopCameraScan(true);
         }
 
@@ -713,6 +714,9 @@
             dashboardRefreshInFlight = false;
             if (dashboardRefreshQueued) { dashboardRefreshQueued = false; refreshDashboard(); }
         }
+
+        loadStaffChartData();
+
     }
     window.refreshDashboard = refreshDashboard;
 
@@ -872,7 +876,7 @@ async function stopCameraScan(silent) {
         if (window.QrScanner && window.QrScanner.isCameraOn()) {
             await window.QrScanner.stopCamera();
         }
-    } catch (e) {  }
+    } catch (e) {   }
 
     cameraScanActive = false;
 
@@ -942,7 +946,8 @@ async function handleQrImageUpload(file) {
 }
     window.handleQrImageUpload = handleQrImageUpload;
 
-     async function handleScan(raw) {
+ 
+    async function handleScan(raw) {
         if (!assignedStation) {
             setScanStatus("No station assigned — cannot process.", "error");
             openModal("noStationModal");
@@ -973,11 +978,28 @@ async function handleQrImageUpload(file) {
         if (!res.success) {
             scanProcessing = false;
             setScanStatus(res.message, "error");
-            openModal("invalidModal");
+            
+            if (res.code === "UNPAID_TRIP") {
+                openModal("unpaidTripModal");
+            } else {
+                openModal("invalidModal");
+            }
             return;
         }
 
         const driver = res.data.driver;
+
+        if (res.data.isReceivingVerification) {
+            scanProcessing = false;
+            setText("vrfDriver", driver.fullName || "—");
+            setText("vrfPlate", driver.plateNumber || "—");
+            setText("vrfRef", res.data.tripReference || "—");
+            setText("vrfTime", fmtDateTime(res.data.tripTime));
+            
+            setScanStatus("Trip verified successfully. Exit logged.", "ok");
+            openModal("verifiedTripModal");
+            return;
+        }
 
         if (Array.isArray(res.data.missingInfo) && res.data.missingInfo.length) {
             setText("viDriverId", driver.driverId || "—");
@@ -1016,8 +1038,10 @@ async function handleQrImageUpload(file) {
             driver, fee, balance, after,
             station: assignedStation,
             recentPayment: res.data.recentPayment || null,
-            lowBalanceThreshold: res.data.lowBalanceThreshold || LOW_BALANCE_THRESHOLD
+            lowBalanceThreshold: res.data.lowBalanceThreshold || LOW_BALANCE_THRESHOLD,
+            route: ""
         };
+        currentClientTxnId = 'TXN-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
         setText("vdName", driver.fullName || "—");
         setText("vdId", driver.driverId || "—");
@@ -1028,6 +1052,8 @@ async function handleQrImageUpload(file) {
         setText("vdBalance", peso(balance));
         setText("vdFee", peso(fee));
         setText("vdRemaining", peso(after));
+        const vdRoute = $("vdRoute");
+        if(vdRoute) vdRoute.value = "";
 
         const tr = $("terminalReady"); if (tr) tr.hidden = true;
         const vs = $("verifyStep"); if (vs) vs.hidden = false;
@@ -1048,6 +1074,7 @@ async function handleQrImageUpload(file) {
 
     function resetScan() {
         currentScan = null;
+        currentClientTxnId = null; 
         const tr = $("terminalReady"); if (tr) tr.hidden = false;
         const vs = $("verifyStep"); if (vs) vs.hidden = true;
         const dw = $("duplicateWarning"); if (dw) dw.style.display = "none";
@@ -1059,11 +1086,15 @@ async function handleQrImageUpload(file) {
     function reviewTransaction() {
         if (!currentScan) return;
         const d = currentScan.driver;
+        const routeInput = $("vdRoute");
+        if (routeInput) currentScan.route = routeInput.value.trim();
+
         setText("cfDriver", d.fullName || "—");
         setText("cfDriverId", d.driverId || "—");
         setText("cfVehicle", d.vehicleType || "—");
         setText("cfBody", d.bodyNumber || "—");
         setText("cfPlate", d.plateNumber || "—");
+        setText("cfRoute", currentScan.route || "Default");
         setText("cfPrev", peso(currentScan.balance));
         setText("cfFee", peso(currentScan.fee));
         setText("cfAfter", peso(currentScan.after));
@@ -1090,7 +1121,8 @@ async function handleQrImageUpload(file) {
             station: currentScan ? currentScan.station : assignedStation,
             fee: receipt.amount,
             prevBalance: receipt.previousBalance,
-            newBalance: receipt.balanceAfter
+            newBalance: receipt.balanceAfter,
+            route: receipt.routeId || (currentScan ? currentScan.route : "Default")
         };
 
         setText("scRef", receipt.referenceNumber);
@@ -1105,7 +1137,7 @@ async function handleQrImageUpload(file) {
             scStation.textContent = lastTransaction.station.code + " · " + lastTransaction.station.name;
         }
         openModal("successModal");
-        toast("Transaction successful — " + peso(receipt.amount) + " deducted.", "success");
+        toast("Transaction successful — " + peso(receipt.amount) + " deducted. Entry logged.", "success");
 
         if (lowBalanceFlag) {
             setText("lbDriver", lastTransaction.driver.fullName || "—");
@@ -1115,6 +1147,7 @@ async function handleQrImageUpload(file) {
         }
 
         currentScan = null;
+        currentClientTxnId = null; 
         const tr = $("terminalReady"); if (tr) tr.hidden = false;
         const vs = $("verifyStep"); if (vs) vs.hidden = true;
         setScanStatus("Paid — ready for the next driver.", "ok");
@@ -1128,10 +1161,15 @@ async function handleQrImageUpload(file) {
         const btn = $("processTransactionBtn");
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing…'; }
 
+        const routeInput = $("vdRoute");
+        const routeId = routeInput ? routeInput.value.trim() : "Default";
+
         const body = {
             action: "collect",
             driverId: currentScan.driver.driverId,
-            stationId: currentScan.station ? currentScan.station.code : (assignedStation ? assignedStation.code : "")
+            stationId: currentScan.station ? currentScan.station.code : (assignedStation ? assignedStation.code : ""),
+            clientTxnId: currentClientTxnId,
+            routeId: routeId 
         };
         if (confirmDuplicate) body.confirmDuplicate = true;
 
@@ -1347,7 +1385,8 @@ async function handleQrImageUpload(file) {
                 plateNumber: t.plateNumber
             },
             station: t.stationId ? { code: t.stationId, name: t.stationName || t.stationId } : assignedStation,
-            fee: t.amount, prevBalance: t.previousBalance, newBalance: t.balanceAfter
+            fee: t.amount, prevBalance: t.previousBalance, newBalance: t.balanceAfter,
+            route: t.routeId || "Default"
         };
         setText("tdRef", t.referenceNumber || "—");
         setText("tdDateTime", (t.date || "") + " " + (t.time || ""));
@@ -1356,6 +1395,7 @@ async function handleQrImageUpload(file) {
         setText("tdVehicle", t.vehicleType || "—");
         setText("tdBody", t.bodyNumber || "—");
         setText("tdPlate", t.plateNumber || "—");
+        setText("tdRoute", t.routeId || "Default");
         setText("tdFee", peso(t.amount));
         setText("tdPrev", peso(t.previousBalance));
         setText("tdAfter", peso(t.balanceAfter));
@@ -1503,6 +1543,405 @@ async function handleQrImageUpload(file) {
     }
     window.loadAttendance = loadAttendance;
 
+ let staffChartRange = 'days';
+let staffFeesChartInstance = null;
+let staffVehicleDonutInstance = null;
+let staffChartCache = [];
+
+function computeNiceAxis(maxValue) {
+    if (!maxValue || maxValue <= 0) {
+        return { max: 500, step: 100 };
+    }
+    const padded = maxValue * 1.35;
+    const niceSteps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000, 200000, 250000, 500000, 1000000, 2000000, 5000000, 10000000];
+    let step = 1;
+    for (const s of niceSteps) {
+        if (padded / s <= 6) { step = s; break; }
+    }
+    if (step < 1) step = 1;
+    const max = Math.ceil(padded / step) * step;
+    return { max, step };
+}
+window.computeNiceAxis = computeNiceAxis;
+
+function buildStaffChartBuckets(range, transactions) {
+    const now = new Date();
+    const buckets = [];
+
+    if (range === 'days') {
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
+            const key = d.toLocaleDateString('en-CA');
+            const matches = transactions.filter(t => (t.date || '').startsWith(key));
+            const value = matches.reduce((s, t) => s + Number(t.amount || 0), 0);
+            buckets.push({
+                label: days[d.getDay()],
+                shortLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                value,
+                count: matches.length,
+                date: d
+            });
+        }
+        return { buckets, title: `${buckets[0].shortLabel} – ${buckets[buckets.length - 1].shortLabel}`, avgLabel: 'Daily Avg' };
+    }
+
+    if (range === 'weeks') {
+        for (let i = 5; i >= 0; i--) {
+            const end = new Date(now);
+            end.setDate(end.getDate() - i * 7);
+            const start = new Date(end);
+            start.setDate(start.getDate() - 6);
+            const startKey = start.toLocaleDateString('en-CA');
+            const endKey = end.toLocaleDateString('en-CA');
+            let value = 0, count = 0;
+            transactions.forEach(t => {
+                const dk = (t.date || '').slice(0, 10);
+                if (dk >= startKey && dk <= endKey) { value += Number(t.amount || 0); count++; }
+            });
+            buckets.push({
+                label: `W${6 - i}`,
+                shortLabel: `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+                value, count, date: end
+            });
+        }
+        return { buckets, title: 'Last 6 Weeks', avgLabel: 'Weekly Avg' };
+    }
+
+    if (range === 'months') {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            let value = 0, count = 0;
+            transactions.forEach(t => {
+                if ((t.date || '').startsWith(key)) { value += Number(t.amount || 0); count++; }
+            });
+            buckets.push({
+                label: monthNames[d.getMonth()],
+                shortLabel: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+                value, count, date: d
+            });
+        }
+        return { buckets, title: 'Last 6 Months', avgLabel: 'Monthly Avg' };
+    }
+
+    const currentYear = now.getFullYear();
+    for (let i = 4; i >= 0; i--) {
+        const y = currentYear - i;
+        let value = 0, count = 0;
+        transactions.forEach(t => {
+            if ((t.date || '').startsWith(String(y))) { value += Number(t.amount || 0); count++; }
+        });
+        buckets.push({
+            label: String(y), shortLabel: String(y),
+            value, count, date: new Date(y, 0, 1)
+        });
+    }
+    return { buckets, title: 'Last 5 Years', avgLabel: 'Yearly Avg' };
+}
+
+window.setStaffChartData = function (data) {
+    if (!Array.isArray(data)) return;
+    staffChartCache = data;
+    renderStaffFeesChart();
+    renderStaffVehicleDonut();
+};
+
+async function loadStaffChartData() {
+    try {
+        const res = await window.api("payments.php", {
+            query: { action: "list", type: "FEE", limit: 1000 }
+        });
+        if (!res || !res.success) return;
+        staffChartCache = res.data.transactions || [];
+        renderStaffFeesChart();
+        renderStaffVehicleDonut();
+    } catch (e) {
+        console.warn("Staff chart load failed:", e);
+    }
+}
+window.loadStaffChartData = loadStaffChartData;
+
+function renderStaffFeesChart() {
+    const canvas = document.getElementById('staffFeesChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const { buckets, title, avgLabel } = buildStaffChartBuckets(staffChartRange, staffChartCache);
+    const values = buckets.map(b => b.value);
+    const total = values.reduce((s, v) => s + v, 0);
+    const activeBuckets = buckets.filter(b => b.value > 0).length;
+    const avg = activeBuckets > 0 ? total / activeBuckets : 0;
+    const best = buckets.reduce((b, x) => x.value > b.value ? x : b, buckets[0]);
+
+    const rangeLabel = document.getElementById('chartRangeLabel');
+    if (rangeLabel) rangeLabel.textContent = title;
+
+    const statsEl = document.getElementById('staffChartStats');
+    if (statsEl) {
+        const bestLabel = staffChartRange === 'days' ? 'Best Day'
+                       : staffChartRange === 'weeks' ? 'Best Week'
+                       : staffChartRange === 'months' ? 'Best Month'
+                       : 'Best Year';
+        statsEl.innerHTML =
+            '<div class="chart-stat"><span class="cs-label"><i class="fas fa-sigma"></i> Period Total</span>' +
+            '<span class="cs-value">' + peso(total) + '</span></div>' +
+            '<div class="chart-stat"><span class="cs-label"><i class="fas fa-calculator"></i> ' + avgLabel + '</span>' +
+            '<span class="cs-value">' + peso(avg) + '</span></div>' +
+            '<div class="chart-stat"><span class="cs-label"><i class="fas fa-trophy"></i> ' + bestLabel + '</span>' +
+            '<span class="cs-value">' + (best.value > 0 ? best.shortLabel : '—') + '</span></div>';
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (staffFeesChartInstance) staffFeesChartInstance.destroy();
+
+    // Match admin chart green fill
+    const fillGrad = ctx.createLinearGradient(0, 0, 0, 320);
+    fillGrad.addColorStop(0, 'rgba(22, 163, 74, 0.2)');
+    fillGrad.addColorStop(0.5, 'rgba(22, 163, 74, 0.05)');
+    fillGrad.addColorStop(1, 'rgba(22, 163, 74, 0)');
+
+    const avgLine = {
+        id: 'staffAvgLine',
+        afterDatasetsDraw(chart) {
+            if (avg <= 0) return;
+            const { ctx, chartArea, scales } = chart;
+            const y = scales.y.getPixelForValue(avg);
+            if (y < chartArea.top || y > chartArea.bottom) return;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(224, 92, 92, 0.4)';
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(chartArea.left, y);
+            ctx.lineTo(chartArea.right, y);
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    const maxData = Math.max(...values, 0);
+    const { max: yMax, step: stepSize } = computeNiceAxis(maxData);
+
+    staffFeesChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: buckets.map(b => b.label),
+            datasets: [{
+                label: 'Fees Collected',
+                data: values,
+                borderColor: '#16A34A',
+                borderWidth: 2.5,
+                backgroundColor: fillGrad,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#16A34A',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 20, right: 20, bottom: 6, left: 6 } },
+            animation: { duration: 600, easing: 'easeOutQuart' },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1F2937',
+                    titleColor: '#fff',
+                    titleFont: { family: 'Inter', size: 13, weight: '800' },
+                    bodyColor: '#E5E7EB',
+                    bodyFont: { family: 'Inter', size: 12, weight: '600' },
+                    padding: { top: 12, right: 16, bottom: 12, left: 16 },
+                    cornerRadius: 10,
+                    displayColors: true,
+                    callbacks: {
+                        title: (items) => buckets[items[0].dataIndex].shortLabel,
+                        label: (c) => {
+                            const i = c.dataIndex;
+                            const v = Number(c.parsed.y) || 0;
+                            return ['Fees: ' + peso(v), 'Transactions: ' + buckets[i].count];
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: yMax,
+                    ticks: {
+                        stepSize: stepSize,
+                        font: { family: 'Inter', size: 11, weight: '600' },
+                        color: '#9CA3AF',
+                        padding: 12,
+                        callback: (v) => {
+                            if (v === 0) return '₱0';
+                            if (v >= 1000000) return '₱' + (v / 1000000).toFixed(1) + 'M';
+                            if (v >= 1000) return '₱' + (v / 1000).toFixed(1) + 'k';
+                            return '₱' + v;
+                        }
+                    },
+                    grid: { color: '#F3F4F6', drawBorder: false, drawTicks: false },
+                    border: { display: false }
+                },
+                x: {
+                    ticks: {
+                        font: { family: 'Inter', size: 12, weight: '700' },
+                        color: '#6B7280',
+                        padding: 12
+                    },
+                    grid: { display: false },
+                    border: { display: false }
+                }
+            }
+        },
+        plugins: [avgLine]
+    });
+}
+
+function renderStaffVehicleDonut() {
+    const canvas = document.getElementById('staffVehicleDonut');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    const byVehicle = {};
+    staffChartCache.forEach(t => {
+        const key = t.vehicleType || 'Other';
+        byVehicle[key] = (byVehicle[key] || 0) + Number(t.amount || 0);
+    });
+    const entries = Object.entries(byVehicle).sort((a, b) => b[1] - a[1]);
+
+    const palette      = ['#6B1520', '#8B1D2C', '#A83244', '#C14056', '#2563EB', '#EA580C', '#16A34A'];
+    const lightPalette = ['#8B1D2C', '#A83244', '#C14056', '#D14E62', '#60A5FA', '#FB923C', '#4ADE80'];
+
+    const totalFees = entries.reduce((s, [, v]) => s + v, 0);
+
+    let labels, data, colors, lightColors;
+    if (entries.length === 0) {
+        labels = ['No fees yet']; data = [1];
+        colors = ['#E5E7EB']; lightColors = ['#F3F4F6'];
+    } else {
+        labels = entries.map(([k]) => k);
+        data = entries.map(([, v]) => v);
+        colors = palette.slice(0, labels.length);
+        lightColors = lightPalette.slice(0, labels.length);
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (staffVehicleDonutInstance) staffVehicleDonutInstance.destroy();
+
+    const centerText = {
+        id: 'staffCenterText',
+        afterDraw(chart) {
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return;
+            const centerX = (chartArea.left + chartArea.right) / 2;
+            const centerY = (chartArea.top + chartArea.bottom) / 2;
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = '800 20px Inter, sans-serif';
+            ctx.fillStyle = '#1F2937';
+            const mainText = entries.length === 0 ? '₱0'
+                : (totalFees >= 1000 ? '₱' + (totalFees / 1000).toFixed(1) + 'k' : '₱' + totalFees.toFixed(0));
+            ctx.fillText(mainText, centerX, centerY - 8);
+            ctx.font = '800 9px Inter, sans-serif';
+            ctx.fillStyle = '#9CA3AF';
+            ctx.fillText(entries.length === 0 ? 'NO DATA' : 'TOTAL FEES', centerX, centerY + 12);
+            ctx.restore();
+        }
+    };
+
+    staffVehicleDonutInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data,
+                backgroundColor: colors,
+                hoverBackgroundColor: lightColors,
+                borderWidth: 4,
+                borderColor: '#fff',
+                hoverOffset: 8,
+                spacing: 3,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '74%',
+            animation: { animateRotate: true, animateScale: false, duration: 900, easing: 'easeOutQuart' },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1F2937',
+                    titleColor: '#fff',
+                    titleFont: { family: 'Inter', size: 12, weight: '800' },
+                    bodyColor: '#E5E7EB',
+                    bodyFont: { family: 'Inter', size: 11, weight: '600' },
+                    padding: { top: 10, right: 14, bottom: 10, left: 14 },
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: (c) => {
+                            const v = Number(c.parsed) || 0;
+                            const tot = (c.dataset.data || []).reduce((a, b) => a + b, 0);
+                            const pct = tot > 0 ? ((v / tot) * 100).toFixed(1) : '0.0';
+                            return '  ' + peso(v) + ' (' + pct + '%)';
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [centerText]
+    });
+
+    const legend = document.getElementById('staffVehicleLegend');
+    if (legend) {
+        if (entries.length === 0) {
+            legend.innerHTML =
+                '<div class="donut-legend-empty">' +
+                '<i class="fas fa-receipt"></i>' +
+                '<div>No fees yet</div>' +
+                '<small>Vehicle breakdown will appear here</small>' +
+                '</div>';
+        } else {
+            const total = data.reduce((a, b) => a + b, 0);
+            legend.innerHTML = entries.map(([lbl, v], i) => {
+                const pct = total > 0 ? ((v / total) * 100).toFixed(1) : '0.0';
+                return '<div class="lg-row">' +
+                    '<span class="lg-dot" style="background:' + colors[i] + '"></span>' +
+                    '<span class="lg-label">' + esc(lbl) + '</span>' +
+                    '<span class="lg-amount">' + peso(v) + '</span>' +
+                    '<span class="lg-value">' + pct + '%</span>' +
+                    '</div>';
+            }).join('');
+        }
+    }
+}
+
+function attachStaffChartToggle() {
+    document.querySelectorAll('#chartRangeToggle .range-btn').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.querySelectorAll('#chartRangeToggle .range-btn').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-selected', 'false');
+            });
+            this.classList.add('active');
+            this.setAttribute('aria-selected', 'true');
+            staffChartRange = this.dataset.range || 'days';
+            renderStaffFeesChart();
+        });
+    });
+}
+
     function bindAllButtons() {
         $("notifBellBtn")?.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -1540,11 +1979,28 @@ async function handleQrImageUpload(file) {
                     if (gotoPage && typeof navigateTo === "function") navigateTo(gotoPage);
                 });
             });
-            $("dropdownLogoutBtn")?.addEventListener("click", (e) => {
-                e.preventDefault();
-                userDropdown.classList.remove("active");
-                $("logoutBtn")?.click();
-            });
+$("dropdownLogoutBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    userDropdown.classList.remove("active");
+    const mainLogoutBtn = $("logoutBtn");
+    if (mainLogoutBtn) {
+        mainLogoutBtn.click();
+    } else {
+        try {
+            if (typeof window.logoutAndRedirect === "function") {
+                window.logoutAndRedirect();
+            } else {
+                sessionStorage.clear();
+                localStorage.clear();
+                fetch("api/logout.php", { method: "POST", credentials: "include" })
+                    .catch(() => {})
+                    .finally(() => { window.location.replace("login.html"); });
+            }
+        } catch (err) {
+            window.location.replace("login.html");
+        }
+    }
+});
         }
 
         document.addEventListener("click", (e) => {
@@ -1562,21 +2018,47 @@ async function handleQrImageUpload(file) {
         });
 
         $("mobileToggle")?.addEventListener("click", () => $("sidebar")?.classList.toggle("open"));
-        $("logoutBtn")?.addEventListener("click", () => {
-            if (cameraScanActive || (window.QrScanner && window.QrScanner.isCameraOn())) {
-                stopCameraScan(true);
-            }
-            if (window.ConfirmModal) {
-                window.ConfirmModal.show({
-                    title: "Log out?",
-                    message: "Log out of the station?",
-                    confirmText: "Yes, log out",
-                    onConfirm: () => window.logoutAndRedirect()
-                });
-            } else if (confirm("Log out?")) {
+       $("logoutBtn")?.addEventListener("click", () => {
+    if (cameraScanActive || (window.QrScanner && window.QrScanner.isCameraOn())) {
+        stopCameraScan(true);
+    }
+
+    function doLogout() {
+        try {
+            if (typeof window.logoutAndRedirect === "function") {
                 window.logoutAndRedirect();
+                return;
             }
+        } catch (e) { console.warn("logoutAndRedirect failed:", e); }
+
+        try {
+            sessionStorage.clear();
+            localStorage.removeItem("user");
+            localStorage.removeItem("auth_user");
+            localStorage.removeItem("bctt_user");
+            localStorage.removeItem("staff_active_page");
+            localStorage.removeItem("admin_active_page");
+            localStorage.removeItem("bctt_session");
+        } catch (e) {}
+
+        fetch("api/logout.php", { method: "POST", credentials: "include" })
+            .catch(() => {})
+            .finally(() => {
+                window.location.replace("login.html");
+            });
+    }
+
+    if (window.ConfirmModal) {
+        window.ConfirmModal.show({
+            title: "Log out?",
+            message: "Log out of the station?",
+            confirmText: "Yes, log out",
+            onConfirm: doLogout
         });
+    } else if (confirm("Log out?")) {
+        doLogout();
+    }
+});
 
         document.querySelectorAll(".sidebar-item[data-page]").forEach((b) => {
             b.addEventListener("click", () => navigateTo(b.dataset.page));
@@ -1630,7 +2112,8 @@ async function handleQrImageUpload(file) {
         });
         $("manualScanBtn")?.addEventListener("click", parseScanned);
 
-         $("cameraToggleBtn")?.addEventListener("click", () => toggleCameraScan());
+        // ===== CAMERA BUTTONS =====
+        $("cameraToggleBtn")?.addEventListener("click", () => toggleCameraScan());
         $("qrImageInput")?.addEventListener("change", (e) => {
             const file = e.target.files && e.target.files[0];
             e.target.value = "";
@@ -1749,7 +2232,7 @@ async function handleQrImageUpload(file) {
         
         setScanStatus("QR detected — verifying…", "ok");
         
-         await stopCameraScan(true);
+        await stopCameraScan(true);
         handleScan(raw);
     } catch (e) {
         setScanStatus("Capture error: " + e.message, "error");
@@ -1791,6 +2274,8 @@ async function handleQrImageUpload(file) {
         await identifyStation();
         loadSystemSettings();
         bindAllButtons();
+         attachStaffChartToggle();
+        loadStaffChartData();
 
         const fromHash = (location.hash || "").replace("#", "").trim();
         const activePage = fromHash || sessionStorage.getItem("staff_active_page") || "dashboard";

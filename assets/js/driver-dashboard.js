@@ -1,5 +1,6 @@
 const LOW_BALANCE_THRESHOLD = 50;
 const POLL_MS = 5000;
+const MAX_RETRIES = 2;
 
 let currentDriver = null;
 let driverTransactions = [];
@@ -17,6 +18,7 @@ let lastSyncTime = null;
 let notificationFilter = 'all';
 let feesChart = null;
 let walletDonut = null;
+let currentChartRange = 'days';
 
 let __myReqState = { list: [], filter: '', search: '', loading: false };
 
@@ -36,41 +38,59 @@ function formatCurrency(amount) {
     const num = Number(amount || 0);
     return '₱' + num.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
 function formatCurrencyShort(amount) {
     const n = Number(amount || 0);
     if (n >= 1000) return '₱' + (n / 1000).toFixed(1) + 'k';
     return '₱' + n.toFixed(0);
 }
+
 function formatDate(dateStr) {
     if (!dateStr) return '--';
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
+
 function formatDateShort(dateStr) {
     if (!dateStr) return '--';
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
 function localDateKey(d = new Date()) { return d.toLocaleDateString('en-CA'); }
+
 function escapeHtml(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, c => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
     }[c]));
 }
+
 function setText(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value;
 }
+
 function getFee() { return currentFee; }
 
-async function apiGet(endpoint, query = {}) {
-    const res = await window.api(endpoint, { query });
-    if (!res.success) throw new Error(res.message || `HTTP ${res.status}`);
-    return res.data || {};
+async function apiCall(endpoint, query = {}, retries = MAX_RETRIES) {
+    let lastErr = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        const res = await window.api(endpoint, { query });
+        if (res && res.success) return res.data || {};
+        lastErr = res;
+        if (res && (res.status === 401 || res.status === 403)) break;
+        if (attempt < retries) await new Promise(r => setTimeout(r, 400 * (attempt + 1)));
+    }
+    const msg = (lastErr && (lastErr.message || lastErr.error)) || 'Request failed';
+    const err = new Error(msg);
+    err.status = lastErr && lastErr.status;
+    err.endpoint = endpoint;
+    throw err;
 }
-function safeStorage(fn, fallback) { try { return fn(); } catch (e) { return fallback; } }
+
+async function apiGet(endpoint, query = {}) { return apiCall(endpoint, query); }
 
 async function loadDriverProfile() {
     try {
@@ -79,8 +99,12 @@ async function loadDriverProfile() {
             currentFee = Number(data.driver.fee || 0);
             return normalizeDriver(data.driver);
         }
-    } catch (e) { console.error('drivers.php failed:', e); }
-    return null;
+        throw new Error('No driver data returned from drivers.php');
+    } catch (e) {
+        console.error('[drivers.php] failed:', e);
+        showToast('Could not load your profile: ' + e.message, 'error');
+        return null;
+    }
 }
 
 function normalizeDriver(d) {
@@ -121,7 +145,8 @@ async function loadDriverBalance() {
         setSyncIndicator('ok');
         return data;
     } catch (e) {
-        console.warn('wallet.php balance failed:', e);
+        console.error('[wallet.php?action=balance] failed:', e);
+        showToast('Balance: ' + e.message + (e.status ? ' (' + e.status + ')' : ''), 'error');
         setSyncIndicator('error');
         return null;
     }
@@ -129,27 +154,35 @@ async function loadDriverBalance() {
 
 async function loadWalletHistory() {
     if (!currentDriver) return;
-    const data = await apiGet('wallet.php', { action: 'history', limit: 300 });
-    const rows = Array.isArray(data.transactions) ? data.transactions : [];
-    const mapRow = t => ({
-        id: t.referenceNumber || t.id,
-        type: t.type,
-        date: t.date || '',
-        time: t.time || '',
-        createdAt: t.createdAt,
-        amount: Number(t.amount ?? 0),
-        previousBalance: Number(t.previousBalance ?? 0),
-        balanceAfter: Number(t.balanceAfter ?? 0),
-        newBalance: Number(t.balanceAfter ?? 0),
-        status: t.status === 'SUCCESSFUL' ? 'Successful' : (t.status || 'Successful'),
-        vehicleType: t.vehicleType || currentDriver.vehicleType,
-        plateNumber: t.plateNumber || currentDriver.plateNumber,
-        bodyNumber: currentDriver.bodyNumber,
-        processedBy: t.processedBy || 'Authorized Terminal Staff'
-    });
-    driverTransactions = rows.filter(t => t.type === 'FEE').map(mapRow);
-    loadHistory = rows.filter(t => t.type === 'LOAD').map(mapRow);
-    lastTransactionRef = rows.length ? rows[0].referenceNumber : null;
+    try {
+        const data = await apiGet('wallet.php', { action: 'history', limit: 300 });
+        const rows = Array.isArray(data.transactions) ? data.transactions : [];
+
+        const mapRow = t => ({
+            id: t.referenceNumber || t.id,
+            type: t.type,
+            date: t.date || '',
+            time: t.time || '',
+            createdAt: t.createdAt,
+            amount: Number(t.amount ?? 0),
+            previousBalance: Number(t.previousBalance ?? 0),
+            balanceAfter: Number(t.balanceAfter ?? 0),
+            newBalance: Number(t.balanceAfter ?? 0),
+            status: t.status === 'SUCCESSFUL' ? 'Successful' : (t.status || 'Successful'),
+            vehicleType: t.vehicleType || currentDriver.vehicleType,
+            plateNumber: t.plateNumber || currentDriver.plateNumber,
+            bodyNumber: currentDriver.bodyNumber,
+            processedBy: t.processedBy || 'Authorized Terminal Staff'
+        });
+
+        driverTransactions = rows.filter(t => String(t.type).toUpperCase() === 'FEE').map(mapRow);
+        loadHistory = rows.filter(t => String(t.type).toUpperCase() === 'LOAD').map(mapRow);
+        lastTransactionRef = rows.length ? rows[0].referenceNumber : null;
+    } catch (e) {
+        console.error('[wallet.php?action=history] failed:', e);
+        if (!loadHistory.length) showToast('History: ' + e.message, 'warning');
+        throw e;
+    }
 }
 
 async function loadDriverNotifications() {
@@ -166,8 +199,9 @@ async function loadDriverNotifications() {
             read: !!n.read
         }));
     } catch (e) {
-        console.warn('driver_notifications.php failed:', e);
-        return null;
+        console.error('[driver_notifications.php] failed:', e);
+        showToast('Notifications: ' + e.message, 'warning');
+        return [];
     }
 }
 
@@ -176,7 +210,7 @@ async function loadDriverInquiries() {
         const data = await apiGet('inquiries.php', { action: 'list' });
         return Array.isArray(data.inquiries) ? data.inquiries : [];
     } catch (e) {
-        console.error('inquiries.php (driver) failed:', e);
+        console.error('[inquiries.php] failed:', e);
         return null;
     }
 }
@@ -242,6 +276,7 @@ function populateDashboard() {
     setText('kpiTodayFees', formatCurrency(todayTotal));
 
     setText('kpiBalanceDelta', currentBalance > 0 ? 'Prepaid wallet balance' : 'No balance yet');
+
     const tripsDelta = document.getElementById('kpiTodayTripsDelta');
     if (tripsDelta) {
         if (todayTrans.length > 0) {
@@ -303,73 +338,244 @@ function checkBalanceNotifications() {
     }
 }
 
+function buildChartBuckets(range) {
+    const now = new Date();
+    const buckets = [];
+
+    if (range === 'days') {
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
+            const key = d.toLocaleDateString('en-CA');
+            const matches = driverTransactions.filter(t => (t.date || '').startsWith(key));
+            const value = matches.reduce((s, t) => s + t.amount, 0);
+            buckets.push({
+                label: days[d.getDay()],
+                shortLabel: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                value,
+                count: matches.length,
+                date: d
+            });
+        }
+        return {
+            buckets,
+            title: `${buckets[0].shortLabel} – ${buckets[buckets.length - 1].shortLabel}`,
+            avgLabel: 'Daily Avg'
+        };
+    }
+
+    if (range === 'weeks') {
+        for (let i = 5; i >= 0; i--) {
+            const end = new Date(now);
+            end.setDate(end.getDate() - i * 7);
+            const start = new Date(end);
+            start.setDate(start.getDate() - 6);
+            const startKey = start.toLocaleDateString('en-CA');
+            const endKey = end.toLocaleDateString('en-CA');
+            let value = 0, count = 0;
+            driverTransactions.forEach(t => {
+                const dk = (t.date || '').slice(0, 10);
+                if (dk >= startKey && dk <= endKey) { value += t.amount; count++; }
+            });
+            buckets.push({
+                label: `W${6 - i}`,
+                shortLabel: `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+                value,
+                count,
+                date: end
+            });
+        }
+        return { buckets, title: 'Last 6 Weeks', avgLabel: 'Weekly Avg' };
+    }
+
+    if (range === 'months') {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            let value = 0, count = 0;
+            driverTransactions.forEach(t => {
+                if ((t.date || '').startsWith(key)) { value += t.amount; count++; }
+            });
+            buckets.push({
+                label: monthNames[d.getMonth()],
+                shortLabel: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+                value,
+                count,
+                date: d
+            });
+        }
+        return { buckets, title: 'Last 6 Months', avgLabel: 'Monthly Avg' };
+    }
+
+    const currentYear = now.getFullYear();
+    for (let i = 4; i >= 0; i--) {
+        const y = currentYear - i;
+        let value = 0, count = 0;
+        driverTransactions.forEach(t => {
+            if ((t.date || '').startsWith(String(y))) { value += t.amount; count++; }
+        });
+        buckets.push({
+            label: String(y),
+            shortLabel: String(y),
+            value,
+            count,
+            date: new Date(y, 0, 1)
+        });
+    }
+    return { buckets, title: 'Last 5 Years', avgLabel: 'Yearly Avg' };
+}
+
+function computeNiceAxis(maxValue) {
+    if (!maxValue || maxValue <= 0) {
+        return { max: 50, step: 10 };
+    }
+
+    const padded = maxValue * 1.35;
+    const niceSteps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000, 200000, 500000];
+
+    let step = 1;
+    for (const s of niceSteps) {
+        if (padded / s <= 6) {
+            step = s;
+            break;
+        }
+    }
+    if (step < 1) step = 1;
+
+    const max = Math.ceil(padded / step) * step;
+
+    return { max, step };
+}
+
 function renderFeesChart() {
     const canvas = document.getElementById('feesChart');
     if (!canvas || typeof Chart === 'undefined') return;
 
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const today = new Date();
-    const last7 = [];
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const key = localDateKey(d);
-        const total = driverTransactions
-            .filter(t => (t.date || '').startsWith(key))
-            .reduce((s, t) => s + t.amount, 0);
-        last7.push({ key, day: days[(d.getDay() + 6) % 7], total, date: d });
-    }
+    const { buckets, title, avgLabel } = buildChartBuckets(currentChartRange);
+    const values = buckets.map(b => b.value);
+    const total = values.reduce((s, v) => s + v, 0);
+    const activeBuckets = buckets.filter(b => b.value > 0).length;
+    const avg = activeBuckets > 0 ? total / activeBuckets : 0;
+    const best = buckets.reduce((b, x) => x.value > b.value ? x : b, buckets[0]);
 
     const rangeLabel = document.getElementById('chartRangeLabel');
-    if (rangeLabel) {
-        const first = last7[0].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const last = last7[6].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        rangeLabel.textContent = `${first} – ${last}`;
+    if (rangeLabel) rangeLabel.textContent = title;
+
+    const statsEl = document.getElementById('feesChartStats');
+    if (statsEl) {
+        const bestLabel = currentChartRange === 'days' ? 'Best Day'
+                       : currentChartRange === 'weeks' ? 'Best Week'
+                       : currentChartRange === 'months' ? 'Best Month'
+                       : 'Best Year';
+        statsEl.innerHTML = `
+            <div class="chart-stat">
+                <span class="cs-label"><i class="fas fa-sigma"></i> Period Total</span>
+                <span class="cs-value">${formatCurrency(total)}</span>
+            </div>
+            <div class="chart-stat">
+                <span class="cs-label"><i class="fas fa-calculator"></i> ${avgLabel}</span>
+                <span class="cs-value">${formatCurrency(avg)}</span>
+            </div>
+            <div class="chart-stat">
+                <span class="cs-label"><i class="fas fa-trophy"></i> ${bestLabel}</span>
+                <span class="cs-value">${best.value > 0 ? best.shortLabel : '—'}</span>
+            </div>`;
     }
 
     const ctx = canvas.getContext('2d');
     if (feesChart) feesChart.destroy();
 
+     const fillGrad = ctx.createLinearGradient(0, 0, 0, 320);
+    fillGrad.addColorStop(0, 'rgba(22, 163, 74, 0.2)');
+    fillGrad.addColorStop(0.5, 'rgba(22, 163, 74, 0.05)');
+    fillGrad.addColorStop(1, 'rgba(22, 163, 74, 0)');
+
+    const maxData = Math.max(...values, 0);
+    const { max: yMax, step: yStep } = computeNiceAxis(maxData);
+
     feesChart = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
-            labels: last7.map(l => l.day),
+            labels: buckets.map(b => b.label),
             datasets: [{
                 label: 'Fees Paid',
-                data: last7.map(l => l.total),
-                backgroundColor: '#8B1D2C',
-                hoverBackgroundColor: '#6B1520',
-                borderRadius: 6,
-                borderSkipped: false,
-                maxBarThickness: 42
+                data: values,
+                borderColor: '#16A34A',  
+                borderWidth: 2.5,
+                backgroundColor: fillGrad,
+                fill: true,
+                tension: 0.4,  
+                pointRadius: 0,  
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#16A34A',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverBorderWidth: 2
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { top: 20, right: 20, bottom: 6, left: 6 } },
+            animation: { duration: 600, easing: 'easeOutQuart' },
+            interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: '#1F2937',
-                    padding: 10,
-                    titleFont: { size: 12, weight: '700' },
-                    bodyFont: { size: 12 },
-                    callbacks: { label: (ctx) => formatCurrency(ctx.parsed.y) }
+                    titleColor: '#fff',
+                    titleFont: { family: 'Inter', size: 13, weight: '800' },
+                    bodyColor: '#E5E7EB',
+                    bodyFont: { family: 'Inter', size: 12, weight: '600' },
+                    padding: { top: 12, right: 16, bottom: 12, left: 16 },
+                    cornerRadius: 10,
+                    displayColors: true,
+                    boxWidth: 10,
+                    boxHeight: 10,
+                    boxPadding: 6,
+                    callbacks: {
+                        title: (items) => buckets[items[0].dataIndex].shortLabel,
+                        label: (c) => {
+                            const i = c.dataIndex;
+                            const v = Number(c.parsed.y) || 0;
+                            return [`Fees Paid: ${formatCurrency(v)}`, `Transactions: ${buckets[i].count}`];
+                        }
+                    }
                 }
             },
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: { font: { size: 11 }, color: '#9CA3AF', callback: (v) => formatCurrencyShort(v) },
-                    grid: { color: '#F1F5F9', drawBorder: false }
+                    max: yMax,
+                    ticks: {
+                        stepSize: yStep,
+                        font: { family: 'Inter', size: 11, weight: '600' },
+                        color: '#9CA3AF',
+                        padding: 12,
+                        callback: (v) => {
+                            if (v === 0) return '₱0';
+                            if (v >= 1000000) return '₱' + (v / 1000000).toFixed(1) + 'M';
+                            if (v >= 1000)    return '₱' + (v / 1000).toFixed(1) + 'k';
+                            return '₱' + v;
+                        }
+                    },
+                    grid: { color: '#F3F4F6', drawBorder: false, drawTicks: false },  
+                    border: { display: false }
                 },
                 x: {
-                    ticks: { font: { size: 11, weight: '600' }, color: '#6B7280' },
-                    grid: { display: false }
+                    ticks: {
+                        font: { family: 'Inter', size: 12, weight: '700' },
+                        color: '#6B7280',
+                        padding: 12
+                    },
+                    grid: { display: false },
+                    border: { display: false }
                 }
             }
         }
-    });
+     });
 }
 
 function renderWalletDonut() {
@@ -381,22 +587,53 @@ function renderWalletDonut() {
         const key = t.vehicleType || 'Other';
         byVehicle[key] = (byVehicle[key] || 0) + t.amount;
     });
-    const entries = Object.entries(byVehicle);
-    const palette = ['#8B1D2C', '#2563EB', '#EA580C', '#16A34A', '#7C3AED', '#0D9488'];
+    const entries = Object.entries(byVehicle).sort((a, b) => b[1] - a[1]);
 
-    let labels, data, colors;
+    const palette      = ['#8B1D2C', '#A83244', '#C14056', '#6B1520', '#4A90B8', '#E05C5C', '#8B7BC7'];
+    const lightPalette = ['#A83244', '#C14056', '#D14E62', '#8B1D2C', '#6BA8CC', '#EC8080', '#A89BD4'];
+
+    const totalFees = entries.reduce((s, [, v]) => s + v, 0);
+
+    let labels, data, colors, lightColors;
     if (entries.length === 0) {
-        labels = ['Current Balance', 'No fees yet'];
-        data = [Math.max(currentBalance, 0.01), 0.01];
-        colors = ['#16A34A', '#E5E7EB'];
+        labels      = ['No fees yet'];
+        data        = [1];
+        colors      = ['#E4EAEE'];
+        lightColors = ['#EEF3F5'];
     } else {
-        labels = entries.map(([k]) => k);
-        data = entries.map(([, v]) => v);
-        colors = palette.slice(0, labels.length);
+        labels      = entries.map(([k]) => k);
+        data        = entries.map(([, v]) => v);
+        colors      = palette.slice(0, labels.length);
+        lightColors = lightPalette.slice(0, labels.length);
     }
 
     const ctx = canvas.getContext('2d');
     if (walletDonut) walletDonut.destroy();
+
+    const centerText = {
+        id: 'centerText',
+        afterDraw(chart) {
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return;
+            const centerX = (chartArea.left + chartArea.right) / 2;
+            const centerY = (chartArea.top + chartArea.bottom) / 2;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            ctx.font = '800 22px Inter, sans-serif';
+            ctx.fillStyle = '#2C3E4A';
+            const mainText = entries.length === 0 ? '₱0' : formatCurrencyShort(totalFees);
+            ctx.fillText(mainText, centerX, centerY - 8);
+
+            ctx.font = '800 9px Inter, sans-serif';
+            ctx.fillStyle = '#9AABB4';
+            ctx.fillText(entries.length === 0 ? 'NO DATA' : 'TOTAL FEES', centerX, centerY + 14);
+
+            ctx.restore();
+        }
+    };
 
     walletDonut = new Chart(ctx, {
         type: 'doughnut',
@@ -405,55 +642,78 @@ function renderWalletDonut() {
             datasets: [{
                 data,
                 backgroundColor: colors,
-                borderWidth: 3,
+                hoverBackgroundColor: lightColors,
+                borderWidth: 4,
                 borderColor: '#fff',
-                hoverOffset: 4
+                hoverOffset: 8,
+                spacing: 3,
+                borderRadius: 6
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '68%',
+            cutout: '74%',
+            animation: { animateRotate: true, animateScale: false, duration: 900, easing: 'easeOutQuart' },
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: '#1F2937',
-                    padding: 10,
+                    backgroundColor: '#2C3E4A',
+                    titleColor: '#fff',
+                    titleFont: { family: 'Inter', size: 12, weight: '800' },
+                    bodyColor: '#E5E7EB',
+                    bodyFont: { family: 'Inter', size: 11, weight: '600' },
+                    padding: { top: 10, right: 14, bottom: 10, left: 14 },
+                    cornerRadius: 8,
+                    displayColors: true,
                     callbacks: {
-                        label: (ctx) => {
-                            const v = Number(ctx.parsed) || 0;
-                            const total = (ctx.dataset.data || []).reduce((a, b) => a + b, 0);
-                            const pct = total > 0 ? ((v / total) * 100).toFixed(1) : '0.0';
-                            return `${ctx.label}: ${formatCurrency(v)} (${pct}%)`;
+                        label: (c) => {
+                            const v   = Number(c.parsed) || 0;
+                            const tot = (c.dataset.data || []).reduce((a, b) => a + b, 0);
+                            const pct = tot > 0 ? ((v / tot) * 100).toFixed(1) : '0.0';
+                            return `  ${formatCurrency(v)} (${pct}%)`;
                         }
                     }
                 }
             }
-        }
+        },
+        plugins: [centerText]
     });
 
     const legend = document.getElementById('donutLegend');
     if (legend) {
-        const total = data.reduce((a, b) => a + b, 0);
-        legend.innerHTML = labels.map((lbl, i) => {
-            const v = data[i];
-            const pct = total > 0 ? ((v / total) * 100).toFixed(1) : '0.0';
-            return `
-                <div class="lg-row">
-                    <span class="lg-dot" style="background:${colors[i]}"></span>
-                    <span class="lg-label">${escapeHtml(lbl)}</span>
-                    <span class="lg-value">${pct}%</span>
+        if (entries.length === 0) {
+            legend.innerHTML = `
+                <div class="donut-legend-empty">
+                    <i class="fas fa-receipt"></i>
+                    <div>No fees paid yet</div>
+                    <small>Your fee breakdown will appear here</small>
                 </div>`;
-        }).join('');
+        } else {
+            const total = data.reduce((a, b) => a + b, 0);
+            legend.innerHTML = entries.map(([lbl, v], i) => {
+                const pct = total > 0 ? ((v / total) * 100).toFixed(1) : '0.0';
+                return `
+                    <div class="lg-row">
+                        <span class="lg-dot" style="background:${colors[i]}"></span>
+                        <span class="lg-label">${escapeHtml(lbl)}</span>
+                        <span class="lg-amount">${formatCurrency(v)}</span>
+                        <span class="lg-value">${pct}%</span>
+                    </div>`;
+            }).join('');
+        }
     }
 }
 
 function getActivityLog(driverId) {
-    return safeStorage(() => JSON.parse(localStorage.getItem('borongan_driver_activity_' + driverId) || '[]'), []);
+    try { return JSON.parse(localStorage.getItem('borongan_driver_activity_' + driverId) || '[]'); }
+    catch (e) { return []; }
 }
+
 function saveActivityLog(driverId, log) {
-    safeStorage(() => localStorage.setItem('borongan_driver_activity_' + driverId, JSON.stringify(log)));
+    try { localStorage.setItem('borongan_driver_activity_' + driverId, JSON.stringify(log)); } catch (e) {}
 }
+
 function logDriverActivity(action, icon = 'fa-info-circle') {
     if (!currentDriver) return;
     const now = new Date();
@@ -464,6 +724,7 @@ function logDriverActivity(action, icon = 'fa-info-circle') {
     saveActivityLog(currentDriver.driverId, log);
     renderActivities();
 }
+
 function renderActivities() {
     const container = document.getElementById('recentActivities');
     if (!container) return;
@@ -485,18 +746,18 @@ function renderActivities() {
 }
 
 function inquiryReadKey(id) { return 'bctt_driver_inquiry_read_' + id; }
+
 function isInquiryReadLocally(id) {
-    return safeStorage(() => localStorage.getItem(inquiryReadKey(id)) === '1', false);
+    try { return localStorage.getItem(inquiryReadKey(id)) === '1'; } catch (e) { return false; }
 }
+
 function markInquiryReadLocally(id) {
-    safeStorage(() => localStorage.setItem(inquiryReadKey(id), '1'));
+    try { localStorage.setItem(inquiryReadKey(id), '1'); } catch (e) {}
 }
 
 function cleanSubject(subject) {
     if (!subject) return 'Request';
-    return String(subject)
-        .replace(/^\[(PERSONAL UPDATE|VEHICLE UPDATE)\]\s*/i, '')
-        .trim() || 'Request';
+    return String(subject).replace(/^\[(PERSONAL UPDATE|VEHICLE UPDATE)\]\s*/i, '').trim() || 'Request';
 }
 
 function stripInternalFooter(message) {
@@ -728,7 +989,6 @@ window.clearInquiryFilters = clearInquiryFilters;
 function openNewInquiryModal(preselectKind) {
     const modal = document.getElementById('newInquiryModal');
     if (!modal) return;
-
     const form = document.getElementById('newInquiryForm');
     if (form) form.reset();
     document.getElementById('inqKind').value = '';
@@ -736,12 +996,9 @@ function openNewInquiryModal(preselectKind) {
     document.getElementById('inqCharCount').textContent = '0 / 1000';
     const msg = document.getElementById('newInquiryMsg');
     if (msg) { msg.textContent = ''; msg.className = 'account-msg'; }
-
     const submitBtn = document.getElementById('submitInquiryBtn');
     if (submitBtn) submitBtn.disabled = true;
-
     modal.hidden = false;
-
     if (preselectKind) {
         setTimeout(() => {
             const btn = document.querySelector(`.inq-kind-btn[data-kind="${preselectKind}"]`);
@@ -784,11 +1041,7 @@ async function submitNewInquiry() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting…';
 
     try {
-        const res = await window.api('inquiries.php', {
-            method: 'POST',
-            body: { kind, subject, message }
-        });
-
+        const res = await window.api('inquiries.php', { method: 'POST', body: { kind, subject, message } });
         if (!res.success) {
             msgEl.textContent = res.message || 'Request could not be submitted.';
             msgEl.className = 'account-msg error';
@@ -796,13 +1049,10 @@ async function submitNewInquiry() {
             btn.innerHTML = originalHTML;
             return;
         }
-
         showToast('Your request was submitted. The office will review it.', 'success');
         logDriverActivity('Submitted request: ' + subject, 'fa-pen-to-square');
-
         closeNewInquiryModal();
         await refreshDriverInquiries();
-
         if (!document.getElementById('page-myinquiries')?.classList.contains('active')) {
             navigateTo('myinquiries');
         }
@@ -825,33 +1075,27 @@ function initMyRequestsModule() {
             __validateComposeForm();
         });
     });
-
     document.getElementById('inqSubject')?.addEventListener('input', __validateComposeForm);
     document.getElementById('inqMessage')?.addEventListener('input', () => {
         const len = (document.getElementById('inqMessage').value || '').length;
         document.getElementById('inqCharCount').textContent = `${len} / 1000`;
         __validateComposeForm();
     });
-
     document.getElementById('submitInquiryBtn')?.addEventListener('click', submitNewInquiry);
-
     document.querySelectorAll('#newInquiryModal [data-inquiry-close]').forEach(el => {
         el.addEventListener('click', closeNewInquiryModal);
     });
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') closeNewInquiryModal();
     });
-
     document.getElementById('inquirySearchInput')?.addEventListener('input', (e) => {
         __myReqState.search = (e.target.value || '').trim();
         renderDriverInquiries(__myReqState.list);
     });
-
     document.getElementById('inquiryStatusFilter')?.addEventListener('change', (e) => {
         __myReqState.filter = (e.target.value || '').trim();
         renderDriverInquiries(__myReqState.list);
     });
-
     document.querySelectorAll('.inq-summary-tile').forEach(tile => {
         tile.addEventListener('click', () => {
             const filter = tile.dataset.filter || '';
@@ -861,7 +1105,6 @@ function initMyRequestsModule() {
             renderDriverInquiries(__myReqState.list);
         });
     });
-
     document.getElementById('refreshInquiriesBtn')?.addEventListener('click', () => {
         refreshDriverInquiries(true);
     });
@@ -872,41 +1115,25 @@ async function requestInfoUpdate(kind) {
 }
 window.requestInfoUpdate = requestInfoUpdate;
 
- function generateQR() {
+function generateQR() {
     const d = currentDriver;
     if (!d) return;
-
-     const driverId = String(d.driverId || '').trim();
-    const qrText = driverId;
-
-     const QR_OPTS = {
-        width: 240,
-        height: 240,
-        colorDark: '#000000',
-        colorLight: '#FFFFFF',
+    const driverId = String(d.driverId || '').trim();
+    const QR_OPTS = {
+        width: 240, height: 240, colorDark: '#000000', colorLight: '#FFFFFF',
         correctLevel: QRCode.CorrectLevel.H
     };
-
     const qrFull = document.getElementById('qrCodeFull');
     if (qrFull) {
         qrFull.innerHTML = '';
-        try {
-            new QRCode(qrFull, { ...QR_OPTS, text: qrText, width: 180, height: 180 });
-        } catch (e) {
-            console.error('QR render (full) failed:', e);
-            qrFull.innerHTML = '<div>QR</div>';
-        }
+        try { new QRCode(qrFull, { ...QR_OPTS, text: driverId, width: 180, height: 180 }); }
+        catch (e) { console.error('QR render (full) failed:', e); qrFull.innerHTML = '<div>QR</div>'; }
     }
-
     const qrPage = document.getElementById('qrCodePage');
     if (qrPage) {
         qrPage.innerHTML = '';
-        try {
-            new QRCode(qrPage, { ...QR_OPTS, text: qrText });
-        } catch (e) {
-            console.error('QR render (page) failed:', e);
-            qrPage.innerHTML = '<div>QR</div>';
-        }
+        try { new QRCode(qrPage, { ...QR_OPTS, text: driverId }); }
+        catch (e) { console.error('QR render (page) failed:', e); qrPage.innerHTML = '<div>QR</div>'; }
     }
 }
 
@@ -919,7 +1146,9 @@ function downloadQRPage() {
     link.click();
     showToast('QR downloaded!', 'success');
 }
+
 function shareQRPage() { shareQRSel('#qrCodePage canvas'); }
+
 function shareQRSel(sel) {
     const canvas = document.querySelector(sel);
     if (!canvas) return showToast('Generate QR first', 'warning');
@@ -929,6 +1158,7 @@ function shareQRSel(sel) {
         } else showToast('Share not supported', 'warning');
     });
 }
+
 function downloadQRFull() {
     const card = document.querySelector('.digital-id-card');
     if (!card) return showToast('Generate ID first', 'warning');
@@ -947,155 +1177,59 @@ function downloadQRFull() {
 function printQRCard() {
     const card = document.querySelector('.digital-id-card');
     if (!card) return showToast('Generate ID first', 'warning');
-
     const printWin = window.open('', '_blank', 'width=520,height=760');
     if (!printWin) { showToast('Please allow pop-ups to print', 'warning'); return; }
-
     const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('');
-
     printWin.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <title>Driver ID — ${escapeHtml(currentDriver.driverId || '')}</title>
-            ${styles}
-            <style>
-                body { margin: 0; padding: 24px; background: #fff; font-family: 'Inter', sans-serif; }
-                .digital-id-card { margin: 0 auto; box-shadow: none !important; }
-                @media print {
-                    body { padding: 0; }
-                    .digital-id-card { border: 1px solid #000 !important; border-radius: 0 !important; }
-                }
-            </style>
-        </head>
-        <body>
-            ${card.outerHTML}
-            <script>
-                window.onload = function () {
-                    setTimeout(function () {
-                        window.focus();
-                        window.print();
-                        setTimeout(function(){ window.close(); }, 400);
-                    }, 300);
-                };
-            <\/script>
-        </body>
-        </html>
-    `);
+        <!DOCTYPE html><html><head><meta charset="utf-8">
+        <title>Driver ID — ${escapeHtml(currentDriver.driverId || '')}</title>
+        ${styles}
+        <style>
+            body { margin: 0; padding: 24px; background: #fff; font-family: 'Inter', sans-serif; }
+            .digital-id-card { margin: 0 auto; box-shadow: none !important; }
+            @media print { body { padding: 0; } .digital-id-card { border: 1px solid #000 !important; border-radius: 0 !important; } }
+        </style></head><body>${card.outerHTML}
+        <script>window.onload=function(){setTimeout(function(){window.focus();window.print();setTimeout(function(){window.close();},400);},300);};<\/script>
+        </body></html>`);
     printWin.document.close();
 }
 
 function printQRPage() {
     const canvas = document.querySelector('#qrCodePage canvas');
     if (!canvas) return showToast('Generate QR first', 'warning');
-
     const qrImgSrc = canvas.toDataURL('image/png');
     const d = currentDriver;
-
     const printWin = window.open('', '_blank', 'width=520,height=680');
     if (!printWin) { showToast('Please allow pop-ups to print', 'warning'); return; }
-
     printWin.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <title>Driver QR — ${escapeHtml(d.driverId || '')}</title>
-            <style>
-                * { box-sizing: border-box; margin: 0; padding: 0; }
-                body {
-                    font-family: 'Inter', system-ui, sans-serif;
-                    background: #fff;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    min-height: 100vh;
-                    padding: 24px;
-                }
-                .qr-print-card {
-                    width: 400px;
-                    padding: 28px 24px;
-                    border: 2px solid #8B1D2C;
-                    border-radius: 12px;
-                    text-align: center;
-                    background: #fff;
-                }
-                .qr-print-org {
-                    font-weight: 800;
-                    font-size: 11px;
-                    letter-spacing: .16em;
-                    color: #8B1D2C;
-                    text-transform: uppercase;
-                    margin-bottom: 6px;
-                }
-                .qr-print-title {
-                    font-weight: 700;
-                    font-size: 15px;
-                    color: #1F2937;
-                    margin-bottom: 14px;
-                }
-                .qr-print-img {
-                    display: inline-block;
-                    padding: 8px;
-                    background: #fff;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 8px;
-                }
-                .qr-print-img img { display: block; width: 200px; height: 200px; }
-                .qr-print-name {
-                    font-weight: 800;
-                    font-size: 14px;
-                    color: #1F2937;
-                    margin-top: 14px;
-                }
-                .qr-print-id {
-                    font-family: 'Courier New', monospace;
-                    color: #6B7280;
-                    font-size: 12px;
-                    margin-top: 2px;
-                }
-                .qr-print-vehicle {
-                    color: #6B7280;
-                    font-size: 11px;
-                    margin-top: 3px;
-                }
-                .qr-print-footer {
-                    margin-top: 18px;
-                    padding-top: 14px;
-                    border-top: 1px dashed #CBD5E1;
-                    font-size: 10px;
-                    color: #6B7280;
-                }
-                @media print {
-                    body { padding: 0; }
-                    .qr-print-card { border: 1px solid #000; border-radius: 0; page-break-inside: avoid; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="qr-print-card">
-                <div class="qr-print-org">Borongan City Transport Terminal</div>
-                <div class="qr-print-title">DRIVER QR CODE</div>
-                <div class="qr-print-img"><img src="${qrImgSrc}" alt="QR Code"></div>
-                <div class="qr-print-name">${escapeHtml(d.fullName || '—')}</div>
-                <div class="qr-print-id">${escapeHtml(d.driverId || '—')}</div>
-                <div class="qr-print-vehicle">${escapeHtml(d.vehicleType || '—')} · ${escapeHtml(d.bodyNumber || '—')} · ${escapeHtml(d.plateNumber || '—')}</div>
-                <div class="qr-print-footer">Present this QR code to the terminal Staff.</div>
-            </div>
-            <script>
-                window.onload = function () {
-                    setTimeout(function () {
-                        window.focus();
-                        window.print();
-                        setTimeout(function(){ window.close(); }, 400);
-                    }, 300);
-                };
-            <\/script>
-        </body>
-        </html>
-    `);
+        <!DOCTYPE html><html><head><meta charset="utf-8">
+        <title>Driver QR — ${escapeHtml(d.driverId || '')}</title>
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: 'Inter', system-ui, sans-serif; background: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+            .qr-print-card { width: 400px; padding: 28px 24px; border: 2px solid #8B1D2C; border-radius: 12px; text-align: center; background: #fff; }
+            .qr-print-org { font-weight: 800; font-size: 11px; letter-spacing: .16em; color: #8B1D2C; text-transform: uppercase; margin-bottom: 6px; }
+            .qr-print-title { font-weight: 700; font-size: 15px; color: #1F2937; margin-bottom: 14px; }
+            .qr-print-img { display: inline-block; padding: 8px; background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; }
+            .qr-print-img img { display: block; width: 200px; height: 200px; }
+            .qr-print-name { font-weight: 800; font-size: 14px; color: #1F2937; margin-top: 14px; }
+            .qr-print-id { font-family: 'Courier New', monospace; color: #6B7280; font-size: 12px; margin-top: 2px; }
+            .qr-print-vehicle { color: #6B7280; font-size: 11px; margin-top: 3px; }
+            .qr-print-footer { margin-top: 18px; padding-top: 14px; border-top: 1px dashed #CBD5E1; font-size: 10px; color: #6B7280; }
+            @media print { body { padding: 0; } .qr-print-card { border: 1px solid #000; border-radius: 0; page-break-inside: avoid; } }
+        </style></head><body>
+        <div class="qr-print-card">
+            <div class="qr-print-org">Borongan City Transport Terminal</div>
+            <div class="qr-print-title">DRIVER QR CODE</div>
+            <div class="qr-print-img"><img src="${qrImgSrc}" alt="QR Code"></div>
+            <div class="qr-print-name">${escapeHtml(d.fullName || '—')}</div>
+            <div class="qr-print-id">${escapeHtml(d.driverId || '—')}</div>
+            <div class="qr-print-vehicle">${escapeHtml(d.vehicleType || '—')} · ${escapeHtml(d.bodyNumber || '—')} · ${escapeHtml(d.plateNumber || '—')}</div>
+            <div class="qr-print-footer">Present this QR code to the terminal Staff.</div>
+        </div>
+        <script>window.onload=function(){setTimeout(function(){window.focus();window.print();setTimeout(function(){window.close();},400);},300);};<\/script>
+        </body></html>`);
     printWin.document.close();
 }
 
@@ -1113,7 +1247,6 @@ function populateQRPage() {
     setText('displayBodyNumber', d.bodyNumber || '--');
     setText('displayClassification', d.driverClassification || 'Regular');
     setText('displayAccountStatus', d.status || 'Active');
-
     const photoLarge = document.getElementById('photoDisplayLarge');
     if (photoLarge) {
         if (d.photo) photoLarge.innerHTML = `<img src="${d.photo}" alt="Driver Photo">`;
@@ -1129,6 +1262,19 @@ function populateQRPage() {
 function populateProfile() {
     const d = currentDriver;
     if (!d) return;
+    
+     const profileAvatar = document.getElementById('profileAvatar');
+    if (profileAvatar) {
+        if (d.photo) {
+             profileAvatar.innerHTML = `<img src="${d.photo}" alt="Driver Photo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        } else {
+             const initials = (d.fullName || 'Driver').split(' ')
+                .filter(n => n.length > 0).map(n => n[0])
+                .join('').toUpperCase().slice(0, 2);
+            profileAvatar.innerHTML = `<span style="font-size: 1.4rem; font-weight: 800; color: var(--maroon);">${initials || 'D'}</span>`;
+        }
+    }
+ 
     setText('profileName', d.fullName || '--');
     setText('profileId', d.driverId || '--');
     setText('profileFullName', d.fullName || '--');
@@ -1145,7 +1291,7 @@ function populateProfile() {
     setText('profileBodyNumber', d.bodyNumber || '--');
     setText('profilePlateNumber', d.plateNumber || '--');
     setText('profileVehicleStatus', d.status || 'Active');
-
+    
     const badge = document.getElementById('profileClassBadge');
     if (badge) {
         const cls = (d.driverClassification || 'Regular');
@@ -1157,7 +1303,6 @@ function populateProfile() {
         }
     }
 }
-
 function populateEmergencyContact() {
     const d = currentDriver;
     if (!d) return;
@@ -1188,7 +1333,6 @@ function populateBalance() {
     setText('balanceAmount', formatCurrency(currentBalance));
     setText('balanceAccountStatus', currentDriver?.status || 'ACTIVE');
     setText('balanceFeePerTrip', formatCurrency(currentFee || getFee(currentDriver?.vehicleType)));
-
     if (lastLoadInfo) {
         setText('balanceLastLoad', formatCurrency(lastLoadInfo.amount));
         setText('balanceLastUpdated', formatDate(lastLoadInfo.createdAt));
@@ -1199,7 +1343,6 @@ function populateBalance() {
         setText('balanceLastLoad', '--');
         setText('balanceLastUpdated', '--');
     }
-
     setText('balanceDetailCurrent', formatCurrency(currentBalance));
     const lastFee = driverTransactions[0];
     if (lastFee) {
@@ -1312,8 +1455,7 @@ function viewTransactionDetail(id) {
                 <button class="btn-outline btn-sm" onclick="printTransaction('${t.id}')"><i class="fas fa-print"></i> Print</button>
                 <button class="btn-primary btn-sm" data-close="1">Close</button>
             </div>
-        </div>
-    `;
+        </div>`;
     document.body.appendChild(modal);
     modal.querySelectorAll('[data-close]').forEach(el => {
         el.addEventListener('click', () => modal.remove());
@@ -1323,95 +1465,44 @@ function viewTransactionDetail(id) {
 function printTransaction(id) {
     const t = driverTransactions.find(x => x.id === id);
     if (!t) return showToast('Transaction not found', 'error');
-
     const printWin = window.open('', '_blank', 'width=480,height=720');
     if (!printWin) { showToast('Please allow pop-ups to print', 'warning'); return; }
-
     printWin.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <title>Transaction — ${escapeHtml(t.id)}</title>
-            <style>
-                * { box-sizing: border-box; margin: 0; padding: 0; }
-                body {
-                    font-family: 'Courier New', monospace;
-                    background: #fff;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    min-height: 100vh;
-                    padding: 20px;
-                }
-                .receipt {
-                    width: 340px;
-                    padding: 16px;
-                    border: 2px dashed #333;
-                    border-radius: 8px;
-                    font-size: 12px;
-                }
-                .receipt .r-head {
-                    text-align: center;
-                    border-bottom: 2px solid #333;
-                    padding-bottom: 8px;
-                    margin-bottom: 12px;
-                }
-                .receipt .r-head .org { font-weight: 800; font-size: 12px; }
-                .receipt .r-head .kind { font-size: 11px; font-weight: 700; color: #8B1D2C; }
-                .receipt .r-row { display: flex; justify-content: space-between; padding: 3px 0; }
-                .receipt .r-row.total {
-                    border-top: 1px dashed #333;
-                    margin-top: 6px;
-                    padding-top: 8px;
-                    font-weight: 800;
-                }
-                .receipt .r-foot {
-                    text-align: center;
-                    font-size: 10px;
-                    color: #555;
-                    margin-top: 12px;
-                    padding-top: 8px;
-                    border-top: 1px dashed #ccc;
-                }
-                @media print {
-                    body { padding: 0; }
-                    .receipt { border: 1px solid #000; border-radius: 0; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="receipt">
-                <div class="r-head">
-                    <div class="org">BORONGAN CITY TRANSPORT TERMINAL</div>
-                    <div class="kind">TRANSACTION RECORD</div>
-                </div>
-                <div class="r-row"><span>Ref:</span><strong>${escapeHtml(t.id || '—')}</strong></div>
-                <div class="r-row"><span>Date:</span><strong>${escapeHtml(formatDate(t.date))}</strong></div>
-                <div class="r-row"><span>Time:</span><strong>${escapeHtml(t.time || '--')}</strong></div>
-                <div class="r-row"><span>Driver:</span><strong>${escapeHtml(currentDriver.fullName)}</strong></div>
-                <div class="r-row"><span>Driver ID:</span><strong>${escapeHtml(currentDriver.driverId)}</strong></div>
-                <div class="r-row"><span>Vehicle:</span><strong>${escapeHtml(currentDriver.vehicleType)}</strong></div>
-                <div class="r-row"><span>Plate:</span><strong>${escapeHtml(currentDriver.plateNumber)}</strong></div>
-                <div class="r-row"><span>Body No:</span><strong>${escapeHtml(currentDriver.bodyNumber || '—')}</strong></div>
-                <div class="r-row total"><span>Amount:</span><strong>${formatCurrency(t.amount)}</strong></div>
-                <div class="r-row"><span>Previous Balance:</span><strong>${formatCurrency(t.previousBalance)}</strong></div>
-                <div class="r-row"><span>Balance After:</span><strong>${formatCurrency(t.balanceAfter)}</strong></div>
-                <div class="r-row"><span>Status:</span><strong>${escapeHtml((t.status || 'Successful').toUpperCase())}</strong></div>
-                <div class="r-footer r-foot">Keep this transaction record. Thank you!</div>
+        <!DOCTYPE html><html><head><meta charset="utf-8">
+        <title>Transaction — ${escapeHtml(t.id)}</title>
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: 'Courier New', monospace; background: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+            .receipt { width: 340px; padding: 16px; border: 2px dashed #333; border-radius: 8px; font-size: 12px; }
+            .receipt .r-head { text-align: center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px; }
+            .receipt .r-head .org { font-weight: 800; font-size: 12px; }
+            .receipt .r-head .kind { font-size: 11px; font-weight: 700; color: #8B1D2C; }
+            .receipt .r-row { display: flex; justify-content: space-between; padding: 3px 0; }
+            .receipt .r-row.total { border-top: 1px dashed #333; margin-top: 6px; padding-top: 8px; font-weight: 800; }
+            .receipt .r-foot { text-align: center; font-size: 10px; color: #555; margin-top: 12px; padding-top: 8px; border-top: 1px dashed #ccc; }
+            @media print { body { padding: 0; } .receipt { border: 1px solid #000; border-radius: 0; } }
+        </style></head><body>
+        <div class="receipt">
+            <div class="r-head">
+                <div class="org">BORONGAN CITY TRANSPORT TERMINAL</div>
+                <div class="kind">TRANSACTION RECORD</div>
             </div>
-            <script>
-                window.onload = function () {
-                    setTimeout(function () {
-                        window.focus();
-                        window.print();
-                        setTimeout(function(){ window.close(); }, 400);
-                    }, 300);
-                };
-            <\/script>
-        </body>
-        </html>
-    `);
+            <div class="r-row"><span>Ref:</span><strong>${escapeHtml(t.id || '—')}</strong></div>
+            <div class="r-row"><span>Date:</span><strong>${escapeHtml(formatDate(t.date))}</strong></div>
+            <div class="r-row"><span>Time:</span><strong>${escapeHtml(t.time || '--')}</strong></div>
+            <div class="r-row"><span>Driver:</span><strong>${escapeHtml(currentDriver.fullName)}</strong></div>
+            <div class="r-row"><span>Driver ID:</span><strong>${escapeHtml(currentDriver.driverId)}</strong></div>
+            <div class="r-row"><span>Vehicle:</span><strong>${escapeHtml(currentDriver.vehicleType)}</strong></div>
+            <div class="r-row"><span>Plate:</span><strong>${escapeHtml(currentDriver.plateNumber)}</strong></div>
+            <div class="r-row"><span>Body No:</span><strong>${escapeHtml(currentDriver.bodyNumber || '—')}</strong></div>
+            <div class="r-row total"><span>Amount:</span><strong>${formatCurrency(t.amount)}</strong></div>
+            <div class="r-row"><span>Previous Balance:</span><strong>${formatCurrency(t.previousBalance)}</strong></div>
+            <div class="r-row"><span>Balance After:</span><strong>${formatCurrency(t.balanceAfter)}</strong></div>
+            <div class="r-row"><span>Status:</span><strong>${escapeHtml((t.status || 'Successful').toUpperCase())}</strong></div>
+            <div class="r-footer r-foot">Keep this transaction record. Thank you!</div>
+        </div>
+        <script>window.onload=function(){setTimeout(function(){window.focus();window.print();setTimeout(function(){window.close();},400);},300);};<\/script>
+        </body></html>`);
     printWin.document.close();
 }
 
@@ -1431,6 +1522,7 @@ function formatNotifTime(timestamp) {
     const timePart = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     return `${datePart} · ${timePart}`;
 }
+
 function formatNotifTimeShort(timestamp) {
     if (!timestamp) return '';
     const d = new Date(timestamp);
@@ -1479,6 +1571,7 @@ function computeNotifCounts() {
         alerts: driverNotifications.filter(n => n.type === 'low' || n.type === 'failed').length
     };
 }
+
 function renderNotifSummary() {
     const c = computeNotifCounts();
     setText('notifCountAll', c.all);
@@ -1616,6 +1709,7 @@ function openNotifModal(id) {
     const modal = document.getElementById('notifModal');
     if (modal) modal.hidden = false;
 }
+
 function closeNotifModal() {
     const modal = document.getElementById('notifModal');
     if (modal) modal.hidden = true;
@@ -1747,86 +1841,52 @@ async function handleChangePassword(e) {
 }
 
 function initDriverUserChip() {
-    console.log('[Driver Chip] Initializing…');
-
     let chip = document.querySelector('.user-chip');
     if (!chip) chip = document.querySelector('header.topbar .user-chip');
     if (!chip) {
         const nameEl = document.getElementById('userNameChip');
         if (nameEl) chip = nameEl.closest('.user-chip') || nameEl.parentElement?.parentElement;
     }
-
-    if (!chip) {
-        console.warn('[Driver Chip] .user-chip not found in DOM');
-        return;
-    }
-
-    console.log('[Driver Chip] Found chip element:', chip);
-
-    if (chip.dataset.chipBound === '1') {
-        console.log('[Driver Chip] Already bound, skipping');
-        return;
-    }
+    if (!chip) return;
+    if (chip.dataset.chipBound === '1') return;
     chip.dataset.chipBound = '1';
 
     if (!document.getElementById('driverChipMenu')) {
         const menu = document.createElement('div');
         menu.id = 'driverChipMenu';
-        menu.style.cssText = `
-            position: absolute;
-            display: none;
-            min-width: 220px;
-            padding: .4rem 0;
-            border: 1px solid #E5E7EB;
-            border-radius: .65rem;
-            background: #fff;
-            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
-            z-index: 2500;
-            font-family: 'Inter', system-ui, sans-serif;
-        `;
-
+        menu.style.cssText = `position:absolute;display:none;min-width:220px;padding:.4rem 0;border:1px solid #E5E7EB;border-radius:.65rem;background:#fff;box-shadow:0 18px 40px rgba(15,23,42,0.16);z-index:2500;font-family:'Inter',system-ui,sans-serif;`;
         menu.innerHTML = `
             <div style="padding:.7rem 1rem .6rem;border-bottom:1px solid #F1F5F9;">
                 <div id="dchipName" style="font-weight:700;font-size:.85rem;color:#1F2937;">Driver</div>
                 <div id="dchipRole" style="font-size:.7rem;color:#6B7280;margin-top:.1rem;">Driver Account</div>
             </div>
-            <button type="button" class="driver-chip-item" data-action="profile"
-                    style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#1F2937;cursor:pointer;font-family:inherit;">
+            <button type="button" class="driver-chip-item" data-action="profile" style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#1F2937;cursor:pointer;font-family:inherit;">
                 <i class="fas fa-user-circle" style="color:#8B1D2C;width:16px;"></i> My Profile
             </button>
-            <button type="button" class="driver-chip-item" data-action="driver-id"
-                    style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#1F2937;cursor:pointer;font-family:inherit;">
+            <button type="button" class="driver-chip-item" data-action="driver-id" style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#1F2937;cursor:pointer;font-family:inherit;">
                 <i class="fas fa-id-card" style="color:#8B1D2C;width:16px;"></i> My Driver ID
             </button>
-            <button type="button" class="driver-chip-item" data-action="qr"
-                    style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#1F2937;cursor:pointer;font-family:inherit;">
+            <button type="button" class="driver-chip-item" data-action="qr" style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#1F2937;cursor:pointer;font-family:inherit;">
                 <i class="fas fa-qrcode" style="color:#8B1D2C;width:16px;"></i> My QR Code
             </button>
-            <button type="button" class="driver-chip-item" data-action="account"
-                    style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#1F2937;cursor:pointer;font-family:inherit;">
+            <button type="button" class="driver-chip-item" data-action="account" style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#1F2937;cursor:pointer;font-family:inherit;">
                 <i class="fas fa-key" style="color:#8B1D2C;width:16px;"></i> Change Password
             </button>
-            <button type="button" class="driver-chip-item" data-action="requests"
-                    style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#1F2937;cursor:pointer;font-family:inherit;">
+            <button type="button" class="driver-chip-item" data-action="requests" style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#1F2937;cursor:pointer;font-family:inherit;">
                 <i class="fas fa-envelope-open-text" style="color:#8B1D2C;width:16px;"></i> My Requests
             </button>
             <div style="height:1px;background:#F1F5F9;margin:.35rem 0;"></div>
-            <button type="button" class="driver-chip-item" data-action="logout"
-                    style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#DC2626;cursor:pointer;font-family:inherit;">
+            <button type="button" class="driver-chip-item" data-action="logout" style="display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem 1rem;border:none;background:none;text-align:left;font-size:.8rem;color:#DC2626;cursor:pointer;font-family:inherit;">
                 <i class="fas fa-right-from-bracket" style="width:16px;"></i> Logout
-            </button>
-        `;
+            </button>`;
         document.body.appendChild(menu);
-        console.log('[Driver Chip] Menu element created and appended to body');
 
         menu.querySelectorAll('.driver-chip-item').forEach(item => {
             item.addEventListener('mouseenter', () => { item.style.background = '#FDF2F4'; });
             item.addEventListener('mouseleave', () => { item.style.background = 'none'; });
-
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const action = item.dataset.action;
-                console.log('[Driver Chip] Item clicked:', action);
                 closeDriverChipMenu();
                 switch (action) {
                     case 'profile':   navigateTo('profile');     break;
@@ -1842,10 +1902,8 @@ function initDriverUserChip() {
 
     chip.addEventListener('click', (e) => {
         e.stopPropagation();
-        console.log('[Driver Chip] Chip clicked');
         const menu = document.getElementById('driverChipMenu');
         if (!menu) return;
-
         if (currentDriver) {
             setText('dchipName', currentDriver.fullName || currentDriver.driverId || 'Driver');
             setText('dchipRole', 'Driver · ' + (currentDriver.driverId || '—'));
@@ -1853,29 +1911,19 @@ function initDriverUserChip() {
             setText('dchipName', 'Driver');
             setText('dchipRole', 'Driver Account');
         }
-
         const rect = chip.getBoundingClientRect();
         menu.style.top  = (rect.bottom + window.scrollY + 8) + 'px';
         menu.style.left = (rect.right + window.scrollX - 220) + 'px';
-
         const isOpen = menu.style.display === 'block';
         menu.style.display = isOpen ? 'none' : 'block';
-        console.log('[Driver Chip] Menu display:', menu.style.display);
     });
 
     document.addEventListener('click', (e) => {
         const menu = document.getElementById('driverChipMenu');
         if (!menu || menu.style.display !== 'block') return;
-        if (!chip.contains(e.target) && !menu.contains(e.target)) {
-            closeDriverChipMenu();
-        }
+        if (!chip.contains(e.target) && !menu.contains(e.target)) closeDriverChipMenu();
     });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeDriverChipMenu();
-    });
-
-    console.log('[Driver Chip] Binding complete');
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDriverChipMenu(); });
 }
 
 function closeDriverChipMenu() {
@@ -1908,7 +1956,10 @@ async function refreshDriverPayments(force = false) {
         const changed = force || latestRef !== beforeRef || Math.abs(currentBalance - before) > 0.001;
         if (!changed) return;
 
-        await Promise.all([loadWalletHistory(), refreshNotifications()]);
+        await Promise.all([
+            loadWalletHistory().catch(e => console.warn('history refresh failed:', e)),
+            refreshNotifications()
+        ]);
         renderAll();
 
         if (!force && data.lastTransaction && latestRef !== beforeRef) {
@@ -1933,6 +1984,7 @@ function startDriverPaymentPolling() {
     stopDriverPaymentPolling();
     driverPaymentPollingTimer = setInterval(() => refreshDriverPayments(false), POLL_MS);
 }
+
 function stopDriverPaymentPolling() {
     if (driverPaymentPollingTimer) clearInterval(driverPaymentPollingTimer);
     driverPaymentPollingTimer = null;
@@ -2163,9 +2215,7 @@ async function initDriverDashboard() {
     try { populateVehicle(); }          catch (e) { console.error('populateVehicle:', e); }
     try { populateBalance(); }          catch (e) { console.error('populateBalance:', e); }
 
-    try {
-        await refreshDriverInquiries();
-    } catch (e) { console.error('inquiries preload:', e); }
+    try { await refreshDriverInquiries(); } catch (e) { console.error('inquiries preload:', e); }
 
     setText('sidebarDriverName', (driver.fullName || driver.driverId || 'Driver') + ' · Driver');
 
@@ -2187,10 +2237,25 @@ window.logout = function() {
     const doLogout = () => {
         logDriverActivity('Logged out', 'fa-sign-out-alt');
         stopDriverPaymentPolling();
-        window.logoutAndRedirect();
+        try {
+            if (typeof window.logoutAndRedirect === 'function') {
+                window.logoutAndRedirect();
+                return;
+            }
+        } catch (e) { console.warn('logoutAndRedirect failed:', e); }
+        try {
+            sessionStorage.clear();
+            localStorage.removeItem('user');
+            localStorage.removeItem('auth_user');
+            localStorage.removeItem('bctt_user');
+            localStorage.removeItem('driver_active_page');
+        } catch (e) {}
+        fetch('api/logout.php', { method: 'POST', credentials: 'include' })
+            .catch(() => {})
+            .finally(() => { window.location.replace('login.html'); });
     };
     if (window.ConfirmModal) {
-        ConfirmModal.show({
+        window.ConfirmModal.show({
             title: "Log out?",
             message: "Are you sure you want to log out of the driver dashboard?",
             confirmText: "Yes, log out",
@@ -2204,8 +2269,37 @@ window.logout = function() {
 
 window.requestInfoUpdate = requestInfoUpdate;
 
+window.driverDiag = async function() {
+    console.log('%c=== DRIVER DASHBOARD DIAGNOSTIC ===', 'background:#8B1D2C;color:#fff;padding:4px 8px;border-radius:4px;font-weight:bold;');
+    const tests = [
+        ['drivers.php',              { me: 1 }],
+        ['wallet.php',               { action: 'balance' }],
+        ['wallet.php',               { action: 'history', limit: 5 }],
+        ['driver_notifications.php', {}],
+        ['inquiries.php',            { action: 'list' }],
+        ['session.php',              {}],
+        ['terminals.php',            {}],
+    ];
+    for (const [ep, q] of tests) {
+        const label = ep + (Object.keys(q).length ? '?' + new URLSearchParams(q).toString() : '');
+        try {
+            const r = await window.api(ep, { query: q, allow401: true });
+            if (r.success) {
+                const d = r.data || {};
+                const keys = Object.keys(d).slice(0, 5);
+                console.log('%c✅ ' + label, 'color:#16A34A;font-weight:bold;', '\n  status=' + r.status + '\n  data keys=[' + keys.join(', ') + ']\n  full:', d);
+            } else {
+                console.log('%c❌ ' + label, 'color:#DC2626;font-weight:bold;', '\n  status=' + r.status + '\n  message=' + (r.message || r.error), '\n  raw:', r);
+            }
+        } catch (e) {
+            console.log('%c💥 ' + label, 'color:#DC2626;font-weight:bold;', e);
+        }
+    }
+    console.log('%c=== END DIAGNOSTIC ===', 'background:#8B1D2C;color:#fff;padding:4px 8px;border-radius:4px;font-weight:bold;');
+    console.log('Tip: if an endpoint fails, look at its message above and check the PHP error log on the server.');
+};
+
 window.authReady.then(() => {
-    console.log('[Boot] authReady resolved, initializing driver dashboard');
     initDriverDashboard();
     initDriverUserChip();
     initMyRequestsModule();
@@ -2227,4 +2321,21 @@ window.authReady.then(() => {
     });
 
     document.getElementById('changePasswordForm')?.addEventListener('submit', handleChangePassword);
+
+    document.querySelectorAll('#chartRangeToggle .range-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.querySelectorAll('#chartRangeToggle .range-btn').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-selected', 'false');
+            });
+            this.classList.add('active');
+            this.setAttribute('aria-selected', 'true');
+            currentChartRange = this.dataset.range || 'days';
+            renderFeesChart();
+        });
+    });
+
+    console.log('%cDriver dashboard ready. Type driverDiag() in console to test all endpoints.', 'color:#4A6B7C;font-weight:bold;');
 });

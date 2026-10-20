@@ -11,6 +11,7 @@
 
   const takenCache = {};
   async function isTaken(field, value) {
+    if (!value) return false;
     const key = field + ":" + value.toUpperCase();
     if (key in takenCache) return takenCache[key];
     try {
@@ -53,12 +54,12 @@
   const passInput           = document.getElementById("password");
   const confirmInput        = document.getElementById("confirmPassword");
 
-   const vehicleTypeError    = document.getElementById("vehicleTypeError");
+  const vehicleTypeError    = document.getElementById("vehicleTypeError");
   const bodyNumberError     = document.getElementById("bodyNumberError");
   const plateError          = document.getElementById("plateError");
   const licenseError        = document.getElementById("licenseError");
 
-   const photoDropzone       = document.getElementById("photoDropzone");
+  const photoDropzone       = document.getElementById("photoDropzone");
   const photoInput          = document.getElementById("photoUpload");
   const photoPreviewImg     = document.getElementById("photoPreviewImg");
   const photoDefaultIcon    = document.getElementById("photoDefaultIcon");
@@ -75,7 +76,7 @@
   const getSelectedLicenseType = () => getRadioValue("licenseType", "Non-Professional");
   const getSelectedDriverClass = () => getRadioValue("driverClass", "Regular");
 
-   const allInputs = form.querySelectorAll(".input-field");
+  const allInputs = form.querySelectorAll(".input-field");
   allInputs.forEach((inp) => {
     inp.addEventListener("input", () => {
       inp.classList.remove("input-error");
@@ -90,7 +91,7 @@
     });
   });
 
-   bodyInput?.addEventListener("input", function () {
+  bodyInput?.addEventListener("input", function () {
     let digits = this.value.replace(/\D+/g, "").slice(0, 4);
     if (this.value !== digits) this.value = digits;
     if (digits.length === 4) {
@@ -99,13 +100,12 @@
     }
   });
 
-   
   photoDropzone?.addEventListener("click", function (e) {
     if (e.target.closest("#photoClearBtn")) return;
     photoInput?.click();
   });
 
-   photoDropzone?.addEventListener("dragover", (e) => {
+  photoDropzone?.addEventListener("dragover", (e) => {
     e.preventDefault();
     photoDropzone.classList.add("dragover");
   });
@@ -149,7 +149,7 @@
     updateProgress();
   }
 
-   function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.82) {
+  function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.82) {
     return new Promise((resolve, reject) => {
       if (!file.type.startsWith("image/")) {
         return reject(new Error("Please select an image file (JPG, PNG, or WEBP)."));
@@ -202,7 +202,7 @@
       const dataUrl = await compressImage(file);
       attachedPhotoDataUrl = dataUrl;
 
-       if (photoPreviewImg) {
+      if (photoPreviewImg) {
         photoPreviewImg.src = dataUrl;
         photoPreviewImg.classList.remove("hidden");
       }
@@ -227,7 +227,6 @@
     }
   }
 
- 
   document.getElementById("togglePassword")?.addEventListener("click", function (e) {
     e.preventDefault();
     const show = passInput.type === "password";
@@ -242,7 +241,6 @@
     this.querySelector("i").className = show ? "fas fa-eye-slash" : "fas fa-eye";
   });
 
- 
   const reqLengthEl  = document.getElementById("reqLength");
   const reqUpperEl   = document.getElementById("reqUpper");
   const reqLowerEl   = document.getElementById("reqLower");
@@ -281,19 +279,18 @@
     const hasNumber  = /[0-9]/.test(pwd);
     const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-+=\\/\[\]~`]/.test(pwd);
 
-     setReqStatus(reqLengthEl, hasLength);
+    setReqStatus(reqLengthEl, hasLength);
     setReqStatus(reqUpperEl, hasUpper);
     setReqStatus(reqLowerEl, hasLower);
     setReqStatus(reqNumberEl, hasNumber);
     setReqStatus(reqSpecialEl, hasSpecial);
 
-     let score = 0;
+    let score = 0;
     if (hasLength) score++;
     if (hasUpper && hasLower) score++;
     if (hasNumber) score++;
     if (hasSpecial) score++;
 
-     
     [bar1, bar2, bar3, bar4].forEach((b) => {
       if (b) b.className = "pw-strength-bar";
     });
@@ -359,7 +356,7 @@
   passInput?.addEventListener("input", updatePasswordStrength);
   confirmInput?.addEventListener("input", checkConfirmMatch);
 
-   const progressFill  = document.getElementById("progressFill");
+  const progressFill  = document.getElementById("progressFill");
   const progressLabel = document.getElementById("progressLabel");
   const stepItems     = document.querySelectorAll(".step-item");
 
@@ -399,7 +396,7 @@
     });
   }
 
-   function updateReview() {
+  function updateReview() {
     const box = document.getElementById("reviewBox");
     if (!box) return;
     const v = (id) => document.getElementById(id)?.value?.trim() || "-";
@@ -438,7 +435,6 @@
   form.addEventListener("change", updateReview);
   updateReview();
 
-  
   function showErrorMsg(m) {
     if (msgDiv) {
       msgDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> ' + m;
@@ -470,7 +466,7 @@
     if (msgDiv) msgDiv.innerHTML = "";
     if (successMsg) successMsg.classList.remove("show");
 
-     document.querySelectorAll(".input-error").forEach((el) => el.classList.remove("input-error"));
+    document.querySelectorAll(".input-error").forEach((el) => el.classList.remove("input-error"));
     document.querySelectorAll(".error-message.show").forEach((el) => el.classList.remove("show"));
 
     const fullName          = fullNameInput?.value.trim();
@@ -499,7 +495,6 @@
     const password          = passInput?.value;
     const confirmPassword   = confirmInput?.value;
 
-     
     if (!fullName) return highlightErrorField(fullNameInput, "Full Name is required.");
     if (!gender)   return highlightErrorField(genderInput, "Please select gender.");
     if (!birthdate) return highlightErrorField(birthdateInput, "Birthdate is required.");
@@ -535,15 +530,31 @@
       return highlightErrorField(confirmInput, "Passwords do not match.");
     }
 
-     
     registerBtn.disabled = true;
     registerBtn.innerHTML = '<span class="spinner"></span> Checking details...';
 
+    // 1. Check Duplicate Username
     const userTaken = await isTaken("username", username);
     if (userTaken) {
       registerBtn.disabled = false;
       registerBtn.innerHTML = '<span>Create account</span><i class="fas fa-arrow-right btn-arrow"></i>';
       return highlightErrorField(usernameInput, "Username is already taken. Please choose another.");
+    }
+
+    // 2. Check Duplicate Plate Number
+    const plateTaken = await isTaken("plateNumber", plateNumberVal);
+    if (plateTaken) {
+      registerBtn.disabled = false;
+      registerBtn.innerHTML = '<span>Create account</span><i class="fas fa-arrow-right btn-arrow"></i>';
+      return highlightErrorField(plateInput, "This Plate Number is already registered.");
+    }
+
+    // 3. Check Duplicate License Number
+    const licenseTaken = await isTaken("licenseNo", licenseNoVal);
+    if (licenseTaken) {
+      registerBtn.disabled = false;
+      registerBtn.innerHTML = '<span>Create account</span><i class="fas fa-arrow-right btn-arrow"></i>';
+      return highlightErrorField(licenseInput, "This Driver's License is already registered.");
     }
 
     registerBtn.innerHTML = '<span class="spinner"></span> Creating account...';
@@ -595,6 +606,7 @@
 
       if (resJson.success) {
         if (successText) {
+          // Matches the "Pending" approval status requested in the flow doc
           successText.textContent = `Account created successfully for ${fullName}! Awaiting admin verification.`;
         }
         if (successMsg) successMsg.classList.add("show");
@@ -604,8 +616,6 @@
         updateReview();
 
         registerBtn.innerHTML = '<i class="fas fa-check mr-1"></i> Registered!';
-
-         
         successMsg?.scrollIntoView({ behavior: "smooth", block: "center" });
 
         setTimeout(() => {

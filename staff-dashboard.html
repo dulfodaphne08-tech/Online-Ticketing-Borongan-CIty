@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="assets/css/staff-dashboard.css?v=20261025" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     <style>
         #stationBanner, #noStationWarning, #assignedNoStation {
@@ -226,10 +226,6 @@
         <button class="sidebar-item" data-page="profile">
             <i class="fa-solid fa-user"></i><span>My Profile</span>
         </button>
-        <button class="sidebar-item" data-page="notifications">
-            <i class="fa-solid fa-bell"></i><span>Notifications</span>
-            <span class="sidebar-badge" id="notifBadgeSidebar" hidden>0</span>
-        </button>
 
         <div class="sidebar-section-title">Session</div>
         <button class="sidebar-item sidebar-item-logout" id="logoutBtn">
@@ -269,12 +265,11 @@
             <span id="syncIndicator" class="sync-indicator">
                 <span class="dot"></span> Live
             </span>
-
-            <div class="notif-wrapper">
-                <button type="button" class="topbar-icon-btn" id="notifBellBtn" aria-label="Notifications">
-                    <i class="fa-solid fa-bell"></i>
-                    <span class="notif-dot" id="notifBadge" hidden>0</span>
-                </button>
+<div class="notif-wrapper">
+    <button type="button" class="notif-btn" id="notifBellBtn" aria-label="Notifications">
+        <i class="fas fa-bell"></i>
+        <span class="notif-badge" id="notifBadge" hidden>0</span>
+    </button>
 
                 <div class="notif-dropdown" id="notifDropdown">
                     <div class="notif-header">
@@ -436,6 +431,50 @@
             </div>
         </div>
 
+<div class="analytics-card">
+    <div class="analytics-head">
+        <div>
+            <h3 class="analytics-title">Fees Collected Overview</h3>
+            <span class="analytics-sub" id="chartRangeLabel">—</span>
+        </div>
+        <div class="analytics-controls">
+            <div class="chart-range-toggle" id="chartRangeToggle" role="tablist" aria-label="Chart range">
+                <button type="button" class="range-btn active" data-range="days" role="tab" aria-selected="true">Days</button>
+                <button type="button" class="range-btn" data-range="weeks" role="tab" aria-selected="false">Weeks</button>
+                <button type="button" class="range-btn" data-range="months" role="tab" aria-selected="false">Months</button>
+                <button type="button" class="range-btn" data-range="years" role="tab" aria-selected="false">Years</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="analytics-stats" id="staffChartStats"></div>
+
+    <div class="analytics-body">
+        <div class="analytics-chart-side">
+            <div class="analytics-chart-wrap">
+                <canvas id="staffFeesChart"></canvas>
+            </div>
+            <div class="analytics-legend">
+                <span class="legend-item"><span class="legend-dot dot-fees"></span> Fees Collected</span>
+                <span class="legend-item"><span class="legend-dot dot-avg"></span> Average</span>
+            </div>
+        </div>
+
+        <div class="analytics-divider"></div>
+
+        <div class="analytics-donut-side">
+            <div class="analytics-donut-head">
+                <h4 class="analytics-donut-title">Vehicle Breakdown</h4>
+                <span class="analytics-donut-sub">Fees by vehicle type</span>
+            </div>
+            <div class="analytics-donut-wrap">
+                <canvas id="staffVehicleDonut"></canvas>
+            </div>
+            <div class="donut-legend" id="staffVehicleLegend"></div>
+        </div>
+    </div>
+</div>
+        
         <div class="two-col">
             <div class="card">
                 <div class="card-head">
@@ -764,6 +803,10 @@
                     <div><span>Current Balance</span><strong id="vdBalance">₱0.00</strong></div>
                     <div class="verify-fee"><span>Applicable Fee</span><strong id="vdFee">₱0.00</strong></div>
                     <div class="verify-after"><span>Remaining Balance</span><strong id="vdRemaining">₱0.00</strong></div>
+                    <div style="grid-column: 1 / -1; border-left: 4px solid var(--blue);">
+                        <span>Route / Destination (Optional)</span>
+                        <input type="text" id="vdRoute" class="input-field" placeholder="e.g., Route A / Bugas">
+                    </div>
                 </div>
 
                 <div class="alert-box alert-warning" id="duplicateWarning" style="display:none;">
@@ -1197,6 +1240,7 @@
             <div class="confirm-row"><span>Vehicle</span><span id="cfVehicle">—</span></div>
             <div class="confirm-row"><span>Body Number</span><span id="cfBody">—</span></div>
             <div class="confirm-row"><span>Plate Number</span><span id="cfPlate">—</span></div>
+            <div class="confirm-row"><span>Route / Destination</span><span id="cfRoute">—</span></div>
             <div class="confirm-row"><span>Current Balance</span><span id="cfPrev">₱0.00</span></div>
             <div class="confirm-row"><span>Terminal Fee</span><span id="cfFee" class="text-primary">₱0.00</span></div>
             <div class="confirm-row confirm-row-total"><span>Remaining Balance</span><span id="cfAfter">₱0.00</span></div>
@@ -1215,7 +1259,7 @@
 <div class="modal-overlay" id="successModal">
     <div class="modal-box">
         <div class="success-icon"><i class="fas fa-check"></i></div>
-        <h2 class="success-title">TRANSACTION SUCCESSFUL</h2>
+        <h2 class="success-title">TRANSACTION SUCCESSFUL & ENTRY LOGGED</h2>
         <div class="confirm-details">
             <div class="confirm-row"><span>Transaction ID</span><span id="scRef">—</span></div>
             <div class="confirm-row"><span>Driver</span><span id="scDriver">—</span></div>
@@ -1230,6 +1274,42 @@
             <button type="button" class="btn-outline" onclick="backToDashboardFromSuccess()">Back to Dashboard</button>
             <button type="button" class="btn-outline" id="printReceiptBtn"><i class="fas fa-print"></i> Print Receipt</button>
             <button type="button" class="btn-primary" onclick="scanNextDriver()"><i class="fas fa-qrcode"></i> Scan Next Driver</button>
+        </div>
+    </div>
+</div>
+
+ <div class="modal-overlay" id="verifiedTripModal">
+    <div class="modal-box">
+        <div class="success-icon" style="background: #EFF6FF; color: #2563EB;">
+            <i class="fas fa-shield-check"></i>
+        </div>
+        <h2 class="modal-title" style="text-align:center; color: #2563EB;">TRIP VERIFIED & EXIT LOGGED</h2>
+        <p class="modal-subtitle" style="text-align:center;">Driver is authorized to pass. No fee deducted.</p>
+        <div class="confirm-details">
+            <div class="confirm-row"><span>Driver</span><span id="vrfDriver">—</span></div>
+            <div class="confirm-row"><span>Plate Number</span><span id="vrfPlate">—</span></div>
+            <div class="confirm-row"><span>Paid At</span><span id="vrfTime">—</span></div>
+            <div class="confirm-row"><span>Payment Reference</span><span id="vrfRef">—</span></div>
+            <div class="confirm-row confirm-row-total" style="color: #2563EB;"><span>Fee Deducted</span><span>₱0.00</span></div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-primary" onclick="closeModal('verifiedTripModal'); resetScan();">
+                <i class="fas fa-check"></i> Scan Next Driver
+            </button>
+        </div>
+    </div>
+</div>
+
+ <div class="modal-overlay" id="unpaidTripModal">
+    <div class="modal-box">
+        <div class="alert-icon alert-icon-danger"><i class="fas fa-ban"></i></div>
+        <h2 class="modal-title" style="text-align:center; color: var(--red);">UNPAID TRIP</h2>
+        <p class="modal-subtitle" style="text-align:center;">
+            This driver has not paid the terminal fee today. <br>
+            Please direct them to the <strong>Ticketing Station</strong> first.
+        </p>
+        <div class="modal-actions">
+            <button type="button" class="btn-primary" onclick="closeModal('unpaidTripModal'); resetScan();">OK</button>
         </div>
     </div>
 </div>
@@ -1390,6 +1470,7 @@
             <div class="confirm-row"><span>Vehicle</span><span id="tdVehicle">—</span></div>
             <div class="confirm-row"><span>Body Number</span><span id="tdBody">—</span></div>
             <div class="confirm-row"><span>Plate Number</span><span id="tdPlate">—</span></div>
+            <div class="confirm-row"><span>Route / Destination</span><span id="tdRoute">—</span></div>
             <div class="confirm-row"><span>Fee Deducted</span><span id="tdFee" class="text-primary">₱0.00</span></div>
             <div class="confirm-row"><span>Previous Balance</span><span id="tdPrev">₱0.00</span></div>
             <div class="confirm-row confirm-row-total"><span>Balance After</span><span id="tdAfter">₱0.00</span></div>
@@ -1514,7 +1595,7 @@
 
  <script src="assets/js/qr-scanner.js?v=20261029"></script>
 <script src="assets/js/confirm-modal.js?v=20261005"></script>
-<script src="assets/js/staff-dashboard.js?v=20261029"></script>
+<script src="assets/js/staff-dashboard.js?v=20261031"></script>
 
 <script>
 (function () {

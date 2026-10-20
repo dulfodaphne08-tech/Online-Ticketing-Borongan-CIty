@@ -2,13 +2,8 @@
 declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 
-/* ------------------------------------------------------------------
-   RESPONSE SHAPER
-   ------------------------------------------------------------------ */
-function inquiryResponse(array $row): array {
-    // Detect whether this inquiry came from a driver dashboard
-    // by checking the email pattern we insert on POST.
-    $isDriver = strpos((string)$row['email'], 'driver+') === 0;
+ function inquiryResponse(array $row): array {
+     $isDriver = strpos((string)$row['email'], 'driver+') === 0;
 
     return [
         'id'         => (string)$row['id'],
@@ -23,7 +18,7 @@ function inquiryResponse(array $row): array {
         'readAt'     => $row['read_at'] === null ? null : date(DATE_ATOM, strtotime((string)$row['read_at'])),
         'repliedAt'  => $row['replied_at'] === null ? null : date(DATE_ATOM, strtotime((string)$row['replied_at'])),
         'resolvedAt' => $row['resolved_at'] === null ? null : date(DATE_ATOM, strtotime((string)$row['resolved_at'])),
-        'isDriver'   => $isDriver,   // <-- distinguishes driver from public
+        'isDriver'   => $isDriver,   
     ];
 }
 
@@ -37,19 +32,11 @@ function inquiryById(PDO $pdo, string $id): array {
     return $row;
 }
 
-/* ------------------------------------------------------------------
-   Explicit action routing (GET only). Keeps original behaviour.
-   ------------------------------------------------------------------ */
-$action = isset($_GET['action']) ? (string)$_GET['action'] : '';
-
-/* ==================================================================
-   POST  — Create inquiry
-   ================================================================== */
-if (method() === 'POST') {
+ $action = isset($_GET['action']) ? (string)$_GET['action'] : '';
+ if (method() === 'POST') {
     $input = body();
 
-    /* ---------------- DRIVER REQUEST ---------------- */
-    $loggedUser = currentUser();
+     $loggedUser = currentUser();
     $isDriverRequest = $loggedUser
         && $loggedUser['role'] === 'driver'
         && isset($input['kind']);
@@ -97,7 +84,7 @@ if (method() === 'POST') {
                                             created_at, read_at, replied_at, resolved_at');
             $ins->execute([
                 (string)$driver['full_name'],
-                'driver+' . $driverId . '@bctt.local',   // <-- identifies driver inquiries
+                'driver+' . $driverId . '@bctt.local',  
                 $subject,
                 $fullMessage,
             ]);
@@ -113,8 +100,7 @@ if (method() === 'POST') {
         }
     }
 
-    /* ---------------- PUBLIC / GENERIC INQUIRY ---------------- */
-    foreach (['name', 'email', 'subject', 'message'] as $field) {
+     foreach (['name', 'email', 'subject', 'message'] as $field) {
         if (isset($input[$field]) && !is_string($input[$field])) {
             fail('Inquiry details must be submitted as text.', 422);
         }
@@ -147,18 +133,11 @@ if (method() === 'POST') {
     ok(['inquiry' => inquiryResponse($row)], 'Your inquiry was sent.', 201);
 }
 
-/* ==================================================================
-   GET  — List inquiries
-   ================================================================== */
-if (method() === 'GET') {
+ if (method() === 'GET') {
 
     $me = currentUser();
 
-    /* ---------------- DRIVER LISTING ----------------
-       Driver sees ONLY their own inquiries.
-       Triggered by:  ?action=list   OR   any GET when role=driver
-    ------------------------------------------------- */
-    if ($me && $me['role'] === 'driver') {
+     if ($me && $me['role'] === 'driver') {
         try {
             $driverId = sessionDriverId($pdo, $me);
             $pattern  = 'driver+' . $driverId . '@bctt.local';
@@ -179,10 +158,7 @@ if (method() === 'GET') {
         }
     }
 
-    /* ---------------- ADMIN LISTING ----------------
-       Admin sees ALL inquiries (public + driver).
-    ------------------------------------------------- */
-    requireRole('admin');
+     requireRole('admin');
     try {
         $stmt = $pdo->query('SELECT id, name, email, subject, message, status, reply,
                                     created_at, read_at, replied_at, resolved_at
@@ -195,10 +171,7 @@ if (method() === 'GET') {
     ok(['inquiries' => $inquiries]);
 }
 
-/* ==================================================================
-   PATCH  — Admin reply / resolve
-   ================================================================== */
-if (method() === 'PATCH') {
+ if (method() === 'PATCH') {
     requireRole('admin');
     $input = body();
     foreach (['id', 'status', 'reply'] as $field) {

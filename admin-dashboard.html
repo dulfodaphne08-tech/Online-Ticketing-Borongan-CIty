@@ -21,7 +21,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <link rel="stylesheet" href="assets/css/confirm-modal.css?v=20261004" />
-  <link rel="stylesheet" href="assets/css/admin-dashboard.css?v=20261008" />
+  <link rel="stylesheet" href="assets/css/admin-dashboard.css?v=20261050" />
 </head>
 <body>
 
@@ -52,6 +52,7 @@
     <div class="sidebar-section-title">Financial / Transactions</div>
     <button class="sidebar-item" data-page="wallet"><i class="fa-solid fa-wallet"></i><span>Wallet Loads</span></button>
     <button class="sidebar-item" data-page="transactions"><i class="fa-solid fa-receipt"></i><span>Transactions</span></button>
+     <button class="sidebar-item" data-page="verifications"><i class="fa-solid fa-check-double"></i><span>Verification / Exits</span></button>
     <button class="sidebar-item" data-page="references"><i class="fa-solid fa-file-invoice"></i><span>Payment References</span></button>
 
     <div class="sidebar-section-title">Reports</div>
@@ -97,7 +98,7 @@
 
 <main class="main-content">
 
-  <header class="topbar">
+   <header class="topbar">
     <div class="topbar-left">
       <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
         <i class="fas fa-bars"></i>
@@ -145,180 +146,433 @@
     </div>
   </header>
 
-  <section id="page-dashboard" class="page-section active">
-    <div class="page-header">
-      <div>
-        <h1 class="page-title">Dashboard</h1>
-        <p class="page-subtitle">
-          Welcome back, <strong style="color:var(--maroon)" id="adminGreetingName">Admin</strong>
-          · Last updated: <span id="lastUpdatedTime">--</span>
-        </p>
-      </div>
-      <div class="page-header-actions">
-        <button class="btn-outline btn-sm" onclick="printSummaryReport('daily')">
-          <i class="fas fa-print"></i> Print Today
+ <section id="page-dashboard" class="page-section active">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Dashboard</h1>
+      <p class="page-subtitle">
+        Welcome back, <strong style="color:var(--maroon)" id="adminGreetingName">Admin</strong>
+        · Last updated: <span id="lastUpdatedTime">--</span>
+      </p>
+    </div>
+    <div class="page-header-actions">
+      <button class="btn-outline btn-sm" onclick="hardRefreshDashboard()">
+        <i class="fas fa-sync"></i> Refresh
+      </button>
+      <button class="btn-outline btn-sm" onclick="printSummaryReport('daily')">
+        <i class="fas fa-print"></i> Print Today
+      </button>
+      <div class="unified-search" style="min-width:280px;">
+        <i class="fas fa-search unified-search__icon"></i>
+        <input type="search" class="unified-search__input" id="globalSearch"
+               placeholder="Search drivers…"
+               onkeydown="if(event.key==='Enter') globalSearch()">
+        <button class="btn-primary btn-sm" onclick="globalSearch()">
+          <i class="fas fa-search"></i> Search
         </button>
-        <div class="unified-search" style="min-width:280px;">
-          <i class="fas fa-search unified-search__icon"></i>
-          <input type="search" class="unified-search__input" id="globalSearch"
-                 placeholder="Search drivers…"
-                 onkeydown="if(event.key==='Enter') globalSearch()">
-          <button class="btn-primary btn-sm" onclick="globalSearch()">
-            <i class="fas fa-search"></i> Search
-          </button>
-        </div>
       </div>
     </div>
+  </div>
 
-    <div class="kpi-row kpi-row-4">
-      <div class="kpi-tile">
-        <div class="kpi-body">
-          <div class="kpi-label">Total Drivers</div>
-          <div class="kpi-value" id="statDrivers">0</div>
-          <div class="kpi-delta">
-            <span class="text-green">●</span> <span id="statActiveDrivers">0</span> Active ·
-            <span class="text-red">●</span> <span id="statInactiveDrivers">0</span> Inactive
+  <div class="kpi-row kpi-row-4">
+    <div class="kpi-tile">
+      <div class="kpi-body">
+        <div class="kpi-label">Fees Collected Today</div>
+        <div class="kpi-value" id="statTodayFees">₱0.00</div>
+        <div class="kpi-delta"><span id="todayFeesTransCount">0</span> completed transactions</div>
+      </div>
+      <div class="kpi-icon kpi-icon-green"><i class="fas fa-coins"></i></div>
+    </div>
+
+    <div class="kpi-tile">
+      <div class="kpi-body">
+        <div class="kpi-label">Fees This Month</div>
+        <div class="kpi-value" id="statMonthlyFees">₱0.00</div>
+        <div class="kpi-delta"><span id="monthlyFeesTransCount">0</span> completed transactions</div>
+      </div>
+      <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-calendar-alt"></i></div>
+    </div>
+
+    <div class="kpi-tile">
+      <div class="kpi-body">
+        <div class="kpi-label">Wallet Loads Today</div>
+        <div class="kpi-value" id="statTodayLoads">₱0.00</div>
+        <div class="kpi-delta"><span id="todayLoadsCount">0</span> load transactions</div>
+      </div>
+      <div class="kpi-icon kpi-icon-blue"><i class="fas fa-wallet"></i></div>
+    </div>
+
+    <div class="kpi-tile">
+      <div class="kpi-body">
+        <div class="kpi-label">Completed Fees</div>
+        <div class="kpi-value" id="statCompletedFees">0</div>
+        <div class="kpi-delta">Successful FEE transactions</div>
+      </div>
+      <div class="kpi-icon kpi-icon-teal"><i class="fas fa-check-double"></i></div>
+    </div>
+  </div>
+
+  <div class="kpi-row kpi-row-4">
+    <div class="kpi-tile">
+      <div class="kpi-body">
+        <div class="kpi-label">Active Drivers</div>
+        <div class="kpi-value" id="statActiveDrivers">0</div>
+        <div class="kpi-delta"><span id="statDrivers">0</span> total registered</div>
+      </div>
+      <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-id-card"></i></div>
+    </div>
+
+    <div class="kpi-tile">
+      <div class="kpi-body">
+        <div class="kpi-label">Registered Vehicles</div>
+        <div class="kpi-value" id="statVehicles">0</div>
+        <div class="kpi-delta"><span id="statActiveVehicles">0</span> active</div>
+      </div>
+      <div class="kpi-icon kpi-icon-purple"><i class="fas fa-car"></i></div>
+    </div>
+
+    <div class="kpi-tile" onclick="openLowBalanceModal()" style="cursor:pointer;">
+      <div class="kpi-body">
+        <div class="kpi-label">Low Balance Drivers</div>
+        <div class="kpi-value text-red" id="statLowBalance">0</div>
+        <div class="kpi-delta">Below ₱50 threshold</div>
+      </div>
+      <div class="kpi-icon kpi-icon-red"><i class="fas fa-triangle-exclamation"></i></div>
+    </div>
+
+    <div class="kpi-tile">
+      <div class="kpi-body">
+        <div class="kpi-label">Active Stations</div>
+        <div class="kpi-value" id="statActiveStations">0</div>
+        <div class="kpi-delta"><span id="statTotalStations">0</span> total registered</div>
+      </div>
+      <div class="kpi-icon kpi-icon-teal"><i class="fas fa-map-location-dot"></i></div>
+    </div>
+  </div>
+
+  <div class="two-col" style="grid-template-columns:1fr 1fr;">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title"><i class="fas fa-signal"></i> Live Staff Activity</h3>
+          <p class="card-sub" style="margin-top:.25rem;">Real-time connection to staff dashboards</p>
+        </div>
+        <button class="btn-outline btn-sm" onclick="refreshLiveStatus(this)" title="Refresh">
+         <i class="fas fa-sync"></i>
+        </button>
+      </div>
+      <div class="kpi-row kpi-row-4" style="margin-bottom:1rem;gap:.5rem;">
+        <div class="kpi-tile" style="padding:.6rem .75rem;min-height:auto;">
+          <div class="kpi-body">
+            <div class="kpi-label" style="font-size:.58rem;">Online Staff</div>
+            <div class="kpi-value" id="liveOnlineStaff" style="font-size:1.2rem;">0</div>
           </div>
         </div>
-        <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-id-card"></i></div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-body">
-          <div class="kpi-label">Total Vehicles</div>
-          <div class="kpi-value" id="statVehicles">0</div>
-          <div class="kpi-delta"><span class="text-green">●</span> <span id="statActiveVehicles">0</span> Active</div>
-        </div>
-        <div class="kpi-icon kpi-icon-blue"><i class="fas fa-car"></i></div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-body">
-          <div class="kpi-label">Active Stations</div>
-          <div class="kpi-value" id="statActiveStations">0</div>
-          <div class="kpi-delta"><span id="statTotalStations">0</span> total registered</div>
-        </div>
-        <div class="kpi-icon kpi-icon-teal"><i class="fas fa-map-location-dot"></i></div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-body">
-          <div class="kpi-label">Today's Fees</div>
-          <div class="kpi-value" id="statTodayFees">₱0</div>
-          <div class="kpi-delta"><span id="todayFeesTransCount">0</span> transactions</div>
-        </div>
-        <div class="kpi-icon kpi-icon-green"><i class="fas fa-coins"></i></div>
-      </div>
-    </div>
-
-    <div class="kpi-row kpi-row-4">
-      <div class="kpi-tile">
-        <div class="kpi-body">
-          <div class="kpi-label">Today's Loads</div>
-          <div class="kpi-value" id="statTodayLoads">₱0</div>
-          <div class="kpi-delta"><span id="todayLoadsCount">0</span> load transactions</div>
-        </div>
-        <div class="kpi-icon kpi-icon-yellow"><i class="fas fa-money-bill-wave"></i></div>
-      </div>
-      <div class="kpi-tile" onclick="openLowBalanceModal()" style="cursor:pointer;">
-        <div class="kpi-body">
-          <div class="kpi-label">Low Balance Drivers</div>
-          <div class="kpi-value text-red" id="statLowBalance">0</div>
-          <div class="kpi-delta">Below threshold</div>
-        </div>
-        <div class="kpi-icon kpi-icon-red"><i class="fas fa-triangle-exclamation"></i></div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-body">
-          <div class="kpi-label">Active Cashiers</div>
-          <div class="kpi-value" id="statActiveCashiers">0</div>
-          <div class="kpi-delta">Online accounts</div>
-        </div>
-        <div class="kpi-icon kpi-icon-teal"><i class="fas fa-cash-register"></i></div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-body">
-          <div class="kpi-label">Active Staff</div>
-          <div class="kpi-value" id="statActiveStaff">0</div>
-          <div class="kpi-delta">Terminal staff</div>
-        </div>
-        <div class="kpi-icon kpi-icon-orange"><i class="fas fa-user-tie"></i></div>
-      </div>
-    </div>
-
-    <div class="two-col">
-      <div class="card">
-        <div class="card-head">
-          <h3 class="card-title"><i class="fas fa-chart-bar"></i> Daily Fee Transactions — Last 7 Days</h3>
-          <div class="flex gap-2">
-            <button class="btn-outline btn-sm" onclick="updateChart('bar')"><i class="fas fa-chart-bar"></i></button>
-            <button class="btn-outline btn-sm" onclick="updateChart('line')"><i class="fas fa-chart-line"></i></button>
+        <div class="kpi-tile" style="padding:.6rem .75rem;min-height:auto;">
+          <div class="kpi-body">
+            <div class="kpi-label" style="font-size:.58rem;">Active Stations</div>
+            <div class="kpi-value" id="liveActiveStations" style="font-size:1.2rem;">0</div>
           </div>
         </div>
-        <div style="position:relative;height:220px;width:100%;">
-          <canvas id="collectionChart"></canvas>
+        <div class="kpi-tile" style="padding:.6rem .75rem;min-height:auto;">
+          <div class="kpi-body">
+            <div class="kpi-label" style="font-size:.58rem;">Entries (15m)</div>
+            <div class="kpi-value text-green" id="liveRecentEntries" style="font-size:1.2rem;">0</div>
+          </div>
+        </div>
+        <div class="kpi-tile" style="padding:.6rem .75rem;min-height:auto;">
+          <div class="kpi-body">
+            <div class="kpi-label" style="font-size:.58rem;">Exits (15m)</div>
+            <div class="kpi-value text-blue" id="liveRecentExits" style="font-size:1.2rem;">0</div>
+          </div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-head">
-          <h3 class="card-title"><i class="fas fa-clock-rotate-left"></i> Recent Activities</h3>
-        </div>
-        <div id="recentActivities" style="max-height:240px;overflow-y:auto;">
-          <div class="empty-inline">No recent activities</div>
-        </div>
+      <div id="liveStaffList" class="live-staff-list">
+        <div class="empty-inline">Loading staff activity…</div>
       </div>
     </div>
 
     <div class="card">
       <div class="card-head">
         <div>
-          <h3 class="card-title">
-            <i class="fas fa-map-location-dot"></i> Live Terminal GIS Overview
-            <span style="background:var(--green-soft);color:var(--green);font-size:.65rem;padding:.15rem .55rem;border-radius:999px;font-weight:700;">
-              <i class="fas fa-satellite-dish"></i> QGIS Synced
-            </span>
-          </h3>
-          <p class="card-sub" style="margin-top:.35rem;">Live monitoring of Borongan City terminal stations</p>
+          <h3 class="card-title"><i class="fas fa-arrow-right-arrow-left"></i> Recent Vehicle Movements</h3>
+          <p class="card-sub" style="margin-top:.25rem;">Live entry/exit logs from staff stations</p>
         </div>
-        <button class="btn-primary btn-sm" onclick="navigateTo('terminals-map')">
-          <i class="fas fa-expand"></i> Full GIS Map
+        <button class="btn-outline btn-sm" onclick="refreshRecentMovements(this)" title="Refresh">
+       <i class="fas fa-sync"></i>
         </button>
       </div>
-      <div class="gis-map-container" style="height:320px;">
-        <div id="dashboardMiniMap"></div>
+      <div id="recentMovementsList" class="movement-list">
+        <div class="empty-inline">Loading movements…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title"><i class="fas fa-cash-register"></i> Cashier Activity (Today)</h3>
+        <p class="card-sub" style="margin-top:.25rem;">Wallet loads processed by cashiers</p>
+      </div>
+     <button class="btn-outline btn-sm" onclick="refreshCashierActivity(this)" title="Refresh">
+     <i class="fas fa-sync"></i>
+     </button>
+    </div>
+    <div id="cashierActivityList" class="live-staff-list">
+      <div class="empty-inline">Loading cashier activity…</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title"><i class="fas fa-building"></i> Station Activity (Last 24 Hours)</h3>
+        <p class="card-sub" style="margin-top:.25rem;">QR scans and fee collections per station</p>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:center;">
+        <span class="card-sub">Active: <strong id="stationActivityActiveCount" style="color:var(--green);">0</strong></span>
+        <span class="card-sub">Total Fees: <strong id="stationActivityTotalFees" style="color:var(--maroon);">₱0.00</strong></span>
+        <button class="btn-outline btn-sm" onclick="refreshStationActivity(this)" title="Refresh">
+        <i class="fas fa-sync"></i>
+        </button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Station</th>
+            <th class="text-center">Fee Txns</th>
+            <th class="text-right">Fee Total</th>
+            <th class="text-center">Staff On Duty</th>
+            <th>Last Activity</th>
+          </tr>
+        </thead>
+        <tbody id="stationActivityTable">
+          <tr><td colspan="5"><div class="empty-inline">Loading station activity…</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title"><i class="fas fa-shield-halved"></i> Alerts &amp; Monitoring</h3>
+        <p class="card-sub" style="margin-top:.25rem;">
+          Low-balance drivers, failed transactions, pending approvals, and system notifications
+        </p>
+      </div>
+      <div style="display:flex;gap:.4rem;">
+        <button class="btn-outline btn-sm" onclick="renderDashboardAlerts()" title="Refresh alerts">
+          <i class="fas fa-sync"></i>
+        </button>
+        <button class="btn-outline btn-sm" onclick="navigateTo('notifications')">
+          <i class="fas fa-bell"></i> All Notifications
+        </button>
+      </div>
+    </div>
+    <div id="dashboardAlerts">
+      <div class="empty-inline"><i class="fas fa-spinner fa-spin"></i> Checking system status…</div>
+    </div>
+  </div>
+
+  <div class="two-col" style="grid-template-columns:1.55fr 1fr;">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title"><i class="fas fa-chart-bar"></i> Fees by Vehicle Type</h3>
+          <p class="card-sub" style="margin-top:.25rem;">Total fee revenue per vehicle type (completed transactions only)</p>
+        </div>
+        <div class="chart-legend">
+          <span><i style="background:#A83244"></i> Tricycle · ₱5</span>
+          <span><i style="background:#2563EB"></i> Jeepney · ₱60</span>
+          <span><i style="background:#EA580C"></i> Multicab · ₱60</span>
+          <span><i style="background:#7C3AED"></i> Bus · ₱100</span>
+        </div>
+      </div>
+      <div style="position:relative;height:280px;width:100%;">
+        <canvas id="vehicleFeesChart"></canvas>
       </div>
     </div>
 
     <div class="card">
       <div class="card-head">
-        <h3 class="card-title"><i class="fas fa-list"></i> Recent Transactions</h3>
-        <div class="flex gap-2">
-          <button class="btn-outline btn-sm" onclick="printTransactionReport(transactions.slice(-50).reverse(), 'Recent Transactions', transactions.slice(-50).reduce((s,t)=>s+Number(t.amount||0),0))">
-            <i class="fas fa-print"></i> Print
-          </button>
-          <button class="btn-outline btn-sm" onclick="navigateTo('transactions')">
-            <i class="fas fa-arrow-right"></i> View All
-          </button>
+        <div>
+          <h3 class="card-title"><i class="fas fa-wallet"></i> Driver Balance Health</h3>
+          <p class="card-sub" style="margin-top:.25rem;">Wallet distribution by balance bracket</p>
         </div>
       </div>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Driver</th>
-              <th>Vehicle</th>
-              <th>Type</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Time</th>
-            </tr>
-          </thead>
-          <tbody id="recentTable">
-            <tr><td colspan="6"><div class="empty-inline">No transactions yet</div></td></tr>
-          </tbody>
-        </table>
+      <div style="position:relative;height:280px;width:100%;">
+        <canvas id="driverBalanceChart"></canvas>
       </div>
     </div>
-  </section>
+  </div>
 
-  <section id="page-users" class="page-section">
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title"><i class="fas fa-chart-line"></i> Daily Fee Collections vs. Wallet Loads</h3>
+        <p class="card-sub" style="margin-top:.25rem;">Two separate series · completed transactions only</p>
+      </div>
+      <div class="range-pill-group">
+        <button class="range-pill" onclick="updateChartRange(7)" id="chartRange7">7D</button>
+        <button class="range-pill active" onclick="updateChartRange(30)" id="chartRange30">30D</button>
+        <button class="range-pill" onclick="updateChartRange('month')" id="chartRangeMonth">Month</button>
+      </div>
+    </div>
+    <div class="chart-legend" style="margin-bottom:.5rem;">
+      <span><i style="background:#6B1520"></i> Fee Collections</span>
+      <span><i style="background:#16A34A"></i> Wallet Loads</span>
+    </div>
+    <div style="position:relative;height:280px;width:100%;">
+      <canvas id="collectionChart"></canvas>
+    </div>
+  </div>
+
+  <div class="two-col" style="grid-template-columns:1fr 1fr;">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title"><i class="fas fa-bullseye"></i> Revenue Target</h3>
+          <p class="card-sub" style="margin-top:.25rem;" id="revenuePeriodLabel">This Month</p>
+        </div>
+        <button class="btn-outline btn-sm" onclick="openRevenueTargetModal()">
+          <i class="fas fa-edit"></i> Edit Target
+        </button>
+      </div>
+      <div class="donut-wrap">
+        <canvas id="revenueRing"></canvas>
+        <div class="donut-center">
+          <div class="donut-value" id="revenuePct">0%</div>
+          <div class="donut-sub" id="revenueLabel">₱0.00 / ₱50,000</div>
+        </div>
+      </div>
+      <p class="card-sub" style="text-align:center;margin-top:.5rem;">
+        Progress from actual FEE revenue only — not wallet deposits
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title"><i class="fas fa-clock-rotate-left"></i> Recent Activities</h3>
+          <p class="card-sub" style="margin-top:.25rem;">Latest actions across the system</p>
+        </div>
+        <button class="btn-outline btn-sm" onclick="loadActivityFeed(true)" title="Refresh feed">
+          <i class="fas fa-sync"></i>
+        </button>
+      </div>
+      <div id="recentActivities" class="activity-scroll">
+        <div class="empty-inline"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col" style="grid-template-columns:1.15fr 1fr;">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title"><i class="fas fa-lightbulb"></i> System Insights &amp; Recommendations</h3>
+          <p class="card-sub" style="margin-top:.25rem;">Operational summaries derived from live transaction data</p>
+        </div>
+        <button class="btn-outline btn-sm" onclick="renderSystemInsights()" title="Refresh insights">
+          <i class="fas fa-sync"></i>
+        </button>
+      </div>
+      <div id="systemInsights">
+        <div class="empty-inline"><i class="fas fa-spinner fa-spin"></i> Analyzing…</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title"><i class="fas fa-bolt"></i> Quick Actions</h3>
+          <p class="card-sub" style="margin-top:.25rem;">Jump to key management pages</p>
+        </div>
+      </div>
+      <div class="quick-actions">
+        <button class="qa-btn" onclick="navigateTo('drivers')">
+          <i class="fas fa-id-card"></i>
+          <div class="qa-title">Drivers</div>
+          <div class="qa-sub">Manage registrations</div>
+        </button>
+        <button class="qa-btn" onclick="navigateTo('wallet')">
+          <i class="fas fa-wallet"></i>
+          <div class="qa-title">Wallet Loads</div>
+          <div class="qa-sub">Cashier deposits</div>
+        </button>
+        <button class="qa-btn" onclick="navigateTo('transactions')">
+          <i class="fas fa-receipt"></i>
+          <div class="qa-title">Transactions</div>
+          <div class="qa-sub">Fee records</div>
+        </button>
+        <button class="qa-btn" onclick="navigateTo('fees')">
+          <i class="fas fa-money-bill-wave"></i>
+          <div class="qa-title">Fee Config</div>
+          <div class="qa-sub">Vehicle rates</div>
+        </button>
+        <button class="qa-btn" onclick="navigateTo('terminals-map')">
+          <i class="fas fa-map-location-dot"></i>
+          <div class="qa-title">Terminal Map</div>
+          <div class="qa-sub">GIS locations</div>
+        </button>
+        <button class="qa-btn" onclick="navigateTo('report-daily')">
+          <i class="fas fa-chart-column"></i>
+          <div class="qa-title">Reports</div>
+          <div class="qa-sub">Daily / monthly</div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title"><i class="fas fa-list"></i> Recent Transactions</h3>
+        <p class="card-sub" style="margin-top:.25rem;">Latest completed fee and wallet transactions</p>
+      </div>
+      <button class="btn-outline btn-sm" onclick="navigateTo('transactions')">
+        <i class="fas fa-arrow-right"></i> View All
+      </button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Driver</th>
+            <th>Vehicle</th>
+            <th>Amount</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="recentTable">
+          <tr><td colspan="6"><div class="empty-inline">No transactions yet</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title"><i class="fas fa-map-location-dot"></i> Live Terminal Map</h3>
+        <p class="card-sub" style="margin-top:.25rem;">Borongan City terminal stations</p>
+      </div>
+      <button class="btn-primary btn-sm" onclick="navigateTo('terminals-map')">
+        <i class="fas fa-expand"></i> Full GIS Map
+      </button>
+    </div>
+    <div class="gis-map-container" style="height:320px;">
+      <div id="dashboardMiniMap"></div>
+    </div>
+  </div>
+</section>
+
+   <section id="page-users" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">User Management</h1>
@@ -360,7 +614,7 @@
     </p>
   </section>
 
-  <section id="page-drivers" class="page-section">
+   <section id="page-drivers" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Driver Management</h1>
@@ -394,6 +648,7 @@
               <th>Vehicle</th>
               <th>Contact</th>
               <th>License</th>
+              <th>Designated Terminal / TODA</th>
               <th>Balance</th>
               <th>Approval</th>
               <th>Actions</th>
@@ -405,7 +660,7 @@
     </div>
   </section>
 
-  <section id="page-vehicles" class="page-section">
+   <section id="page-vehicles" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Vehicle Management</h1>
@@ -441,7 +696,7 @@
     </div>
   </section>
 
-  <section id="page-wallet" class="page-section">
+   <section id="page-wallet" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Wallet Loads</h1>
@@ -511,7 +766,7 @@
     </div>
   </section>
 
-  <section id="page-transactions" class="page-section">
+   <section id="page-transactions" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Transactions</h1>
@@ -523,7 +778,7 @@
       <div class="page-header-actions">
         <input type="text" id="transSearch" class="input-field input-field-sm" style="width:10rem;" placeholder="Search driver / ref..." oninput="renderTransactions()">
         <input type="date" id="transDate" class="input-field input-field-sm" style="width:9rem;" onchange="renderTransactions()">
-        <select id="transType" class="input-field input-field-sm" style="width:10rem;" onchange="renderTransactions()">
+          <select id="transType" class="input-field input-field-sm" style="width:10rem;" onchange="renderTransactions()">
           <option value="FEE" selected>Fee Transactions</option>
           <option value="LOAD">Wallet Loads</option>
         </select>
@@ -555,7 +810,43 @@
     </div>
   </section>
 
-  <section id="page-references" class="page-section">
+   <section id="page-verifications" class="page-section">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Verification &amp; Exits</h1>
+        <p class="page-subtitle">
+          Staff-scanned QR <strong>verification logs</strong> and <strong>vehicle exits</strong> from Receiving Stations.
+        </p>
+      </div>
+      <div class="page-header-actions">
+        <input type="text" id="verifySearch" class="input-field input-field-sm" style="width:14rem;" placeholder="Search driver / station..." oninput="renderVerifications()">
+        <input type="date" id="verifyDate" class="input-field input-field-sm" style="width:9rem;" onchange="renderVerifications()">
+        <button class="btn-outline btn-sm" onclick="printVerificationReport()">
+          <i class="fas fa-print"></i> Print Log
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date &amp; Time</th>
+              <th>Driver</th>
+              <th>Vehicle</th>
+              <th>Movement</th>
+              <th>Station</th>
+              <th>Processed By</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="verifyTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+   <section id="page-references" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Payment References</h1>
@@ -588,7 +879,7 @@
     </div>
   </section>
 
-  <section id="page-report-transactions" class="page-section">
+   <section id="page-report-transactions" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Transaction Reports</h1>
@@ -609,11 +900,31 @@
           <input type="date" id="rptTransTo" class="input-field input-field-sm">
         </div>
         <div class="filter-group">
+          <label>Driver ID / Name</label>
+          <input type="text" id="rptTransDriver" class="input-field input-field-sm" placeholder="Driver ID/Name">
+        </div>
+        <div class="filter-group">
+          <label>Plate / Body No.</label>
+          <input type="text" id="rptTransPlate" class="input-field input-field-sm" placeholder="Plate/Body">
+        </div>
+        <div class="filter-group">
+          <label>Station / TODA</label>
+          <input type="text" id="rptTransStation" class="input-field input-field-sm" placeholder="Station/TODA">
+        </div>
+        <div class="filter-group">
           <label>Type</label>
           <select id="rptTransType" class="input-field input-field-sm">
             <option value="">All Types</option>
             <option value="LOAD">Loads</option>
             <option value="FEE">Fees</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Status</label>
+          <select id="rptTransStatus" class="input-field input-field-sm">
+            <option value="">All Statuses</option>
+            <option value="SUCCESSFUL">Successful</option>
+            <option value="FAILED">Failed</option>
           </select>
         </div>
         <div class="filter-group">
@@ -637,7 +948,7 @@
     </div>
   </section>
 
-  <section id="page-report-terminal" class="page-section">
+   <section id="page-report-terminal" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Terminal Reports</h1>
@@ -670,7 +981,7 @@
     </div>
   </section>
 
-  <section id="page-report-daily" class="page-section">
+   <section id="page-report-daily" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Daily / Monthly Reports</h1>
@@ -698,25 +1009,55 @@
     </div>
   </section>
 
-  <section id="page-report-attendance" class="page-section">
+   <section id="page-report-attendance" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Attendance Reports</h1>
-        <p class="page-subtitle">View daily attendance from the Attendance page.</p>
+        <p class="page-subtitle">Generate and print employee attendance logs.</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn-outline btn-sm" onclick="printAttendanceReport()"><i class="fas fa-print"></i> Print</button>
       </div>
     </div>
     <div class="card">
-      <div class="table-wrap">
-        <div class="empty-state">
-          <i class="fas fa-file-lines"></i>
-          <h3>Attendance Reports</h3>
-          <p>View daily attendance from the Attendance page.</p>
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label>From</label>
+          <input type="date" id="attReportFrom" class="input-field input-field-sm">
         </div>
+        <div class="filter-group">
+          <label>To</label>
+          <input type="date" id="attReportTo" class="input-field input-field-sm">
+        </div>
+        <div class="filter-group">
+          <label>&nbsp;</label>
+          <button class="btn-primary" onclick="generateAttendanceReport()"><i class="fas fa-play"></i> Generate</button>
+        </div>
+      </div>
+      
+       <div class="kpi-row kpi-row-3" id="attReportSummary" style="display:none; margin-bottom: 1.5rem;"></div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Employee</th>
+              <th>Role</th>
+              <th>Time In</th>
+              <th>Time Out</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="attendanceReportTable">
+            <tr><td colspan="6"><div class="empty-inline">Select a date range and click Generate</div></td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </section>
 
-  <section id="page-attendance" class="page-section">
+   <section id="page-attendance" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Attendance</h1>
@@ -747,7 +1088,7 @@
     </div>
   </section>
 
-  <section id="page-notifications" class="page-section">
+   <section id="page-notifications" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Notifications</h1>
@@ -763,7 +1104,7 @@
     </div>
   </section>
 
-  <section id="page-audit" class="page-section">
+   <section id="page-audit" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Audit Logs</h1>
@@ -797,7 +1138,7 @@
     </div>
   </section>
 
-  <section id="page-fees" class="page-section">
+   <section id="page-fees" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Fee Configuration</h1>
@@ -850,7 +1191,7 @@
     </div>
   </section>
 
-  <section id="page-fee-history" class="page-section">
+   <section id="page-fee-history" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Fee History</h1>
@@ -883,7 +1224,7 @@
     </div>
   </section>
 
-  <section id="page-inquiries" class="page-section">
+   <section id="page-inquiries" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Inquiries</h1>
@@ -958,7 +1299,7 @@
     </div>
   </section>
 
-  <section id="page-system-settings" class="page-section">
+   <section id="page-system-settings" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Settings</h1>
@@ -1011,7 +1352,7 @@
     </div>
   </section>
 
-  <section id="page-settings" class="page-section">
+   <section id="page-settings" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Profile</h1>
@@ -1053,7 +1394,7 @@
     </div>
   </section>
 
-  <section id="page-change-password" class="page-section">
+   <section id="page-change-password" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Change Password</h1>
@@ -1077,7 +1418,7 @@
     </div>
   </section>
 
-  <section id="page-terminals-map" class="page-section">
+   <section id="page-terminals-map" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Terminal GIS Map &amp; Operations</h1>
@@ -1186,7 +1527,7 @@
     </div>
   </section>
 
-  <section id="page-staff-assignments" class="page-section">
+   <section id="page-staff-assignments" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Staff Assignments</h1>
@@ -1226,7 +1567,7 @@
     </div>
   </section>
 
-  <section id="page-station-transactions" class="page-section">
+   <section id="page-station-transactions" class="page-section">
     <div class="page-header">
       <div>
         <h1 class="page-title">Station Fee Transactions</h1>
@@ -1297,7 +1638,11 @@
   </section>
 </main>
 
-<div class="modal-overlay" id="terminalModal">
+ <button id="scrollToTopBtn" class="scroll-top-btn" title="Go to top">
+  <i class="fas fa-arrow-up"></i>
+</button>
+
+ <div class="modal-overlay" id="terminalModal">
   <div class="modal-box" style="max-width:650px;">
     <h2 class="modal-title" id="terminalModalTitle">Add Terminal Station</h2>
     <p class="modal-sub">Set coordinates, assigned ticketer/cashier, and TODA coverage.</p>
@@ -1528,7 +1873,7 @@
         </div>
       </div>
 
-      <div class="form-group" id="stationAssignWrap" style="display:none;">
+       <div class="form-group" id="stationAssignWrap" style="display:none;">
         <label class="form-label" for="uStationId">
           <span id="stationAssignLabel">Assign Terminal Station</span>
           <span id="stationAssignRequired" style="color:var(--red);">*</span>
@@ -1537,7 +1882,7 @@
           <option value="">— Select station —</option>
         </select>
         <p class="form-hint" id="stationAssignHint" style="margin-top:.35rem;">
-          The staff will be restricted to processing transactions at this station.
+          The account will be restricted to this station/office.
         </p>
       </div>
 
@@ -1629,14 +1974,52 @@
     </form>
   </div>
 </div>
+ 
+ <div class="modal-overlay" id="eodSummaryModal">
+  <div class="modal-box" style="max-width:480px;">
+    <div style="text-align:center; margin-bottom:1rem;">
+      <div style="width:56px;height:56px;border-radius:50%;background:var(--maroon-soft);color:var(--maroon);display:inline-flex;align-items:center;justify-content:center;margin-bottom:.5rem;font-size:1.5rem;">
+        <i class="fas fa-moon"></i>
+      </div>
+      <h2 class="modal-title">End of Day Summary</h2>
+      <p class="modal-sub">Today's operations at a glance</p>
+    </div>
+    
+    <div class="confirm-details" style="margin-top:1rem;">
+      <div class="confirm-row">
+        <span><i class="fas fa-qrcode text-primary"></i> QR Scans Processed</span>
+        <strong id="eodScans">0</strong>
+      </div>
+      <div class="confirm-row">
+        <span><i class="fas fa-coins text-green"></i> Total Fees Collected</span>
+        <strong id="eodFees" style="color:var(--green);">₱0.00</strong>
+      </div>
+      <div class="confirm-row">
+        <span><i class="fas fa-wallet text-blue"></i> Total Wallet Loaded</span>
+        <strong id="eodLoads" style="color:var(--blue);">₱0.00</strong>
+      </div>
+      <div class="confirm-row confirm-row-total">
+        <span><i class="fas fa-triangle-exclamation text-red"></i> Low Balance Alerts</span>
+        <strong id="eodAlerts" style="color:var(--red);">0</strong>
+      </div>
+    </div>
+    
+    <div class="modal-actions">
+      <button type="button" class="btn-primary" onclick="closeModal('eodSummaryModal')" style="width:100%;">
+        <i class="fas fa-check"></i> Got it, close
+      </button>
+    </div>
+  </div>
+</div>
 
 <script src="assets/js/confirm-modal.js?v=20261004"></script>
-<script src="assets/js/admin-dashboard.js?v=20261008"></script>
+<script src="assets/js/admin-dashboard.js?v=20261053"></script>
 
 <script>
 const ADMIN_PAGE_LABELS = {
   dashboard: 'Dashboard', users: 'User Management', drivers: 'Driver Management',
   vehicles: 'Vehicle Management', wallet: 'Wallet Loads', transactions: 'Transactions',
+  verifications: 'Verification / Exits',  
   references: 'Payment References', 'report-transactions': 'Transaction Reports',
   'report-terminal': 'Terminal Reports', 'report-daily': 'Daily / Monthly Reports',
   'report-attendance': 'Attendance Reports', 'terminals-map': 'Terminal GIS Map',
@@ -1671,12 +2054,11 @@ function updateAdminTopbarClock() {
   const timePart = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   el.textContent = `${datePart}, ${timePart}`;
 }
+
 document.addEventListener('DOMContentLoaded', function () {
   updateAdminTopbarClock();
   setInterval(updateAdminTopbarClock, 30000);
-});
 
-document.addEventListener('DOMContentLoaded', function () {
   if (window.CURRENT_USER) {
     const name = document.getElementById('sidebarUser');
     const role = document.getElementById('sidebarRole');
@@ -1686,587 +2068,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (role) role.textContent = 'Administrator';
     if (avatar) avatar.textContent = (window.CURRENT_USER.fullName || 'A').charAt(0).toUpperCase();
     if (chip) chip.textContent = window.CURRENT_USER.fullName || window.CURRENT_USER.username || 'Admin';
-  }
-});
-
-let __inqCurrentId = null;
-let __inqList = [];
-let __inqOriginalReply = "";
-let __inqLoading = false;
-let __inqError = null;
-let __inqBusy = false;
-
-const __INQ_STATUS = {
-  new:      { dbValue: 'new',      wire: 'new',      display: 'new',         filter: 'new',         label: 'New' },
-  read:     { dbValue: 'read',     wire: 'read',     display: 'in_progress', filter: 'in_progress', label: 'In Progress' },
-  replied:  { dbValue: 'replied',  wire: 'replied',  display: 'replied',     filter: 'replied',     label: 'Replied' },
-  resolved: { dbValue: 'resolved', wire: 'resolved', display: 'resolved',    filter: 'resolved',    label: 'Resolved' }
-};
-
-function __inqStatusKey(raw) {
-  const s = String(raw || 'new').toLowerCase().trim();
-  if (__INQ_STATUS[s]) return s;
-  for (const k of Object.keys(__INQ_STATUS)) {
-    if (__INQ_STATUS[k].display === s || __INQ_STATUS[k].filter === s) return k;
-  }
-  return 'new';
-}
-function __inqStatusInfo(raw) { return __INQ_STATUS[__inqStatusKey(raw)]; }
-
-function __inqEscape(str) {
-  return String(str == null ? '' : str)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
-}
-function __inqFormatDate(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d)) return iso;
-  return d.toLocaleString('en-PH', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit'
-  });
-}
-
-function __inqUpdateSidebarBadge() {
-  const newCount = __inqList.filter(i => __inqStatusKey(i.status) === 'new').length;
-  const badge = document.getElementById('inquirySidebarBadge');
-  if (!badge) return;
-  badge.textContent = newCount;
-  badge.hidden = newCount === 0;
-}
-
-function renderInquiryStats(list) {
-  const counts = { new: 0, read: 0, replied: 0, resolved: 0 };
-  list.forEach(i => { counts[__inqStatusKey(i.status)]++; });
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  set('inqStatTotal',    list.length);
-  set('inqStatNew',      counts.new);
-  set('inqStatReplied',  counts.replied);
-  set('inqStatResolved', counts.resolved);
-}
-
-function renderInquiries() {
-  const table   = document.getElementById('inquiryTable');
-  const counter = document.getElementById('inquiryCount');
-  if (!table) return;
-
-  if (__inqLoading) {
-    table.innerHTML = '<tr><td colspan="6"><div class="empty-inline">' +
-      '<i class="fas fa-spinner fa-spin" style="margin-right:.4rem;"></i> Loading inquiries…' +
-      '</div></td></tr>';
-    if (counter) counter.textContent = '…';
-    return;
-  }
-
-  if (__inqError) {
-    table.innerHTML = '<tr><td colspan="6"><div class="empty-state py-6">' +
-      '<i class="fas fa-triangle-exclamation" style="color:var(--red);"></i>' +
-      '<h3>Could not load inquiries</h3>' +
-      '<p class="text-sm">' + __inqEscape(__inqError) + '</p>' +
-      '<button class="btn-outline btn-sm" style="margin-top:.75rem;" ' +
-        'onclick="refreshInquiries()"><i class="fas fa-sync"></i> Retry</button>' +
-      '</div></td></tr>';
-    if (counter) counter.textContent = '0';
-    return;
-  }
-
-  const filterValue = document.getElementById('inquiryStatusFilter')?.value || '';
-  const search      = (document.getElementById('inquirySearch')?.value || '').toLowerCase().trim();
-
-  renderInquiryStats(__inqList);
-  __inqUpdateSidebarBadge();
-
-  let list = __inqList.slice();
-  list.sort((a, b) => new Date(b.receivedAt || 0) - new Date(a.receivedAt || 0));
-
-  if (filterValue) list = list.filter(i => __inqStatusInfo(i.status).filter === filterValue);
-  if (search) {
-    list = list.filter(i =>
-      (i.name    || '').toLowerCase().includes(search) ||
-      (i.email   || '').toLowerCase().includes(search) ||
-      (i.subject || '').toLowerCase().includes(search) ||
-      (i.message || '').toLowerCase().includes(search));
-  }
-
-  if (counter) counter.textContent = list.length;
-
-  if (!list.length) {
-    const filtered = !!(filterValue || search);
-    table.innerHTML = '<tr><td colspan="6"><div class="empty-state py-6">' +
-      '<i class="fas fa-inbox"></i>' +
-      '<h3>' + (filtered ? 'No matching inquiries' : 'No inquiries yet') + '</h3>' +
-      '<p class="text-sm">' +
-        (filtered ? 'Try clearing filters or search.' : 'Public and driver messages will appear here.') +
-      '</p></div></td></tr>';
-    return;
-  }
-
-  table.innerHTML = list.map(inq => {
-    const info    = __inqStatusInfo(inq.status);
-    const preview = (inq.message || '').length > 70 ? inq.message.slice(0, 70) + '…' : (inq.message || '');
-    return '<tr>' +
-      '<td>' + __inqEscape(__inqFormatDate(inq.receivedAt)) + '</td>' +
-      '<td><div class="inq-subject">' + __inqEscape(inq.name || 'Anonymous') + '</div>' +
-        '<div class="inq-email">' + __inqEscape(inq.email || '—') + '</div></td>' +
-      '<td><strong>' + __inqEscape(inq.subject || '—') + '</strong></td>' +
-      '<td><div class="inq-preview">' + __inqEscape(preview) + '</div></td>' +
-      '<td><span class="inq-status ' + info.display + '">' + __inqEscape(info.label) + '</span></td>' +
-      '<td><button class="btn-primary btn-sm" onclick="openInquiry(\'' + __inqEscape(inq.id) + '\')">' +
-        '<i class="fas fa-eye"></i> View</button></td>' +
-    '</tr>';
-  }).join('');
-}
-
-async function __refreshInquiries(showSuccess = false) {
-  __inqLoading = true; __inqError = null; renderInquiries();
-  try {
-    const result = await window.api('inquiries.php');
-    if (!result || !result.success || !result.data || !Array.isArray(result.data.inquiries)) {
-      __inqLoading = false;
-      __inqError = (result && result.message) || 'Inquiries could not be loaded.';
-      renderInquiries();
-      if (typeof showToast === 'function') showToast(__inqError, 'error');
-      return false;
-    }
-    __inqList = result.data.inquiries;
-    __inqLoading = false; __inqError = null;
-    renderInquiries();
-    if (showSuccess && typeof showToast === 'function') showToast('Inquiries refreshed.', 'success');
-    if (typeof window.loadNotifications === 'function') window.loadNotifications();
-    return true;
-  } catch (err) {
-    console.error('Inquiry load failed:', err);
-    __inqLoading = false;
-    __inqError = 'Network error. Please check your connection.';
-    renderInquiries();
-    if (typeof showToast === 'function') showToast(__inqError, 'error');
-    return false;
-  }
-}
-
-async function openInquiry(id) {
-  let inq = __inqList.find(i => i.id === id);
-  if (!inq) return;
-  __inqCurrentId = id;
-  const dbStatus = __inqStatusKey(inq.status);
-  if (dbStatus === 'new') {
-    try {
-      const res = await window.api('inquiries.php', { method: 'PATCH', body: { id, status: __INQ_STATUS.read.wire } });
-      if (res && res.success && res.data && res.data.inquiry) {
-        inq = res.data.inquiry;
-        __inqList = __inqList.map(item => item.id === id ? inq : item);
-        renderInquiries();
-      }
-    } catch (err) { console.warn('Auto-bump network error:', err); }
-  }
-  document.getElementById('inqModalName').textContent    = inq.name || 'Anonymous';
-  document.getElementById('inqModalEmail').textContent   = inq.email || '—';
-  document.getElementById('inqModalSubject').textContent = inq.subject || '—';
-  document.getElementById('inqModalBody').textContent    = inq.message || '—';
-  document.getElementById('inqModalDate').textContent    = __inqFormatDate(inq.receivedAt);
-  document.getElementById('inqModalType').textContent    = inq.topic || inq.subject || 'General';
-  const info = __inqStatusInfo(inq.status);
-  const statusEl = document.getElementById('inqModalStatus');
-  statusEl.className = 'inq-status ' + info.display;
-  statusEl.textContent = info.label.toUpperCase();
-  const replyEl = document.getElementById('inqReplyText');
-  replyEl.value = inq.reply || '';
-  __inqOriginalReply = replyEl.value;
-  __renderPreviousResponse(inq);
-  openModal('inquiryModal');
-}
-
-function __renderPreviousResponse(inq) {
-  let wrap = document.getElementById('inqResponseHistory');
-  const form = document.querySelector('.inq-reply-form');
-  if (!form) return;
-  if (!wrap) {
-    wrap = document.createElement('div');
-    wrap.id = 'inqResponseHistory';
-    wrap.style.cssText = 'margin:.75rem 0;';
-    form.parentNode.insertBefore(wrap, form);
-  }
-  if (!inq.reply || !inq.repliedAt) { wrap.innerHTML = ''; return; }
-  wrap.innerHTML =
-    '<div class="section-mini-title"><i class="fas fa-comments"></i> Previous Response</div>' +
-    '<div style="background:var(--maroon-tint);border-left:3px solid var(--maroon);' +
-         'padding:.6rem .75rem;border-radius:.5rem;margin-bottom:.5rem;">' +
-      '<div style="font-size:.7rem;color:var(--text-mid);margin-bottom:.2rem;">' +
-        '<strong>Admin</strong> · ' + __inqEscape(__inqFormatDate(inq.repliedAt)) + '</div>' +
-      '<div style="font-size:.82rem;white-space:pre-wrap;">' + __inqEscape(inq.reply) + '</div>' +
-    '</div>';
-}
-
-async function __inqPatch(body, successMessage) {
-  if (!__inqCurrentId) return false;
-  if (__inqBusy) { if (typeof showToast === 'function') showToast('Please wait…', 'warning'); return false; }
-  __inqBusy = true;
-  try {
-    const res = await window.api('inquiries.php', { method: 'PATCH', body: { id: __inqCurrentId, ...body } });
-    if (!res || !res.success || !res.data || !res.data.inquiry) {
-      const msg = (res && res.message) || 'Inquiry could not be saved.';
-      if (typeof showToast === 'function') showToast(msg, 'error');
-      return false;
-    }
-    const updated = res.data.inquiry;
-    __inqList = __inqList.map(item => item.id === updated.id ? updated : item);
-    renderInquiries();
-    if (typeof showToast === 'function') showToast(successMessage, 'success');
-    if (typeof window.loadNotifications === 'function') window.loadNotifications();
-    closeModal('inquiryModal');
-    return true;
-  } catch (err) {
-    console.error('Inquiry update failed:', err);
-    if (typeof showToast === 'function') showToast('Network error saving inquiry.', 'error');
-    return false;
-  } finally { __inqBusy = false; }
-}
-
-function saveInquiryReply() {
-  const reply = document.getElementById('inqReplyText').value.trim();
-  if (!reply) { if (typeof showToast === 'function') showToast('Enter a response before saving.', 'error'); return; }
-  return __inqPatch({ reply }, 'Response saved.');
-}
-
-function resolveInquiry() {
-  const replyEl = document.getElementById('inqReplyText');
-  const typed   = replyEl.value.trim();
-  const hasUnsaved = typed && typed !== __inqOriginalReply;
-  if (hasUnsaved) {
-    if (window.ConfirmModal) {
-      window.ConfirmModal.show({
-        title: 'Unsaved response',
-        message: 'You have unsaved response text. Resolving without saving will discard the typed text.',
-        confirmText: 'Resolve without saving',
-        cancelText: 'Cancel',
-        onConfirm: () => __inqPatch({ status: __INQ_STATUS.resolved.wire }, 'Inquiry marked as resolved.')
-      });
-      return;
-    }
-  }
-  return __inqPatch({ status: __INQ_STATUS.resolved.wire }, 'Inquiry marked as resolved.');
-}
-
-function closeInquiryModalSafe() {
-  const current = document.getElementById('inqReplyText')?.value.trim() || '';
-  if (current && current !== __inqOriginalReply) {
-    if (window.ConfirmModal) {
-      window.ConfirmModal.show({
-        title: 'Discard unsaved changes?',
-        message: 'Your response text has not been saved. Close anyway?',
-        confirmText: 'Discard', cancelText: 'Keep editing',
-        onConfirm: () => closeModal('inquiryModal')
-      });
-      return;
-    }
-    if (!confirm('Discard unsaved response?')) return;
-  }
-  closeModal('inquiryModal');
-}
-
-function __wireInqStatCard(cardId, filterKey) {
-  const el = document.getElementById(cardId)?.closest('.kpi-tile');
-  if (!el) return;
-  el.style.cursor = 'pointer';
-  el.addEventListener('click', () => {
-    const sf = document.getElementById('inquiryStatusFilter');
-    if (sf) sf.value = filterKey;
-    renderInquiries();
-  });
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('.sidebar-item[data-page="inquiries"]').forEach(btn => {
-    btn.addEventListener('click', function () { __refreshInquiries(); });
-  });
-  __wireInqStatCard('inqStatTotal',    '');
-  __wireInqStatCard('inqStatNew',      __INQ_STATUS.new.filter);
-  __wireInqStatCard('inqStatReplied',  __INQ_STATUS.replied.filter);
-  __wireInqStatCard('inqStatResolved', __INQ_STATUS.resolved.filter);
-  __refreshInquiries();
-});
-
-window.renderInquiries       = renderInquiries;
-window.openInquiry           = openInquiry;
-window.saveInquiryReply      = saveInquiryReply;
-window.resolveInquiry        = resolveInquiry;
-window.closeInquiryModalSafe = closeInquiryModalSafe;
-window.refreshInquiries      = function () { return __refreshInquiries(true); };
-
-let __assignStaff = [];
-let __assignStations = [];
-let __assignList = [];
-
-async function loadStaffAssignments() {
-  const tb = document.getElementById('assignTable');
-  if (tb) tb.innerHTML = '<tr><td colspan="6"><div class="empty-inline">Loading…</div></td></tr>';
-  try {
-    const res = await window.api('station_assignments.php');
-    if (!res || !res.success) {
-      if (tb) tb.innerHTML = '<tr><td colspan="6"><div class="empty-inline">Could not load assignments.</div></td></tr>';
-      return;
-    }
-    __assignStaff    = res.data.staff       || [];
-    __assignStations = res.data.stations    || [];
-    __assignList     = res.data.assignments || [];
-    renderAssignTable();
-    populateAssignDropdowns();
-  } catch (e) {
-    console.error('loadStaffAssignments:', e);
-    if (tb) tb.innerHTML = '<tr><td colspan="6"><div class="empty-inline">Network error.</div></td></tr>';
-  }
-}
-window.loadStaffAssignments = loadStaffAssignments;
-
-function renderAssignTable() {
-  const tb = document.getElementById('assignTable');
-  const counter = document.getElementById('assignCount');
-  if (counter) counter.textContent = __assignList.length;
-  if (!tb) return;
-  if (!__assignList.length) {
-    tb.innerHTML = '<tr><td colspan="6"><div class="empty-state py-6"><i class="fas fa-user-shield"></i><h3>No assignments yet</h3><p class="text-sm">Click "Assign Staff" to create the first one.</p></div></td></tr>';
-    return;
-  }
-  tb.innerHTML = __assignList.map(a => `
-    <tr>
-      <td><div class="font-medium">${escapeHtml(a.staffName)}</div>
-          <div class="text-xs text-gray-500">@${escapeHtml(a.username)}</div></td>
-      <td><span class="status-badge successful">${escapeHtml(a.role)}</span></td>
-      <td><span class="font-mono font-bold">${escapeHtml(a.stationCode)}</span></td>
-      <td>${escapeHtml(a.stationName)}</td>
-      <td class="text-sm">${formatAssignDate(a.assignedAt)}</td>
-      <td><button class="btn-danger btn-sm" onclick="removeAssignment(${a.id})" title="Remove"><i class="fas fa-trash"></i></button></td>
-    </tr>
-  `).join('');
-}
-window.renderAssignTable = renderAssignTable;
-
-function populateAssignDropdowns() {
-  const staffSel = document.getElementById('assignStaffId');
-  const stSel    = document.getElementById('assignStationId');
-  if (staffSel) {
-    staffSel.innerHTML = '<option value="">— Select staff —</option>' +
-      __assignStaff.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.fullName)} (${escapeHtml(s.role)})</option>`).join('');
-  }
-  if (stSel) {
-    stSel.innerHTML = '<option value="">— Select station —</option>' +
-      __assignStations.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.code)} · ${escapeHtml(s.name)}</option>`).join('');
-  }
-}
-window.populateAssignDropdowns = populateAssignDropdowns;
-
-function formatAssignDate(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d)) return iso;
-  return d.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-}
-
-function openAssignModal() {
-  const form = document.getElementById('assignForm');
-  if (form) form.reset();
-  populateAssignDropdowns();
-  openModal('assignModal');
-}
-window.openAssignModal = openAssignModal;
-
-async function saveAssignment(e) {
-  e.preventDefault();
-  const staffId   = document.getElementById('assignStaffId').value;
-  const stationId = document.getElementById('assignStationId').value;
-  if (!staffId || !stationId) {
-    if (typeof showToast === 'function') showToast('Select both staff and station.', 'error');
-    return;
-  }
-  try {
-    const res = await window.api('station_assignments.php', {
-      method: 'POST', body: { staffId, stationId }
-    });
-    if (res && res.success) {
-      if (typeof showToast === 'function') showToast(res.message || 'Assigned.', 'success');
-      closeModal('assignModal');
-      loadStaffAssignments();
-    } else {
-      if (typeof showToast === 'function') showToast(res?.message || 'Assignment failed.', 'error');
-    }
-  } catch (err) {
-    console.error('saveAssignment:', err);
-    if (typeof showToast === 'function') showToast('Network error.', 'error');
-  }
-}
-window.saveAssignment = saveAssignment;
-
-async function removeAssignment(id) {
-  if (!id) return;
-  const proceed = async () => {
-    try {
-      const res = await window.api('station_assignments.php', { method: 'DELETE', query: { id } });
-      if (res && res.success) {
-        if (typeof showToast === 'function') showToast('Assignment removed.', 'success');
-        loadStaffAssignments();
-      } else {
-        if (typeof showToast === 'function') showToast(res?.message || 'Remove failed.', 'error');
-      }
-    } catch (err) { console.error(err); }
-  };
-  if (window.ConfirmModal) {
-    window.ConfirmModal.show({
-      title: 'Remove Assignment?',
-      message: 'The staff member will no longer be able to process transactions at this station.',
-      confirmText: 'Remove', cancelText: 'Cancel', onConfirm: proceed
-    });
-  } else if (confirm('Remove this assignment?')) proceed();
-}
-window.removeAssignment = removeAssignment;
-
-async function viewStationTransactions() {
-  if (!selectedTerminal) {
-    if (typeof showToast === 'function') showToast('Select a station first.', 'warning');
-    return;
-  }
-  const stationId = selectedTerminal.id;
-  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-  const target = document.getElementById('page-station-transactions');
-  if (target) target.classList.add('active');
-  const topbar = document.getElementById('topbarCurrentPage');
-  if (topbar) topbar.textContent = 'Station Fee Transactions';
-  const title = document.getElementById('stationTxnTitle');
-  if (title) title.textContent = selectedTerminal.code + ' · ' + selectedTerminal.name;
-  const tbody = document.getElementById('stationTxnTable');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="8"><div class="empty-inline">Loading…</div></td></tr>';
-
-  try {
-    const res = await window.api('station_transactions.php', {
-      query: { stationId, type: 'FEE', limit: 500 }
-    });
-    if (!res || !res.success) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="8"><div class="empty-inline">Could not load.</div></td></tr>';
-      return;
-    }
-    const list = res.data.transactions || [];
-    const summary = res.data.summary || {};
-    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-
-    set('stTxnTotalCount',   summary.totalCount   ?? 0);
-    set('stTxnSuccessCount', summary.successCount ?? 0);
-    set('stTxnTotalFees',    '₱' + Number(summary.totalFees || 0).toFixed(2));
-    set('stTxnTotalFeesFooter', '₱' + Number(summary.totalFees || 0).toFixed(2));
-
-    if (!list.length) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state py-6"><i class="fas fa-receipt"></i><h3>No fee transactions yet</h3><p class="text-sm">No staff-scanned QR fee activity recorded at this station.</p></div></td></tr>';
-      return;
-    }
-    if (tbody) tbody.innerHTML = list.map(t => `
-      <tr>
-        <td class="text-sm">${escapeHtml(t.date)} ${escapeHtml(t.time)}</td>
-        <td class="font-mono text-xs">${escapeHtml(t.referenceNumber)}</td>
-        <td>${escapeHtml(t.driverName || '—')}</td>
-        <td>${escapeHtml(t.vehicleType || '—')}</td>
-        <td><span class="type-badge fee">FEE</span></td>
-        <td class="font-bold text-primary">-₱${Number(t.amount).toFixed(2)}</td>
-        <td><span class="status-badge ${t.status === 'SUCCESSFUL' ? 'successful' : 'failed'}">${escapeHtml(t.status)}</span></td>
-        <td>${escapeHtml(t.processedBy || '—')}</td>
-      </tr>
-    `).join('');
-  } catch (err) {
-    console.error('viewStationTransactions:', err);
-    if (tbody) tbody.innerHTML = '<tr><td colspan="8"><div class="empty-inline">Network error.</div></td></tr>';
-  }
-}
-window.viewStationTransactions = viewStationTransactions;
-
-window.printStationTransactions = function () {
-  const title = document.getElementById('stationTxnTitle')?.textContent || 'Station';
-  const tbody = document.getElementById('stationTxnTable');
-  if (!tbody) { showToast('No station selected', 'warning'); return; }
-
-  const rows = Array.from(tbody.querySelectorAll('tr')).map(tr => {
-    const tds = tr.querySelectorAll('td');
-    if (tds.length < 8) return '';
-    return `<tr>
-      <td>${escapeHtml(tds[0].textContent.trim())}</td>
-      <td>${escapeHtml(tds[1].textContent.trim())}</td>
-      <td>${escapeHtml(tds[2].textContent.trim())}</td>
-      <td>${escapeHtml(tds[3].textContent.trim())}</td>
-      <td style="text-align:center;">FEE</td>
-      <td style="text-align:right;">${escapeHtml(tds[5].textContent.trim())}</td>
-      <td>${escapeHtml(tds[6].textContent.trim())}</td>
-      <td>${escapeHtml(tds[7].textContent.trim())}</td>
-    </tr>`;
-  }).filter(r => r).join("");
-
-  const summaryTotal   = document.getElementById('stTxnTotalCount')?.textContent || '0';
-  const summarySuccess = document.getElementById('stTxnSuccessCount')?.textContent || '0';
-  const summaryFees    = document.getElementById('stTxnTotalFees')?.textContent || '₱0.00';
-
-  const html = `
-    <div class="header">
-      <h1>BORONGAN TRANSPORT</h1>
-      <p>Borongan City Transport Terminal</p>
-      <p>STATION FEE TRANSACTIONS</p>
-    </div>
-    <div class="meta">
-      <span><strong>Station:</strong> ${escapeHtml(title)}</span>
-      <span><strong>Generated:</strong> ${new Date().toLocaleString("en-PH")}</span>
-    </div>
-    <div class="meta">
-      <span><strong>Total Fees:</strong> ${escapeHtml(summaryTotal)}</span>
-      <span><strong>Successful:</strong> ${escapeHtml(summarySuccess)}</span>
-    </div>
-    <div class="meta">
-      <span><strong>Total Collected:</strong> ${escapeHtml(summaryFees)}</span>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Date &amp; Time</th>
-          <th>Reference</th>
-          <th>Driver</th>
-          <th>Vehicle</th>
-          <th style="text-align:center;">Type</th>
-          <th style="text-align:right;">Amount</th>
-          <th>Status</th>
-          <th>Processed By</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows || '<tr><td colspan="8" style="text-align:center;">No fee transactions</td></tr>'}
-      </tbody>
-    </table>
-    <div class="signature">
-      <div>Prepared by</div>
-      <div>Approved by</div>
-    </div>
-    <div class="footer">Station-scoped fee transaction report generated from QR code scans.</div>`;
-
-  if (typeof window.__adminPrint === 'function') {
-    window.__adminPrint(html, `Station Fee Report — ${title}`);
-  } else {
-    const w = window.open('', '_blank');
-    w.document.write(`<!DOCTYPE html><html><head><title>Station Fee Report</title>
-      <style>
-        body{font-family:'Times New Roman',Georgia,serif;font-size:11pt;padding:15mm;color:#000;}
-        .header{text-align:center;border-bottom:3px double #000;padding-bottom:14px;margin-bottom:20px;}
-        .header h1{font-size:16pt;letter-spacing:2.5px;text-transform:uppercase;margin:0 0 4px;}
-        .header p{margin:3px 0;font-size:10pt;}
-        .meta{display:flex;justify-content:space-between;font-size:10pt;margin:8px 0;padding:8px 12px;background:#f2f2f2;border:1px solid #999;}
-        table{width:100%;border-collapse:collapse;margin:12px 0;font-size:10pt;}
-        th,td{border:1px solid #999;padding:6px 8px;text-align:left;}
-        thead th{background:#e8e8e8;border-color:#000;}
-        .signature{display:flex;justify-content:space-between;margin-top:50px;}
-        .signature > div{flex:1;text-align:center;padding-top:32px;border-top:1px solid #000;font-size:9pt;}
-        .footer{text-align:center;margin-top:24px;font-size:9pt;font-style:italic;}
-      </style></head><body>${html}</body></html>`);
-    w.document.close();
-    setTimeout(() => { w.focus(); w.print(); }, 300);
-  }
-};
-
-document.addEventListener('click', function (e) {
-  const btn = e.target.closest('.sidebar-item[data-page="staff-assignments"]');
-  if (btn && typeof loadStaffAssignments === 'function') {
-    setTimeout(loadStaffAssignments, 100);
   }
 });
 </script>

@@ -5,24 +5,34 @@
         const text = String(raw || "").trim();
         if (!text) return null;
 
-        try {
+         try {
             const json = JSON.parse(text);
-            if (json && typeof json === "object" && json.driverId) {
-                return {
-                    driverId: String(json.driverId).trim(),
-                    plateNumber: String(json.plateNumber || "").trim(),
-                    vehicleType: String(json.vehicleType || "").trim(),
-                    raw: text
-                };
+            if (json && typeof json === "object") {
+                const id = json.driverId || json.id || json.DriverID || json.driver_id;
+                if (id) {
+                    return {
+                        driverId: String(id).trim(),
+                        plateNumber: String(json.plateNumber || json.plate || "").trim(),
+                        vehicleType: String(json.vehicleType || json.vehicle || "").trim(),
+                        raw: text
+                    };
+                }
             }
-        } catch (e) {   }
+        } catch (e) {  }
 
-        const legacy = text.match(/(?:^|\|)\s*ID\s*:\s*([^|]+)/i);
+         const legacy = text.match(/(?:^|\|)\s*(?:ID|Driver\s*ID)\s*:\s*([^|]+)/i);
         if (legacy) {
             return { driverId: legacy[1].trim(), plateNumber: "", vehicleType: "", raw: text };
         }
 
-        if (text.length > 128 || /\s{2,}/.test(text)) return null;
+         if (text.includes("http")) {
+            const urlMatch = text.match(/(?:id|driver|driverId)=([^&]+)/i) || text.match(/\/driver\/([^/]+)/i);
+            if (urlMatch) {
+                return { driverId: decodeURIComponent(urlMatch[1]).trim(), plateNumber: "", vehicleType: "", raw: text };
+            }
+        }
+
+         if (text.length > 128 || /\s{2,}/.test(text)) return null;
         return { driverId: text, plateNumber: "", vehicleType: "", raw: text };
     }
 
@@ -220,7 +230,7 @@
                     if (typeof onScanCb === "function") onScanCb(payload, decodedText);
                 });
             },
-            function () {   }
+            function () {  }
         );
 
         running = true;
@@ -248,7 +258,6 @@
         onScanCb = onScan;
         lastText = "";
         lastTime = 0;
-
          try {
             await startNativeCamera(container, onScan);
             return;

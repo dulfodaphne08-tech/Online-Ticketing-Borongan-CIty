@@ -14,7 +14,7 @@
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <link rel="stylesheet" href="assets/css/confirm-modal.css?v=20260930b" />
-    <link rel="stylesheet" href="assets/css/driver-dashboard.css?v=20261028" />
+    <link rel="stylesheet" href="assets/css/driver-dashboard.css?v=20261102" />
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -30,7 +30,7 @@
     <div class="sidebar-brand">
         <div class="logo-circle">
             <img src="images/borongan-logo.jpg" alt="Borongan Transport"
-                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2250%22 fill=%22%23b22234%22/%3E%3Ctext x=%2250%22 y=%2255%22 font-size=%2240%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22sans-serif%22 font-weight=%22bold%22%3EB%3C/text%3E%3C/svg%3E'">
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2250%22 fill=%22%234A6B7C%22/%3E%3Ctext x=%2250%22 y=%2255%22 font-size=%2240%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22sans-serif%22 font-weight=%22bold%22%3EB%3C/text%3E%3C/svg%3E'">
         </div>
         <div class="brand-text">
             <div class="brand-title">DRIVER PANEL</div>
@@ -177,66 +177,88 @@
 
         <div class="kpi-row kpi-row-5">
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-wallet"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Current Balance</div>
                     <div class="kpi-value" id="kpiBalance">₱0.00</div>
                     <div class="kpi-delta" id="kpiBalanceDelta">Prepaid wallet</div>
                 </div>
-                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-wallet"></i></div>
             </div>
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-receipt"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Today's Transactions</div>
                     <div class="kpi-value" id="kpiTodayTrips">0</div>
                     <div class="kpi-delta" id="kpiTodayTripsDelta">Terminal visits today</div>
                 </div>
-                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-receipt"></i></div>
             </div>
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-money-bill-wave"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Today's Fees</div>
                     <div class="kpi-value" id="kpiTodayFees">₱0.00</div>
                     <div class="kpi-delta" id="kpiTodayFeesDelta">Total fees today</div>
                 </div>
-                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-money-bill-wave"></i></div>
             </div>
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-green"><i class="fas fa-car"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Vehicle Status</div>
                     <div class="kpi-value" id="kpiVehicleStatus">ACTIVE</div>
                     <div class="kpi-delta" id="kpiVehiclePlate">—</div>
                 </div>
-                <div class="kpi-icon kpi-icon-green"><i class="fas fa-car"></i></div>
             </div>
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-teal"><i class="fas fa-circle-check"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Account Status</div>
                     <div class="kpi-value" id="kpiAccountStatus">—</div>
                     <div class="kpi-delta">Driver account</div>
                 </div>
-                <div class="kpi-icon kpi-icon-teal"><i class="fas fa-circle-check"></i></div>
             </div>
         </div>
 
         <div id="notificationBanner"></div>
 
-        <div class="chart-grid">
-            <div class="card">
-                <div class="card-head">
-                    <h3 class="card-title"><i class="fas fa-chart-simple"></i> Fees Paid — Last 7 Days</h3>
-                    <span class="card-sub" id="chartRangeLabel">—</span>
+        <div class="analytics-card">
+            <div class="analytics-head">
+                <div>
+                    <h3 class="analytics-title">Fees Paid Overview</h3>
+                    <span class="analytics-sub" id="chartRangeLabel">—</span>
                 </div>
-                <div class="chart-wrap">
-                    <canvas id="feesChart"></canvas>
+                <div class="analytics-controls">
+                    <div class="chart-range-toggle" id="chartRangeToggle" role="tablist" aria-label="Chart range">
+                        <button type="button" class="range-btn active" data-range="days" role="tab" aria-selected="true">Days</button>
+                        <button type="button" class="range-btn" data-range="weeks" role="tab" aria-selected="false">Weeks</button>
+                        <button type="button" class="range-btn" data-range="months" role="tab" aria-selected="false">Months</button>
+                        <button type="button" class="range-btn" data-range="years" role="tab" aria-selected="false">Years</button>
+                    </div>
                 </div>
             </div>
-            <div class="card">
-                <div class="card-head">
-                    <h3 class="card-title"><i class="fas fa-chart-pie"></i> Wallet Composition</h3>
-                    <span class="card-sub">Where your money has gone</span>
+
+            <div class="analytics-stats" id="feesChartStats"></div>
+
+            <div class="analytics-body">
+                <div class="analytics-chart-side">
+                    <div class="analytics-chart-wrap">
+                        <canvas id="feesChart"></canvas>
+                    </div>
+                    <div class="analytics-legend" id="feesLegend">
+                        <span class="legend-item"><span class="legend-dot dot-fees"></span> Fees Paid</span>
+                        <span class="legend-item"><span class="legend-dot dot-avg"></span> Average</span>
+                    </div>
                 </div>
-                <div class="chart-wrap chart-wrap-donut">
-                    <canvas id="walletDonut"></canvas>
+
+                <div class="analytics-divider"></div>
+
+                <div class="analytics-donut-side">
+                    <div class="analytics-donut-head">
+                        <h4 class="analytics-donut-title">Wallet Composition</h4>
+                        <span class="analytics-donut-sub">Where your money has gone</span>
+                    </div>
+                    <div class="analytics-donut-wrap">
+                        <canvas id="walletDonut"></canvas>
+                    </div>
                     <div class="donut-legend" id="donutLegend"></div>
                 </div>
             </div>
@@ -447,33 +469,33 @@
 
         <div class="kpi-row kpi-row-4">
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-wallet"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Current Balance</div>
                     <div class="kpi-value" id="balanceAmount">₱0.00</div>
                 </div>
-                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-wallet"></i></div>
             </div>
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-circle-check"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Wallet Status</div>
                     <div class="kpi-value" id="balanceAccountStatus">ACTIVE</div>
                 </div>
-                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-circle-check"></i></div>
             </div>
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-ticket"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Fee per Trip</div>
                     <div class="kpi-value" id="balanceFeePerTrip">₱0.00</div>
                 </div>
-                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-ticket"></i></div>
             </div>
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-green"><i class="fas fa-money-bill-wave"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Last Load</div>
                     <div class="kpi-value" id="balanceLastLoad">—</div>
                     <div class="kpi-delta" id="balanceLastUpdated">—</div>
                 </div>
-                <div class="kpi-icon kpi-icon-green"><i class="fas fa-money-bill-wave"></i></div>
             </div>
         </div>
 
@@ -537,18 +559,18 @@
 
         <div class="kpi-row kpi-row-2">
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-money-bill-wave"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Total Fees Paid (All Time)</div>
                     <div class="kpi-value" id="totalPaidAmount">₱0.00</div>
                 </div>
-                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-money-bill-wave"></i></div>
             </div>
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-purple"><i class="fas fa-calendar"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">This Month</div>
                     <div class="kpi-value" id="monthPaidAmount">₱0.00</div>
                 </div>
-                <div class="kpi-icon kpi-icon-purple"><i class="fas fa-calendar"></i></div>
             </div>
         </div>
 
@@ -612,32 +634,32 @@
 
         <div class="kpi-row kpi-row-4 inq-summary-row" id="inqSummaryRow">
             <div class="kpi-tile inq-summary-tile" data-filter="">
+                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-inbox"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Total Requests</div>
                     <div class="kpi-value" id="inqCountTotal">0</div>
                 </div>
-                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-inbox"></i></div>
             </div>
             <div class="kpi-tile inq-summary-tile" data-filter="pending">
+                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-hourglass-half"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Awaiting Response</div>
                     <div class="kpi-value" id="inqCountPending">0</div>
                 </div>
-                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-hourglass-half"></i></div>
             </div>
             <div class="kpi-tile inq-summary-tile" data-filter="replied">
+                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-reply"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Replied</div>
                     <div class="kpi-value" id="inqCountReplied">0</div>
                 </div>
-                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-reply"></i></div>
             </div>
             <div class="kpi-tile inq-summary-tile" data-filter="resolved">
+                <div class="kpi-icon kpi-icon-green"><i class="fas fa-circle-check"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Resolved</div>
                     <div class="kpi-value" id="inqCountResolved">0</div>
                 </div>
-                <div class="kpi-icon kpi-icon-green"><i class="fas fa-circle-check"></i></div>
             </div>
         </div>
 
@@ -679,32 +701,32 @@
 
         <div class="kpi-row kpi-row-4">
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-inbox"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">All Notifications</div>
                     <div class="kpi-value" id="notifCountAll">0</div>
                 </div>
-                <div class="kpi-icon kpi-icon-maroon"><i class="fas fa-inbox"></i></div>
             </div>
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-bell"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Unread</div>
                     <div class="kpi-value" id="notifCountUnread">0</div>
                 </div>
-                <div class="kpi-icon kpi-icon-orange"><i class="fas fa-bell"></i></div>
             </div>
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-green"><i class="fas fa-wallet"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Wallet Loads</div>
                     <div class="kpi-value" id="notifCountLoads">0</div>
                 </div>
-                <div class="kpi-icon kpi-icon-green"><i class="fas fa-wallet"></i></div>
             </div>
             <div class="kpi-tile">
+                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-triangle-exclamation"></i></div>
                 <div class="kpi-body">
                     <div class="kpi-label">Transaction Alerts</div>
                     <div class="kpi-value" id="notifCountAlerts">0</div>
                 </div>
-                <div class="kpi-icon kpi-icon-blue"><i class="fas fa-triangle-exclamation"></i></div>
             </div>
         </div>
 
@@ -739,11 +761,10 @@
         </div>
 
         <div class="card">
-            <div class="profile-header">
-                <div class="profile-avatar"><i class="fas fa-user"></i></div>
-                <div>
-                    <div class="profile-name" id="profileName">—</div>
-                    <div class="profile-username" id="profileId">—</div>
+           <div class="profile-header">
+              <div class="profile-avatar" id="profileAvatar"><i class="fas fa-user"></i></div>
+               <div>
+               <div class="profile-name" id="profileName">—</div>
                     <div class="profile-tags">
                         <span class="tag tag-driver">DRIVER</span>
                         <span class="tag tag-class" id="profileClassBadge" hidden></span>
@@ -862,7 +883,7 @@
     <div class="notif-modal-backdrop" data-inquiry-close="1"></div>
     <div class="notif-modal-box inq-compose-box" role="dialog" aria-modal="true" aria-labelledby="newInquiryTitle">
         <div class="notif-modal-header">
-            <div class="notif-modal-icon" style="background:var(--maroon-soft);color:var(--maroon);">
+            <div class="notif-modal-icon" style="background:var(--accent-light);color:var(--accent);">
                 <i class="fas fa-pen-to-square"></i>
             </div>
             <div>
@@ -963,7 +984,7 @@
     <div style="max-width:340px;margin:0 auto;padding:1rem;border:2px dashed #333;border-radius:8px;font-family:'Courier New',monospace;">
         <div style="text-align:center;border-bottom:2px solid #333;padding-bottom:.5rem;margin-bottom:.75rem;">
             <div style="font-weight:800;font-size:.8rem;">BORONGAN CITY TRANSPORT TERMINAL</div>
-            <div style="font-size:.7rem;font-weight:700;color:#8B1D2C;">TRANSACTION RECORD</div>
+            <div style="font-size:.7rem;font-weight:700;color:#4A6B7C;">TRANSACTION RECORD</div>
         </div>
         <div style="font-size:.8rem;">
             <div style="display:flex;justify-content:space-between;padding:.2rem 0;"><span>Ref:</span><strong id="rReceiptNo">—</strong></div>
@@ -983,21 +1004,21 @@
 </div>
 
 <div id="qrPrintArea" style="display:none;">
-    <div style="max-width:400px;margin:0 auto;padding:24px;border:2px solid #8B1D2C;border-radius:12px;text-align:center;font-family:'Inter',sans-serif;">
-        <div style="font-weight:800;font-size:.75rem;letter-spacing:.15em;color:#8B1D2C;text-transform:uppercase;margin-bottom:6px;">Borongan City Transport Terminal</div>
-        <div style="font-weight:700;font-size:1.05rem;color:#1F2937;margin-bottom:12px;">DRIVER QR CODE</div>
+    <div style="max-width:400px;margin:0 auto;padding:24px;border:2px solid #4A6B7C;border-radius:12px;text-align:center;font-family:'Inter',sans-serif;">
+        <div style="font-weight:800;font-size:.75rem;letter-spacing:.15em;color:#4A6B7C;text-transform:uppercase;margin-bottom:6px;">Borongan City Transport Terminal</div>
+        <div style="font-weight:700;font-size:1.05rem;color:#2C3E4A;margin-bottom:12px;">DRIVER QR CODE</div>
         <div id="qrPrintImage" style="display:inline-block;padding:8px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;"></div>
-        <div style="font-weight:800;font-size:1rem;color:#1F2937;margin-top:12px;" id="qrPrintName">—</div>
-        <div style="font-family:'Courier New',monospace;color:#6B7280;font-size:.85rem;" id="qrPrintId">—</div>
-        <div style="color:#6B7280;font-size:.8rem;margin-top:4px;" id="qrPrintVehicle">—</div>
-        <div style="margin-top:16px;padding-top:12px;border-top:1px dashed #cbd5e1;font-size:.75rem;color:#6B7280;">
+        <div style="font-weight:800;font-size:1rem;color:#2C3E4A;margin-top:12px;" id="qrPrintName">—</div>
+        <div style="font-family:'Courier New',monospace;color:#6B7C87;font-size:.85rem;" id="qrPrintId">—</div>
+        <div style="color:#6B7C87;font-size:.8rem;margin-top:4px;" id="qrPrintVehicle">—</div>
+        <div style="margin-top:16px;padding-top:12px;border-top:1px dashed #cbd5e1;font-size:.75rem;color:#6B7C87;">
             Present this QR code to the terminal Staff.
         </div>
     </div>
 </div>
 
 <script src="assets/js/confirm-modal.js?v=20261005"></script>
-<script src="assets/js/driver-dashboard.js?v=20261028"></script>
+<script src="assets/js/driver-dashboard.js?v=20261107"></script>
 
 </body>
 </html>
