@@ -199,7 +199,7 @@
                                             <div id="vehicleTypeError" class="error-message">Please select a vehicle type.</div>
                                         </div>
 
-                                        <div class="field">
+                                        <div class="field" id="bodyNumberWrapper" style="display: none;">
                                             <label class="label-sm">
                                                 Body Number <span class="req-star">*</span>
                                                 <span class="optional" style="margin-left:.35rem;font-style:italic;">
@@ -213,8 +213,7 @@
                                                    inputmode="numeric"
                                                    pattern="[0-9]{4}"
                                                    maxlength="4"
-                                                   autocomplete="off"
-                                                   required />
+                                                   autocomplete="off" />
                                             <div class="format-hint">
                                                 <i class="fas fa-info-circle mr-1"></i>
                                                 Enter the 4-digit body number issued by the government
@@ -252,28 +251,25 @@
 
                                         <div class="field span-2">
                                             <label class="label-sm">
-                                                Designated Terminal Base / TODA Station
-                                                <span class="optional">(optional)</span>
+                                                Ticketing Station (TS) <span class="req-star">*</span>
                                             </label>
-                                            <select id="driverTerminalBase" class="input-field">
-                                                <option value="">Select Primary Terminal Base</option>
-
-                                                <optgroup label="Ticketing Stations">
-                                                    <option value="TS-01">TS-01 · Borongan City Transport Terminal – Borongan Public Market</option>
-                                                    <option value="TS-02">TS-02 · Borongan City Transport Terminal – Borongan Public Market (Short Ride)</option>
-                                                     <option value="TS-03">TS-03 · Borongan City Transport Terminal – Borongan Public Market (Jeep/Bus/Van)</option>
-                                                </optgroup>
-
-                                                <optgroup label="Receiving Stations">
-                                                    <option value="RS-01">RS-01 · Brgy. Pepelitan, Borongan City (Tricycles bound to Bugas)</option>
-                                                    <option value="RS-02">RS-02 · Brgy. Bugas, Borongan City (Jeep/Bus/Van leaving Borongan)</option>
-                                                    <option value="RS-03">RS-03 · Brgy. Can-abong, Borongan City (Tricycles bound to Camada)</option>
-                                                    <option value="RS-04">RS-04 · Brgy. Camada, Borongan City (Jeep/Bus/Van leaving Borongan)</option>
-                                                </optgroup>
+                                            <select id="ticketingStation" class="input-field" required>
+                                                <option value="">Select Vehicle Type first</option>
                                             </select>
+                                            <div id="ticketingError" class="error-message">Please select a Ticketing Station.</div>
+                                        </div>
+
+                                        <div class="field span-2">
+                                            <label class="label-sm">
+                                                Receiving Station (RS) <span class="req-star">*</span>
+                                            </label>
+                                            <select id="receivingStation" class="input-field" required>
+                                                <option value="">Select Vehicle Type first</option>
+                                            </select>
+                                            <div id="receivingError" class="error-message">Please select a Receiving Station.</div>
                                             <div class="format-hint">
                                                 <i class="fas fa-map-location-dot mr-1"></i>
-                                                Your primary TODA association. (Does not restrict you from taking other authorized routes).
+                                                Your primary TODA association.
                                             </div>
                                         </div>
                                     </div>

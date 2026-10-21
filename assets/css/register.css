@@ -511,6 +511,20 @@ select.input-field {
     cursor: pointer;
 }
 
+select.input-field optgroup {
+    font-weight: 700;
+    color: var(--red);
+    font-size: 0.78rem;
+    background: #FAF6EE;
+}
+
+select.input-field option {
+    font-weight: 400;
+    color: var(--text-dark);
+    background: #FFFFFF;
+    padding: 0.4rem;
+}
+
 .upload-dropzone {
     display: flex;
     align-items: center;
@@ -994,4 +1008,20 @@ input[type="password"]::-webkit-password-toggle { display: none !important; }
 @media (max-width: 700px) {
     #reviewBox { font-size: 0.72rem !important; }
     .pill-group[style*="repeat(3"] { grid-template-columns: 1fr 1fr 1fr !important; }
+}
+
+@media (max-width: 768px) {
+    .page-main {
+        flex-direction: column !important;
+        padding: 1rem !important;
+    }
+    .login-card, .register-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 12px !important;
+    }
+    .info-panel {
+        display: none !important;
+    }
 }

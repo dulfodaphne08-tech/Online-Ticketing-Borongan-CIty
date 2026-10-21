@@ -57,7 +57,7 @@
     let notifCurrentFilter = "all";
     let currentClientTxnId = null;
 
-     let cameraScanActive = false;
+    let cameraScanActive = false;
     let cameraWasOnBeforeScan = false;
 
     function setText(id, v) { const e = $(id); if (e) e.textContent = v; }
@@ -946,7 +946,6 @@ async function handleQrImageUpload(file) {
 }
     window.handleQrImageUpload = handleQrImageUpload;
 
- 
     async function handleScan(raw) {
         if (!assignedStation) {
             setScanStatus("No station assigned — cannot process.", "error");
@@ -962,11 +961,23 @@ async function handleQrImageUpload(file) {
             return;
         }
 
+        // STRICT ID EXTRACTION LOGIC
         let driverId = text;
         try {
             const obj = JSON.parse(text);
-            if (obj && obj.driverId) driverId = String(obj.driverId).trim();
-        } catch (e) {}
+            if (obj && typeof obj === "object") {
+                const id = obj.driverId || obj.id || obj.DriverID || obj.driver_id;
+                if (id) driverId = String(id).trim();
+            }
+        } catch (e) {
+            const urlMatch = text.match(/(?:id|driver|driverId)=([^&]+)/i) || text.match(/\/driver\/([^/]+)/i);
+            if (urlMatch) {
+                driverId = decodeURIComponent(urlMatch[1]).trim();
+            } else {
+                driverId = text.trim();
+            }
+        }
+        // ----------------------------------
 
         scanProcessing = true;
         setScanStatus("Checking " + driverId + "…");
@@ -981,6 +992,9 @@ async function handleQrImageUpload(file) {
             
             if (res.code === "UNPAID_TRIP") {
                 openModal("unpaidTripModal");
+            } else if (res.code === "WRONG_STATION") {
+                toast(res.message, "warning");
+                openModal("invalidModal"); 
             } else {
                 openModal("invalidModal");
             }
@@ -1696,7 +1710,6 @@ function renderStaffFeesChart() {
     const ctx = canvas.getContext('2d');
     if (staffFeesChartInstance) staffFeesChartInstance.destroy();
 
-    // Match admin chart green fill
     const fillGrad = ctx.createLinearGradient(0, 0, 0, 320);
     fillGrad.addColorStop(0, 'rgba(22, 163, 74, 0.2)');
     fillGrad.addColorStop(0.5, 'rgba(22, 163, 74, 0.05)');

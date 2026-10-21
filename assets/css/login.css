@@ -933,3 +933,20 @@ input[type="password"]::-webkit-password-toggle { display: none !important; }
     .btn-login { padding: 0.82rem; font-size: 0.84rem; }
     .modal-actions { flex-direction: column-reverse; }
 }
+
+@media (max-width: 768px) {
+    .page-main {
+        flex-direction: column !important;
+        padding: 1rem !important;
+    }
+    .login-card, .register-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 12px !important;
+    }
+    .info-panel {
+        display: none !important;  
+    }
+}
+

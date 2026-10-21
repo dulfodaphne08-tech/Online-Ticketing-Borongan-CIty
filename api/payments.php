@@ -10,10 +10,11 @@ $action = (string)($_GET['action'] ?? body()['action'] ?? '');
 
 function cents(float $v): int { return (int)round($v * 100); }
 
+// 1. Automatic processing (no manual admin approval needed)
 function assertDriverApproved(array $driver): void {
     $approval = strtoupper(trim((string)($driver['approval_status'] ?? 'Active')));
-    if (in_array($approval, ['PENDING', 'NEEDS CORRECTION', 'INACTIVE'], true)) {
-        fail('This driver account is not yet approved. Transactions are blocked.', 403, ['approvalStatus' => $approval], 'DRIVER_NOT_APPROVED');
+    if ($approval === 'INACTIVE') {
+        fail('This driver account is inactive. Transactions are blocked.', 403, ['approvalStatus' => $approval], 'DRIVER_NOT_APPROVED');
     }
     if (!isActive($driver['status'])) {
         fail('This driver account is inactive.', 403, null, 'INACTIVE');
@@ -62,6 +63,24 @@ if (method() === 'GET' && $action === 'verify') {
 
     $stationCode = currentStaffStationCode($pdo, $actor);
     $isReceivingStation = (strpos((string)$stationCode, 'RS') === 0);
+
+    // 2. ENFORCE VEHICLE RESTRICTIONS
+    $vehicleType = strtoupper(trim((string)$driver['vehicle_type']));
+    $stationCodeUpper = strtoupper((string)$stationCode);
+
+    // Tricycle-only stations (TS-01, TS-02)
+    if (in_array($stationCodeUpper, ['TS-01', 'TS-02'], true)) {
+        if ($vehicleType !== 'TRICYCLE') {
+            fail('This is a Tricycle-only station. ' . ucfirst(strtolower($vehicleType)) . 's must scan at the Jeep/Bus/Van station (TS-03).', 403, null, 'WRONG_STATION');
+        }
+    }
+
+    // Jeep/Bus/Van station (TS-03)
+    if ($stationCodeUpper === 'TS-03') {
+        if (!in_array($vehicleType, ['JEEPNEY', 'BUS', 'MULTICAB', 'VAN'], true)) {
+            fail('This station is for Jeepneys, Buses, and Vans only. Tricycles must scan at TS-01 or TS-02.', 403, null, 'WRONG_STATION');
+        }
+    }
 
     if ($isReceivingStation) {
         $stmt = $pdo->prepare("SELECT reference_number, created_at FROM wallet_transactions 
@@ -125,7 +144,7 @@ if (method() === 'GET' && $action === 'verify') {
     if (trim((string)$driver['driver_id'])    === '') $missing[] = 'driver ID';
 
     $approvalStatus = strtoupper(trim((string)($driver['approval_status'] ?? 'Active')));
-    $isApproved     = !in_array($approvalStatus, ['PENDING', 'NEEDS CORRECTION', 'INACTIVE'], true);
+    $isApproved     = !in_array($approvalStatus, ['INACTIVE'], true);
 
     ok([
         'driver'              => formatDriver($driver, $fee),

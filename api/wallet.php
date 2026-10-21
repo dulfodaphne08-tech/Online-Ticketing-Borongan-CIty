@@ -4,7 +4,7 @@ require_once __DIR__ . '/config.php';
 
 const MAX_LOAD = 50000;
 
- $user = requireRole('driver', 'admin', 'cashier', 'staff');
+$user = requireRole('driver', 'admin', 'cashier', 'staff');
 
 $action = trim((string)($_GET['action'] ?? ''));
 if ($action === '') {
@@ -12,7 +12,7 @@ if ($action === '') {
     $action = trim((string)($b['action'] ?? ''));
 }
 
- function targetDriverId(PDO $pdo, array $user, bool $required = true): string {
+function targetDriverId(PDO $pdo, array $user, bool $required = true): string {
     if ($user['role'] === 'driver') return sessionDriverId($pdo, $user);
     $b = body();
     $id = trim((string)($_GET['driverId'] ?? $b['driverId'] ?? ''));
@@ -20,14 +20,14 @@ if ($action === '') {
     return $id;
 }
 
- function getMaxWalletBalance(string $vehicleType): float {
+function getMaxWalletBalance(string $vehicleType): float {
     $v = strtolower(trim($vehicleType));
     if ($v === 'bus') return 1000.00;
     if ($v === 'jeepney' || $v === 'multicab') return 500.00;
     return 150.00;  
 }
 
- function safeLastTransaction(PDO $pdo, string $driverId): ?array {
+function safeLastTransaction(PDO $pdo, string $driverId): ?array {
     try {
         $stmt = $pdo->prepare(
             TRANSACTION_SELECT . ' WHERE wt.driver_id = ? ORDER BY wt.created_at DESC LIMIT 1'
@@ -37,7 +37,7 @@ if ($action === '') {
         return $row ? formatTransaction($row) : null;
     } catch (Throwable $e) {
         error_log('wallet.php: safeLastTransaction failed: ' . $e->getMessage());
-         try {
+        try {
             $stmt = $pdo->prepare(
                 'SELECT id, reference_number, type, amount, previous_balance, balance_after,
                         status, created_at, driver_id, processed_by_name
@@ -66,7 +66,7 @@ if ($action === '') {
     }
 }
 
- function safeLastLoad(PDO $pdo, string $driverId): ?array {
+function safeLastLoad(PDO $pdo, string $driverId): ?array {
     try {
         $stmt = $pdo->prepare(
             "SELECT amount, created_at FROM wallet_transactions
@@ -86,7 +86,7 @@ if ($action === '') {
     }
 }
 
- if (method() === 'GET' && $action === 'balance') {
+if (method() === 'GET' && $action === 'balance') {
     try {
         $driverId = targetDriverId($pdo, $user);
         $driver   = findDriver($pdo, $driverId);
@@ -121,7 +121,7 @@ if ($action === '') {
     }
 }
 
- if (method() === 'GET' && $action === 'history') {
+if (method() === 'GET' && $action === 'history') {
     try {
         $driverId = targetDriverId($pdo, $user, false);
         $type     = strtoupper((string)($_GET['type'] ?? 'ALL'));
@@ -150,7 +150,7 @@ if ($action === '') {
     } catch (Throwable $e) {
         error_log('wallet.php history FULL SELECT failed: ' . $e->getMessage());
 
-         try {
+        try {
             $driverId = targetDriverId($pdo, $user, false);
             $limit    = max(1, min(500, (int)($_GET['limit'] ?? 50)));
             $type     = strtoupper((string)($_GET['type'] ?? 'ALL'));
@@ -199,7 +199,7 @@ if ($action === '') {
     }
 }
 
- if (method() === 'GET' && $action === 'search') {
+if (method() === 'GET' && $action === 'search') {
     requireRole('admin', 'cashier', 'staff');
     $q = trim((string)($_GET['q'] ?? ''));
     if ($q === '') fail('Type a name, Driver ID or plate number to search.', 422);
@@ -222,7 +222,8 @@ if ($action === '') {
     );
     ok(['drivers' => $drivers]);
 }
- if (method() === 'POST' && $action === 'load') {
+
+if (method() === 'POST' && $action === 'load') {
     $actor = requireRole('admin', 'cashier', 'staff');
     $b     = body();
 
@@ -241,7 +242,7 @@ if ($action === '') {
 
     try {
         $pdo->beginTransaction();
-         $lockStmt = $pdo->prepare("SELECT * FROM drivers WHERE driver_id = ? FOR UPDATE");
+        $lockStmt = $pdo->prepare("SELECT * FROM drivers WHERE driver_id = ? FOR UPDATE");
         $lockStmt->execute([$driverId]);
         $driver = $lockStmt->fetch(PDO::FETCH_ASSOC);
 
@@ -251,7 +252,7 @@ if ($action === '') {
             fail('This driver account is inactive.', 403);
         }
 
-         $currentBalance = round((float)($driver['balance'] ?? 0), 2);
+        $currentBalance = round((float)($driver['balance'] ?? 0), 2);
         $vehicleType    = (string)($driver['vehicle_type'] ?? '');
         $maxLimit       = getMaxWalletBalance($vehicleType);
         
@@ -348,12 +349,21 @@ if ($action === '') {
     ok([
         'receipt' => [
             'referenceNumber' => $ref,
+            'orNumber'        => $orNumber !== '' ? $orNumber : '—',
+            'type'            => 'LOAD',
             'driverId'        => (string)$driver['driver_id'],
             'driverName'      => (string)$driver['full_name'],
+            'vehicleType'     => (string)($driver['vehicle_type'] ?? '—'),
+            'bodyNumber'      => (string)($driver['body_number'] ?? '—'),
+            'plateNumber'     => (string)($driver['plate_number'] ?? '—'),
             'amount'          => $amount,
             'previousBalance' => $prevBalance,
             'balanceAfter'    => $newBalance,
+            'paymentMethod'   => $method,
+            'processedBy'     => $actor['fullName'] ?: $actor['username'],
             'status'          => 'SUCCESSFUL',
+            'date'            => date('Y-m-d', strtotime((string)$row['created_at'])),
+            'time'            => date('g:i A', strtotime((string)$row['created_at'])),
         ],
     ], peso($amount) . ' loaded to ' . $driver['full_name'] . '.');
 }

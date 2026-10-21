@@ -1753,3 +1753,104 @@ html, body {
     margin-bottom: .5rem;
     color: var(--border);
 }
+
+ .table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; 
+}
+.data-table {
+    min-width: 700px;  
+}
+
+ @media (max-width: 1100px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1050;
+    }
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    .main-content {
+        margin-left: 0 !important;
+        padding: 1rem !important;
+    }
+    .mobile-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+ @media (max-width: 1024px) {
+    .kpi-row-4, .kpi-row-3 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 600px) {
+    .kpi-row-4, .kpi-row-3, .kpi-row-2, .kpi-row-5 {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+ @media (max-width: 900px) {
+    .two-col {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+ @media (max-width: 600px) {
+    .modal-box {
+        padding: 1rem !important;
+        width: 95% !important;
+        margin: 1rem auto;
+    }
+    .modal-actions {
+        flex-direction: column !important;
+    }
+    .modal-actions button {
+        width: 100% !important;
+    }
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .filter-group, .filter-group-search {
+        width: 100% !important;
+    }
+}
+
+ @media (max-width: 768px) {
+    .analytics-body {
+        grid-template-columns: 1fr !important;
+    }
+    .analytics-divider {
+        height: 1px !important;
+        width: 100% !important;
+        margin: 1.5rem 0;
+    }
+}
+
+@media (max-width: 600px) {
+    .digital-id-card, .qr-card, #qrCameraReader {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 auto;
+    }
+    #qrCodeFull canvas, #qrCodePage canvas, #qrCameraReader video {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .scanner-input-wrapper .input-field {
+        font-size: 1.1rem;  
+        padding: 1rem;
+    }
+    .btn-primary, .btn-outline {
+        padding: 0.8rem 1.2rem;
+        font-size: 0.9rem;
+    }
+}

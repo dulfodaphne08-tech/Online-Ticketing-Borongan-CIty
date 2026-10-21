@@ -2610,7 +2610,7 @@ function renderDrivers() {
   const tb = $("driverTable");
   if (!tb) return;
   if (!filtered.length) {
-    tb.innerHTML = '<tr><td colspan="10"><div class="empty-state py-4"><i class="fas fa-user-slash"></i><h3>No drivers</h3></div></td></tr>';
+    tb.innerHTML = '<tr><td colspan="11"><div class="empty-state py-4"><i class="fas fa-user-slash"></i><h3>No drivers</h3></div></td></tr>';
     return;
   }
   
@@ -2620,7 +2620,9 @@ function renderDrivers() {
     const approval = String(d.approvalStatus || 'Active');
     const isPending = approval.toLowerCase() === 'pending';
     
-    const designatedTerminal = d.toda || d.designatedTerminal || d.station || "Not Assigned";
+    // New logic to separate bases
+    const tsBase = d.ticketingBase || d.terminalBase || "Not Assigned";
+    const rsBase = d.receivingBase || "Not Assigned";
 
     return '<tr>' +
       '<td class="py-2"><div class="profile-photo">' +
@@ -2631,7 +2633,8 @@ function renderDrivers() {
       '<td class="py-2 text-sm">' + escapeHtml((d.vehicleType || "N/A") + " - " + (d.plateNumber || "N/A")) + '</td>' +
       '<td class="py-2 text-sm">' + escapeHtml(d.contact || "N/A") + '</td>' +
       '<td class="py-2 text-sm">' + escapeHtml(d.licenseNo || "N/A") + '</td>' +
-      '<td class="py-2 text-sm"><strong>' + escapeHtml(designatedTerminal) + '</strong></td>' +
+      '<td class="py-2 text-sm"><strong>' + escapeHtml(tsBase) + '</strong></td>' + /* NEW COLUMN */
+      '<td class="py-2 text-sm"><strong>' + escapeHtml(rsBase) + '</strong></td>' + /* NEW COLUMN */
       '<td class="py-2"><span class="' + balCls + '">₱' + bal.toFixed(2) + '</span></td>' +
       '<td class="py-2">' + approvalBadge(approval) + '</td>' +
       '<td class="py-2">' +
@@ -2681,6 +2684,11 @@ window.editDriver = function (id) {
   $("dLicenseNo").value = d.licenseNo || "";
   $("dUsername").value = d.username || "";
   $("dPassword").value = "";
+  
+  // New fields population
+  if ($("dTicketingBase")) $("dTicketingBase").value = d.ticketingBase || d.terminalBase || "";
+  if ($("dReceivingBase")) $("dReceivingBase").value = d.receivingBase || "";
+
   const delBtn = $("btnDeleteDriverInModal");
   if (delBtn) delBtn.style.display = "inline-flex";
   openModal("driverModal");
@@ -2791,6 +2799,9 @@ function initDriverForm() {
       licenseNo: $("dLicenseNo").value.trim().toUpperCase(),
       username: $("dUsername").value.trim(),
       password: $("dPassword").value,
+      // Add new fields to payload
+      ticketingBase: $("dTicketingBase")?.value.trim(),
+      receivingBase: $("dReceivingBase")?.value.trim()
     };
     if (!data.fullName || !data.username) { showToast("Fill required fields", "error"); return; }
     if (!id && data.password.length < 8) { showToast("Password must be 8+ characters", "error"); return; }

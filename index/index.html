@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Borongan City Transport Terminal · QR-Based Transport Ticketing and Fee Collection System</title>
     <meta name="description" content="A web-based QR code ticketing system for public utility vehicles in Borongan City — driver registration, QR identification, automatic fee collection, and digital transaction records." />
+    <link rel="icon" type="image/x-icon" href="../favicon.ico" />
+    <link rel="icon" type="image/jpeg" href="../images/borongan-logo.jpg" />
+    <link rel="apple-touch-icon" href="../images/borongan-logo.jpg" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -307,6 +310,113 @@
             width: 18px !important;
         }
     }
+
+    /* =========================================================
+   LANDING PAGE RESPONSIVE FIXES
+   ========================================================= */
+
+/* 1. Navigation Bar (Mobile Hamburger) */
+.gov-nav-toggle {
+    display: none; /* Hidden on Desktop */
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+@media (max-width: 992px) {
+    .gov-nav-inner {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .gov-nav-toggle {
+        display: block;
+        position: absolute;
+        right: 1rem;
+        top: 1rem;
+    }
+    .gov-nav-menu {
+        display: none; /* Hide by default on mobile */
+        flex-direction: column;
+        width: 100%;
+        margin-top: 1rem;
+        background: var(--primary);
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    .gov-nav-menu.open {
+        display: flex; /* Show when toggled */
+    }
+    .gov-nav-item, .gov-nav-login {
+        width: 100%;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .gov-nav-login {
+        margin-top: 1rem;
+        text-align: center;
+        justify-content: center;
+    }
+}
+
+/* 2. Hero Slider */
+@media (max-width: 768px) {
+    .gov-hero-slide-title { font-size: 1.8rem !important; }
+    .gov-hero-slide-desc { font-size: 0.95rem !important; }
+    .gov-hero-slide-actions { flex-direction: column; gap: 1rem; width: 100%; }
+    .gov-hero-slide-actions .gov-btn { width: 100%; justify-content: center; }
+}
+
+/* 3. Grids (About, Components, Notices, Footer) */
+@media (max-width: 1024px) {
+    .gov-about-preview-grid,
+    .gov-components-grid,
+    .gov-notices-grid,
+    .gov-grid-4 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .gov-about-preview-grid,
+    .gov-components-grid,
+    .gov-notices-grid,
+    .gov-grid-4,
+    .gov-grid-2 {
+        grid-template-columns: 1fr !important;
+    }
+    .gov-footer-grid {
+        grid-template-columns: 1fr !important;
+        text-align: center;
+    }
+    .gov-featured-item {
+        flex-direction: column;
+    }
+    .gov-featured-image {
+        width: 100%;
+        height: 200px;
+    }
+    .gov-featured-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .gov-header-inner {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    .gov-header-right {
+        flex-direction: column;
+        width: 100%;
+    }
+    .gov-search {
+        width: 100%;
+    }
+}
     </style>
 </head>
 
@@ -448,10 +558,6 @@
             <button class="gov-hero-dot" data-dot="2" aria-label="Slide 2"></button>
             <button class="gov-hero-dot" data-dot="3" aria-label="Slide 3"></button>
         </div>
-
-        <button class="gov-hero-scroll" id="heroScrollDown" aria-label="Scroll down">
-            <i class="fas fa-arrow-down"></i>
-        </button>
 
          <div class="gov-hero-credit" aria-label="Video credit">
             <i class="fas fa-video"></i>
@@ -1044,6 +1150,12 @@
         });
     });
 })();
+</script>
+
+<script>
+document.getElementById('mobileToggle')?.addEventListener('click', function() {
+    document.getElementById('mainNav')?.classList.toggle('open');
+});
 </script>
 
 </body>

@@ -648,7 +648,8 @@
               <th>Vehicle</th>
               <th>Contact</th>
               <th>License</th>
-              <th>Designated Terminal / TODA</th>
+              <th>Ticketing Base</th> <!-- NEW -->
+              <th>Receiving Base</th> <!-- NEW -->
               <th>Balance</th>
               <th>Approval</th>
               <th>Actions</th>
@@ -1786,6 +1787,20 @@
         <div class="form-group flex-1"><label class="form-label">Plate No.</label><input type="text" id="dPlateNumber" class="input-field"></div>
         <div class="form-group flex-1"><label class="form-label">Username *</label><input type="text" id="dUsername" class="input-field" required></div>
       </div>
+      
+      <!-- NEW FIELDS START -->
+      <div class="flex gap-2">
+        <div class="form-group flex-1">
+            <label class="form-label">Ticketing Base</label>
+            <input type="text" id="dTicketingBase" class="input-field" placeholder="e.g. TS-01">
+        </div>
+        <div class="form-group flex-1">
+            <label class="form-label">Receiving Base</label>
+            <input type="text" id="dReceivingBase" class="input-field" placeholder="e.g. RS-01">
+        </div>
+      </div>
+      <!-- NEW FIELDS END -->
+
       <div class="form-group">
         <label class="form-label">Password</label>
         <input type="password" id="dPassword" class="input-field" placeholder="Min. 8 chars">
